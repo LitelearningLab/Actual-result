@@ -240,6 +240,18 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   filterPaperCreatedDateEnd: Date | null = null;
   editingScheduleId: string | null = null;
   initialSelectedPaperUsers: string[] = [];
+  initialExamDate: string = '';
+  initialPublishedScheduleName: string = '';
+
+  get hasScheduleDetailsChanged(): boolean {
+    if (!this.editingScheduleId) {
+      return true;
+    }
+    const usersChanged = this.hasAssignedUsersChanged;
+    const dateChanged = (this.examDate || '').trim() !== (this.initialExamDate || '').trim();
+    const nameChanged = (this.publishedScheduleName || '').trim() !== (this.initialPublishedScheduleName || '').trim();
+    return usersChanged || dateChanged || nameChanged;
+  }
 
   get hasAssignedUsersChanged(): boolean {
     if (!this.editingScheduleId) {
@@ -1072,6 +1084,40 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         this.selectedQuestionPaperTemplateId = String(queryTemplate);
         this.onQuestionPaperTemplateChange(this.selectedQuestionPaperTemplateId);
       }
+      if (this.editingScheduleId && !this.startDateTime) {
+        this.http.get<any>(`${API_BASE}/get-paper-schedules?schedule_id=${encodeURIComponent(this.editingScheduleId)}`).subscribe({
+          next: (res) => {
+            const item = Array.isArray(res?.data) && res.data.length ? res.data[0] : res?.data || res;
+            if (item) {
+              const isEvaluated = (item.evaluation_status || '').toLowerCase() === 'evaluated' || Number(item.evaluated_count || 0) > 0;
+              if (isEvaluated) {
+                this.readOnly = true;
+              }
+              const rawDate = item.start_time || item.exam_date || item.start || '';
+              if (rawDate && !this.startDateTime) {
+                this.startDateTime = String(rawDate);
+              }
+              if (!this.publishedScheduleName && (item.title || item.scheduler_name || item.schedule_name)) {
+                this.publishedScheduleName = item.title || item.scheduler_name || item.schedule_name;
+              }
+              if (!this.selectedPaperUsers.length && Array.isArray(item.assigned_users)) {
+                this.selectedPaperUsers = item.assigned_users.map((u: any) => String(u.user_id || u.id || u));
+              }
+              if (!this.initialExamDate && this.examDate) {
+                this.initialExamDate = this.examDate;
+              }
+              if (!this.initialPublishedScheduleName && this.publishedScheduleName) {
+                this.initialPublishedScheduleName = (this.publishedScheduleName || '').trim();
+              }
+              if (!this.initialSelectedPaperUsers.length && this.selectedPaperUsers.length) {
+                this.initialSelectedPaperUsers = [...this.selectedPaperUsers].sort();
+              }
+              this.cdr.detectChanges();
+            }
+          },
+          error: () => {}
+        });
+      }
       this.loadCreatedQuestionPapersForDropdown(this.institute || undefined);
     } else {
       // try to auto-select from session user
@@ -1133,7 +1179,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         this.readOnly = true;
       }
       if (this.formMode === 'publish') {
-        this.readOnly = false;
+        const isEvaluated = (e.evaluation_status || '').toLowerCase() === 'evaluated' || Number(e.evaluated_count || 0) > 0;
+        this.readOnly = isEvaluated;
       }
       this.title = e.title || e.name || '';
       this.publishedScheduleName = e.title || e.schedulerName || e.name || '';
@@ -1158,7 +1205,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.durationMinutes = e.duration_mins || e.duration || null;
       this.passMark = e.pass_mark ?? e.passMark ?? null;
       this.numberOfAttempts = e.number_of_attempts ?? e.numberOfAttempts ?? null;
-      this.startDateTime = e.start_time || e.start || '';
+      this.startDateTime = e.start_time || e.exam_date || e.start_date || e.start || '';
       if (e.total_marks !== undefined && e.total_marks !== null) {
         this.totalMarksOverride = Number(e.total_marks);
       } else if (e.totalMarks !== undefined && e.totalMarks !== null) {
@@ -1215,6 +1262,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         .filter((user: any) => !!user.id);
 
       this.initialSelectedPaperUsers = [...this.selectedPaperUsers].sort();
+      this.initialExamDate = this.examDate || '';
+      this.initialPublishedScheduleName = (this.publishedScheduleName || '').trim();
       this.userFiltersApplied = false;
       this.paperUsers = [];
 
@@ -5360,7 +5409,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         if (!item) return;
 
         this.title = item.title || item.name || '';
-        if (!this.scheduleNameManuallyEdited) {
+        if (!this.editingScheduleId && !this.scheduleNameManuallyEdited) {
           const dateTime = this.formatSchedulerDateTime(new Date());
           const paperTitle = (this.title || '').trim();
           this.publishedScheduleName = paperTitle ? `${paperTitle} - ${dateTime}` : dateTime;
@@ -5373,9 +5422,11 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             ? `${Math.floor(mins / 60)} Hour${Math.floor(mins / 60) > 1 ? 's' : ''}${mins % 60 ? ' ' + (mins % 60) + ' Mins' : ''}`
             : `${mins} Mins`;
         }
-        if (item.start_time || item.exam_date || item.start) {
-          const rawDate = item.start_time || item.exam_date || item.start;
-          this.examDate = String(rawDate).split('T')[0];
+        if (!this.editingScheduleId || !this.startDateTime) {
+          if (item.start_time || item.exam_date || item.start) {
+            const rawDate = item.start_time || item.exam_date || item.start;
+            this.examDate = String(rawDate).split('T')[0];
+          }
         }
         if (item.exam_type || item.examType) {
           this.examTypeLabel = item.exam_type || item.examType;
@@ -5507,7 +5558,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.readOnly) return false;
     if (this.editingScheduleId) {
       if (!this.selectedPaperUsers.length) return false;
-      if (!this.hasAssignedUsersChanged) return false;
+      if (!this.hasScheduleDetailsChanged) return false;
       return true;
     }
     if (this.isPublished) return false;
@@ -5545,7 +5596,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.readOnly) return 'Question paper is in read-only mode';
     if (this.editingScheduleId) {
       if (!this.selectedPaperUsers.length) return 'Assign at least one user';
-      if (!this.hasAssignedUsersChanged) return 'No changes made to assigned students';
+      if (!this.hasScheduleDetailsChanged) return 'No changes made to schedule or assigned students';
       return '';
     }
     if (this.isPublished) return 'Question paper is in read-only mode';
@@ -5668,6 +5719,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       pass_mark: this.passMark !== null ? Number(this.passMark) : null,
       number_of_attempts: this.numberOfAttempts !== null ? Number(this.numberOfAttempts) : null,
       start_time: this.startDateTime || null,
+      exam_date: this.examDate || null,
       published: shouldPublish ? 1 : 0,
       departments: Array.isArray(this.selectedDepartments)
         ? this.selectedDepartments.filter((id) => id !== 'ALL')
@@ -5755,7 +5807,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         next: (res) => {
           try {
             const defaultMsg = isEditing
-              ? 'Assigned students updated successfully'
+              ? 'Schedule updated successfully'
               : 'Question paper published successfully';
             const msg = res?.statusMessage || res?.message || defaultMsg;
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
@@ -5851,9 +5903,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   hasUnsavedChanges(): boolean {
     if (this.readOnly || this.isSavedOrSubmitted) return false;
-    // When editing assigned students on a published paper, unsaved changes exist ONLY if students were added or removed
+    // When editing a published schedule, unsaved changes exist if students, date, or title changed
     if (this.editingScheduleId) {
-      return this.hasAssignedUsersChanged;
+      return this.hasScheduleDetailsChanged;
     }
     return this.isDirty;
   }

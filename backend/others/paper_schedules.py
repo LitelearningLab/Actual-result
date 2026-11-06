@@ -12,6 +12,8 @@ from db.models import (
     ExamQuestionMapping,
     Question,
     Option,
+    AnswerSheetPage,
+    Answer,
 )
 from db.db import SQLiteDB
 import sys
@@ -453,6 +455,9 @@ def get_paper_schedules(request, current_user=None):
                         "teams": sched_team_map.get(sid_str, []),
                         "assigned_users": [users_by_id[uid] for uid in sched_user_map.get(sid_str, []) if uid in users_by_id],
                         "assigned_user_ids": sched_user_map.get(sid_str, []),
+                        "start_time": s.start_time.isoformat() if s.start_time else None,
+                        "end_time": s.end_time.isoformat() if s.end_time else None,
+                        "exam_date": s.start_time.isoformat() if s.start_time else None,
                         "published": 1,
                         "is_published": True,
                         "status": "published",
@@ -585,10 +590,98 @@ def get_paper_schedules(request, current_user=None):
                         except Exception:
                             pass
 
+                    # Query all attempts for this schedule and assigned users
+                    sched_id_candidates = [str(s.schedule_id)]
+                    if s.exam_id:
+                        sched_id_candidates.append(str(s.exam_id))
+
+                    all_attempts = (
+                        session.query(Exam_Attempt)
+                        .filter(
+                            func.cast(Exam_Attempt.schedule_id, String).in_(sched_id_candidates),
+                            func.cast(Exam_Attempt.user_id, String).in_(assigned_uids)
+                        )
+                        .order_by(Exam_Attempt.started_date.desc(), Exam_Attempt.submitted_date.desc())
+                        .all()
+                    )
+
+                    user_attempts_map = {}
+                    all_attempt_ids = []
+                    for att in all_attempts:
+                        uid_key = str(att.user_id)
+                        if uid_key not in user_attempts_map:
+                            user_attempts_map[uid_key] = []
+                        user_attempts_map[uid_key].append(att)
+                        all_attempt_ids.append(str(att.attempt_id))
+
+                    # Batch query answer sheet pages count per attempt
+                    pages_count_map = {}
+                    if all_attempt_ids:
+                        try:
+                            p_rows = (
+                                session.query(
+                                    AnswerSheetPage.attempt_id,
+                                    func.count(AnswerSheetPage.page_id)
+                                )
+                                .filter(func.cast(AnswerSheetPage.attempt_id, String).in_(all_attempt_ids))
+                                .group_by(AnswerSheetPage.attempt_id)
+                                .all()
+                            )
+                            pages_count_map = {str(r[0]): int(r[1] or 0) for r in p_rows}
+                        except Exception:
+                            pages_count_map = {}
+
+                    # Batch query scores from Answers table
+                    ans_scores_map = {}
+                    if all_attempt_ids:
+                        try:
+                            ans_rows = (
+                                session.query(
+                                    Answer.attempt_id,
+                                    func.sum(Answer.marks_awarded)
+                                )
+                                .filter(func.cast(Answer.attempt_id, String).in_(all_attempt_ids))
+                                .group_by(Answer.attempt_id)
+                                .all()
+                            )
+                            ans_scores_map = {str(r[0]): float(r[1]) for r in ans_rows if r[1] is not None}
+                        except Exception:
+                            ans_scores_map = {}
+
                     for u in u_objs:
+                        u_uid_str = str(u.user_id)
+                        u_att_list = user_attempts_map.get(u_uid_str, [])
+                        u_pages_count = 0
+                        u_status = "Not Evaluated"
+                        u_score = None
+                        u_pct = None
+                        tgt_attempt_id = None
+
+                        if u_att_list:
+                            target_att = u_att_list[0]
+                            tgt_attempt_id = str(target_att.attempt_id)
+                            u_pages_count = sum(pages_count_map.get(str(a.attempt_id), 0) for a in u_att_list)
+
+                            if tgt_attempt_id in ans_scores_map:
+                                u_score = round(ans_scores_map[tgt_attempt_id], 1)
+                            elif target_att.score is not None:
+                                u_score = round(float(target_att.score), 1)
+
+                            att_status = (target_att.status or "").lower()
+                            if att_status == "evaluated":
+                                u_status = "AI Evaluated"
+                            elif u_pages_count > 0 or att_status in ("in_progress", "submitted"):
+                                u_status = "AI Evaluated" if u_score is not None else "Need to Check"
+                            else:
+                                u_status = "Not Evaluated"
+
+                            tot_marks = s.total_marks or (master.total_marks if master else 0)
+                            if u_score is not None and tot_marks and float(tot_marks) > 0:
+                                u_pct = round((u_score / float(tot_marks)) * 100, 1)
+
                         assigned_users.append({
-                            "user_id": str(u.user_id),
-                            "id": str(u.user_id),
+                            "user_id": u_uid_str,
+                            "id": u_uid_str,
                             "name": u.full_name or getattr(u, "user_name", "") or u.email or "Student",
                             "full_name": u.full_name or getattr(u, "user_name", "") or u.email or "Student",
                             "roll_no": getattr(u, "roll_no", None) or getattr(u, "user_name", "") or "",
@@ -597,6 +690,13 @@ def get_paper_schedules(request, current_user=None):
                             "department_name": d_map.get(str(getattr(u, "department_id", "")), ""),
                             "team_id": getattr(u, "team_id", "") or "",
                             "team_name": t_map.get(str(getattr(u, "team_id", "")), ""),
+                            "pages_count": u_pages_count,
+                            "evaluation_status": u_status,
+                            "status": u_status,
+                            "score": u_score,
+                            "marks_awarded": u_score,
+                            "percentage": u_pct,
+                            "attempt_id": tgt_attempt_id,
                         })
                 except Exception:
                     pass
@@ -778,10 +878,27 @@ def update_paper_schedule(request, current_user=None):
                     )
                 )
 
+        # Update schedule details if provided
+        if data.get("title") or data.get("scheduler_name"):
+            new_title = (data.get("scheduler_name") or data.get("title") or "").strip()
+            if new_title:
+                schedule.title = new_title
+        raw_start = data.get("start_time") or data.get("start_date") or data.get("exam_date")
+        if raw_start:
+            try:
+                s_str = str(raw_start).strip().replace("Z", "+00:00")
+                if len(s_str) == 10 and "-" in s_str:
+                    s_str += "T09:00:00"
+                schedule.start_time = datetime.datetime.fromisoformat(s_str)
+                if schedule.duration_mins:
+                    schedule.end_time = schedule.start_time + datetime.timedelta(minutes=int(schedule.duration_mins))
+            except Exception:
+                pass
+
         schedule.updated_date = datetime.datetime.utcnow()
         session.commit()
         session.close()
-        return {"status": True, "statusMessage": "Assigned students updated successfully"}, 200
+        return {"status": True, "statusMessage": "Schedule updated successfully"}, 200
 
     except Exception as e:
         session.rollback()

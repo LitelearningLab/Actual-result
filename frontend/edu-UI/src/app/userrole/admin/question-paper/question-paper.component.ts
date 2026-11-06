@@ -2957,6 +2957,12 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   editPublishedSchedule(e: any) {
+    if (!this.canEditPublished(e)) {
+      try {
+        notify('Cannot edit schedule because evaluation has already started.', 'error');
+      } catch (_) {}
+      return;
+    }
     const scheduleId = e?.schedule_id || e?.test_id || e?.id;
     const templateId = e?.master_exam_id || e?.template_id || e?.exam_id;
 
@@ -2965,6 +2971,8 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       schedule_id: scheduleId,
       template_id: templateId,
       schedulerName: e?.scheduler_name || e?.schedule_name || e?.title || '',
+      start_time: e?.start_time || e?.exam_date || e?.start || '',
+      exam_date: e?.exam_date || e?.start_time || e?.start || '',
       assigned_users: e?.assigned_users || [],
       assigned_user_ids: Array.isArray(e?.assigned_user_ids) && e.assigned_user_ids.length
         ? e.assigned_user_ids

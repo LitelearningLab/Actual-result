@@ -770,7 +770,7 @@
                     <!-- Publish Question Paper (Publish mode only) -->
                     <button class="btn-sidebar-publish" type="button" (click)="save(true)" *ngIf="formMode === 'publish'" [disabled]="!canPublish" [class.disabled]="!canPublish" [matTooltip]="publishDisabledReason">
                         <mat-icon>{{ editingScheduleId ? 'save' : 'publish' }}</mat-icon>
-                        <span>{{ editingScheduleId ? 'Update Assigned Students' : 'Publish Question Paper' }}</span>
+                        <span>{{ editingScheduleId ? 'Update Schedule' : 'Publish Question Paper' }}</span>
                     </button>
 
                     <!-- Create Question Paper (Create mode only -> Finalized: isDraft = false) -->
@@ -1203,7 +1203,7 @@
             </div>
             <h2 class="dialog-title">Unsaved Changes</h2>
             <p class="dialog-message">
-                You have unsaved changes on this question paper. If you leave without clicking <strong>{{ editingScheduleId ? 'Update Assigned Students' : 'Update Draft' }}</strong>, your changes will be discarded.
+                You have unsaved changes on this question paper. If you leave without clicking <strong>{{ editingScheduleId ? 'Update Schedule' : 'Update Draft' }}</strong>, your changes will be discarded.
                 <br><br>
                 Do you want to discard your changes and leave?
             </p>
