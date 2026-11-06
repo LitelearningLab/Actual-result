@@ -1,4 +1,14 @@
 # Changelog
+## [2.3.2] - 2026-11-06
+
+### Features & Enhancements
+- **Paper Schedules Management**:
+  - Enhanced backend schedule handling and query endpoints in `paper_schedules.py`.
+- **Question Paper Creation**:
+  - Updated question paper creation UI (`create-question-paper.component`) with reactive validation and schedule integrations.
+  - Refined paper listing and schedule filters in `question-paper.component.ts`.
+
+---
 ## [2.3.1] - 2026-11-06
 
 ### Features / Fixes
