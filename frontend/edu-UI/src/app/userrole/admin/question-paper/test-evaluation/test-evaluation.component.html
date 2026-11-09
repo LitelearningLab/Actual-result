@@ -815,7 +815,10 @@
                     <!-- Answer Sheet Column -->
                     <td class="col-pages">
                       <div>{{ s.pagesInfo }}</div>
-                      <div *ngIf="s.missingPagesWarning" class="warning-subtext">
+                      <div *ngIf="s.isRemoving" class="row-remove-progress-bar">
+                        <div class="remove-progress-fill"></div>
+                      </div>
+                      <div *ngIf="s.missingPagesWarning && !s.isRemoving" class="warning-subtext">
                         {{ s.missingPagesWarning }}
                       </div>
                     </td>
@@ -823,33 +826,35 @@
                     <!-- Evaluation Status Column -->
                     <td class="col-status">
                       <span class="status-pill" [ngClass]="{
-                      'pill-manual-review': s.status === 'Manual Reviewed',
-                      'pill-ai-evaluated': s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated',
-                      'pill-need-check': s.status === 'Need to Check',
-                      'pill-not-evaluated': s.status === 'Not Evaluated',
-                      'pill-evaluating': s.status === 'Evaluating...',
-                      'pill-failed': s.status === 'Failed'
+                      'pill-manual-review': s.status === 'Manual Reviewed' && !s.isRemoving,
+                      'pill-ai-evaluated': (s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated') && !s.isRemoving,
+                      'pill-need-check': s.status === 'Need to Check' && !s.isRemoving,
+                      'pill-not-evaluated': s.status === 'Not Evaluated' && !s.isRemoving,
+                      'pill-evaluating': s.status === 'Evaluating...' && !s.isRemoving,
+                      'pill-removing': s.isRemoving,
+                      'pill-failed': s.status === 'Failed' && !s.isRemoving
                     }">
-                        <mat-icon class="mini-spin-icon" *ngIf="s.status === 'Evaluating...'">sync</mat-icon>
-                        <span class="status-dot" *ngIf="s.status !== 'Evaluating...'">●</span> {{ s.status ===
-                        'evaluated' || s.status === 'Completed' ? 'AI Evaluated' : s.status }}
+                        <mat-icon class="mini-spin-icon" *ngIf="s.status === 'Evaluating...' || s.isRemoving">sync</mat-icon>
+                        <span class="status-dot" *ngIf="s.status !== 'Evaluating...' && !s.isRemoving">●</span> {{ s.isRemoving ? 'Removing...' : (s.status ===
+                        'evaluated' || s.status === 'Completed' ? 'AI Evaluated' : s.status) }}
                       </span>
                     </td>
 
                     <!-- Marks Column -->
                     <td class="col-marks">
                       <span [ngClass]="{
-                      'marks-bold': s.marks !== 'Not marked' && !s.marks.includes('suggests'),
-                      'marks-ai': s.marks.includes('suggests'),
-                      'marks-muted': s.marks === 'Not marked'
+                      'marks-bold': s.marks !== 'Not marked' && !s.marks.includes('suggests') && !s.isRemoving,
+                      'marks-ai': s.marks.includes('suggests') && !s.isRemoving,
+                      'marks-muted': s.marks === 'Not marked' || s.isRemoving
                     }">
-                        {{ s.marks }}
+                        {{ s.isRemoving ? 'Removing...' : s.marks }}
                       </span>
                     </td>
 
                     <!-- Scan Column -->
                     <td class="col-icon text-center">
                       <button type="button" class="icon-btn-square" matTooltip="Scan answer sheet"
+                        [disabled]="s.isRemoving"
                         (click)="openScanModal(s)">
                         <mat-icon>photo_camera</mat-icon>
                       </button>
@@ -858,6 +863,7 @@
                     <!-- Attach Column -->
                     <td class="col-icon text-center">
                       <button type="button" class="icon-btn-square" matTooltip="Attach answer sheet"
+                        [disabled]="s.isRemoving"
                         (click)="onAttachClick(s)">
                         <mat-icon>attach_file</mat-icon>
                       </button>
@@ -865,13 +871,18 @@
 
                     <!-- Action Column -->
                     <td class="col-action text-center">
-                      <button type="button" *ngIf="s.status === 'Evaluating...'" class="btn-stop-eval"
+                      <button type="button" *ngIf="s.isRemoving" class="btn-removing" disabled>
+                        <mat-icon class="mini-spin-icon">sync</mat-icon>
+                        <span>Removing...</span>
+                      </button>
+
+                      <button type="button" *ngIf="!s.isRemoving && s.status === 'Evaluating...'" class="btn-stop-eval"
                         (click)="stopStudentEvaluation(s, $event)" matTooltip="Stop evaluation">
                         <mat-icon class="btn-stop-icon">stop</mat-icon>
                         <span>Stop</span>
                       </button>
 
-                      <button type="button" *ngIf="s.status !== 'Evaluating...'" [ngClass]="s.actionClass"
+                      <button type="button" *ngIf="!s.isRemoving && s.status !== 'Evaluating...'" [ngClass]="s.actionClass"
                         (click)="openStudentEvaluation(s)">
                         {{ s.actionText }}
                       </button>
@@ -1037,49 +1048,64 @@
                   </td>
                   <td class="col-pages">
                     <div>{{ s.pagesInfo }}</div>
-                    <div *ngIf="s.missingPagesWarning" class="warning-subtext">
+                    <div *ngIf="s.isRemoving" class="row-remove-progress-bar">
+                      <div class="remove-progress-fill"></div>
+                    </div>
+                    <div *ngIf="s.missingPagesWarning && !s.isRemoving" class="warning-subtext">
                       {{ s.missingPagesWarning }}
                     </div>
                   </td>
                   <td class="col-status">
                     <span class="status-pill" [ngClass]="{
-                    'pill-manual-review': s.status === 'Manual Reviewed',
-                    'pill-ai-evaluated': s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated',
-                    'pill-need-check': s.status === 'Need to Check',
-                    'pill-not-evaluated': s.status === 'Not Evaluated'
+                    'pill-manual-review': s.status === 'Manual Reviewed' && !s.isRemoving,
+                    'pill-ai-evaluated': (s.status === 'AI Evaluated' || s.status === 'Completed' || s.status === 'evaluated') && !s.isRemoving,
+                    'pill-need-check': s.status === 'Need to Check' && !s.isRemoving,
+                    'pill-not-evaluated': s.status === 'Not Evaluated' && !s.isRemoving,
+                    'pill-evaluating': s.status === 'Evaluating...' && !s.isRemoving,
+                    'pill-removing': s.isRemoving,
+                    'pill-failed': s.status === 'Failed' && !s.isRemoving
                   }">
-                      <span class="status-dot">●</span> {{ s.status === 'evaluated' || s.status === 'Completed' ? 'AI
-                      Evaluated' : s.status }}
+                      <mat-icon class="mini-spin-icon" *ngIf="s.status === 'Evaluating...' || s.isRemoving">sync</mat-icon>
+                      <span class="status-dot" *ngIf="s.status !== 'Evaluating...' && !s.isRemoving">●</span> {{ s.isRemoving ? 'Removing...' : (s.status === 'evaluated' || s.status === 'Completed' ? 'AI
+                      Evaluated' : s.status) }}
                     </span>
                   </td>
                   <td class="col-marks">
                     <span [ngClass]="{
-                    'marks-bold': s.marks !== 'Not marked' && !s.marks.includes('suggests'),
-                    'marks-ai': s.marks.includes('suggests'),
-                    'marks-muted': s.marks === 'Not marked'
+                    'marks-bold': s.marks !== 'Not marked' && !s.marks.includes('suggests') && !s.isRemoving,
+                    'marks-ai': s.marks.includes('suggests') && !s.isRemoving,
+                    'marks-muted': s.marks === 'Not marked' || s.isRemoving
                   }">
-                      {{ s.marks }}
+                      {{ s.isRemoving ? 'Removing...' : s.marks }}
                     </span>
                   </td>
                   <td class="col-icon text-center">
                     <button type="button" class="icon-btn-square" matTooltip="Scan answer sheet"
+                      [disabled]="s.isRemoving"
                       (click)="openScanModal(s)">
                       <mat-icon>photo_camera</mat-icon>
                     </button>
                   </td>
                   <td class="col-icon text-center">
                     <button type="button" class="icon-btn-square" matTooltip="Attach answer sheet"
+                      [disabled]="s.isRemoving"
                       (click)="onAttachClick(s)">
                       <mat-icon>attach_file</mat-icon>
                     </button>
                   </td>
                   <td class="col-action text-center">
-                    <button type="button" *ngIf="s.status === 'Evaluating...'" class="btn-stop-eval"
+                    <button type="button" *ngIf="s.isRemoving" class="btn-removing" disabled>
+                      <mat-icon class="mini-spin-icon">sync</mat-icon>
+                      <span>Removing...</span>
+                    </button>
+
+                    <button type="button" *ngIf="!s.isRemoving && s.status === 'Evaluating...'" class="btn-stop-eval"
                       (click)="stopStudentEvaluation(s, $event)" matTooltip="Stop evaluation">
                       <mat-icon class="btn-stop-icon">stop</mat-icon>
                       <span>Stop</span>
                     </button>
-                    <button type="button" *ngIf="s.status !== 'Evaluating...'" [ngClass]="s.actionClass"
+
+                    <button type="button" *ngIf="!s.isRemoving && s.status !== 'Evaluating...'" [ngClass]="s.actionClass"
                       (click)="openStudentEvaluation(s)">
                       {{ s.actionText }}
                     </button>

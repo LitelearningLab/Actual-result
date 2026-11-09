@@ -58,6 +58,7 @@ export interface StudentEvaluation {
   subPdfFile?: string;
   splitSegment?: MultiStudentSplitSegment;
   splitBatchId?: string;
+  isRemoving?: boolean;
 }
 
 export interface MultiStudentSplitSegment {
@@ -1419,16 +1420,52 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Call backend first to guarantee database deletion before updating UI state
+    // 1. Immediately find the student in the table and set removing state
+    const targetInList = this.students.find(s => String(s.user_id) === String(userId));
+    if (targetInList) {
+      targetInList.isRemoving = true;
+      targetInList.actionText = 'Removing...';
+    }
+
+    // 2. IMMEDIATELY close the popup modal so it does NOT stay stuck on screen
+    this.closeConfirmRemoveModal(true);
+
+    // Clear stored student session keys so refreshData / onTestChange does NOT auto-redirect back to evaluation
+    const storedUser = sessionStorage.getItem('test_eval_user_id');
+    if (!storedUser || String(storedUser) === String(userId) || this.currentView === 'evaluate') {
+      sessionStorage.removeItem('test_eval_user_id');
+      sessionStorage.removeItem('test_eval_student');
+      sessionStorage.removeItem('test_eval_meta');
+    }
+
+    // 3. If currently in the split-evaluation view, transition back to table view immediately
+    if (this.currentView === 'evaluate') {
+      this.currentView = 'list';
+      this.evaluatingStudent = null;
+      this.evaluationDetails = null;
+      this.pdfDoc = null;
+      this.currentLoadedPdfUrl = '';
+      if (this.pdfRenderTask) {
+        try {
+          this.pdfRenderTask.cancel();
+        } catch { }
+          this.pdfRenderTask = null;
+      }
+    }
+
+    // 4. Send background deletion request to backend
     this.http.post<any>(`${API_BASE}/test-evaluation/remove-answer-sheet`, {
       exam_id: examId,
       user_id: userId
     }).subscribe({
       next: (res) => {
         this.isRemovingSheet = false;
+        if (targetInList) {
+          targetInList.isRemoving = false;
+        }
+
         if (res && res.status) {
           // Successfully deleted from database: now update UI state to match DB
-          const targetInList = this.students.find(s => String(s.user_id) === String(userId));
           if (targetInList) {
             targetInList.isUploaded = false;
             targetInList.rawFile = undefined;
@@ -1465,22 +1502,6 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
           this.recalculateKpiTotals();
           this.filterStudents();
-
-          this.closeConfirmRemoveModal(true);
-          if (this.currentView === 'evaluate') {
-            this.currentView = 'list';
-            this.evaluatingStudent = null;
-            this.evaluationDetails = null;
-            this.pdfDoc = null;
-            this.currentLoadedPdfUrl = '';
-            if (this.pdfRenderTask) {
-              try {
-                this.pdfRenderTask.cancel();
-              } catch { }
-              this.pdfRenderTask = null;
-            }
-          }
-
           notify(`Answer sheet and evaluation removed successfully for ${student.name}`, 'info');
           this.refreshData();
         } else {
@@ -1489,6 +1510,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.isRemovingSheet = false;
+        if (targetInList) {
+          targetInList.isRemoving = false;
+        }
         console.error('Error removing answer sheet from server:', err);
         notify(err?.error?.statusMessage || 'Failed to remove answer sheet from server. Database was not changed.', 'error');
       }
