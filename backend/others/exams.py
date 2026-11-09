@@ -6694,92 +6694,88 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                 except Exception as ex:
                     print(f"[split_multi_student_pdf] Future error: {ex}")
 
-        # Group pages into segments
-        curr_segment = None
+        # Group all pages across the PDF by student (Merges multi-page papers for each student)
+        student_page_groups = {}  # key -> dict with student info and list of page indices
+        unmatched_pages = []
+        last_known_key = None
+
         for p_idx in range(total_pages):
             pnum = p_idx + 1
             insp = inspections_by_pnum.get(pnum, {})
             uid = insp.get("user_id")
             roll = str(insp.get("roll_no") or "").strip().lower()
-            name = str(insp.get("student_name") or "").strip().lower()
+            name = str(insp.get("student_name") or "").strip()
             is_m = bool(insp.get("matched"))
 
-            # Check if this page belongs to the same student as current active segment
-            same_student = False
-            if curr_segment is not None:
-                c_uid = curr_segment.get("user_id")
-                c_roll = str(curr_segment.get("roll_no") or "").strip().lower()
-                c_name = str(curr_segment.get("student_name") or "").strip().lower()
-                if uid and c_uid and str(uid) == str(c_uid):
-                    same_student = True
-                elif roll and c_roll and roll == c_roll:
-                    same_student = True
-                elif name and c_name and name == c_name:
-                    same_student = True
+            # Unique key per student: user_id > roll_no > name
+            st_key = str(uid) if uid else (roll if roll else (name.lower() if name else None))
 
-            # Decide if a new segment starts:
-            # - First page always starts segment 0
-            # - An identified student different from the current segment starts a new segment
-            # - An explicit is_start marker from AI starts a new segment unless confirmed same student
-            is_start = (pnum == 1) or (is_m and not same_student) or (bool(insp.get("is_start")) and not same_student)
-
-            if is_start:
-                if curr_segment is not None:
-                    curr_segment["end_page"] = pnum - 1
-                    curr_segment["total_pages"] = curr_segment["end_page"] - curr_segment["start_page"] + 1
-                    segments.append(curr_segment)
-
-                curr_segment = {
-                    "segment_index": len(segments),
-                    "start_page": pnum,
-                    "end_page": pnum,
-                    "total_pages": 1,
-                    "user_id": insp.get("user_id"),
-                    "student_name": insp.get("student_name") or f"Student (Page {pnum})",
-                    "roll_no": insp.get("roll_no") or "",
-                    "is_matched": is_m,
-                    "confidence": insp.get("confidence", 90 if is_m else 0),
-                    "matched_by": insp.get("matched_by", f"Detected on Page {pnum}"),
-                    "thumbnail_url": page_data[p_idx]["thumb_b64"]
-                }
-            else:
-                if curr_segment is not None:
-                    curr_segment["end_page"] = pnum
-                    curr_segment["total_pages"] = curr_segment["end_page"] - curr_segment["start_page"] + 1
-                else:
-                    curr_segment = {
-                        "segment_index": 0,
-                        "start_page": pnum,
-                        "end_page": pnum,
-                        "total_pages": 1,
-                        "user_id": None,
-                        "student_name": f"Student (Page {pnum})",
-                        "roll_no": "",
-                        "is_matched": False,
-                        "confidence": 0,
-                        "matched_by": "Unmatched",
-                        "thumbnail_url": page_data[p_idx]["thumb_b64"]
+            if st_key:
+                last_known_key = st_key
+                if st_key not in student_page_groups:
+                    student_page_groups[st_key] = {
+                        "user_id": uid,
+                        "student_name": name or f"Student (Roll {roll})",
+                        "roll_no": insp.get("roll_no") or "",
+                        "is_matched": is_m,
+                        "confidence": insp.get("confidence", 90 if is_m else 0),
+                        "matched_by": insp.get("matched_by", f"Detected on Page {pnum}"),
+                        "pages": [p_idx],
                     }
+                else:
+                    # Append this page to this student's list of pages (e.g. Ben's page 2)
+                    student_page_groups[st_key]["pages"].append(p_idx)
+            else:
+                # If page has no header, attach it to the preceding student's paper
+                if last_known_key and last_known_key in student_page_groups:
+                    student_page_groups[last_known_key]["pages"].append(p_idx)
+                else:
+                    unmatched_pages.append(p_idx)
 
-        if curr_segment is not None:
-            curr_segment["end_page"] = total_pages
-            curr_segment["total_pages"] = curr_segment["end_page"] - curr_segment["start_page"] + 1
-            segments.append(curr_segment)
+        # Handle any completely unmatched pages
+        for u_idx, u_pidx in enumerate(unmatched_pages):
+            u_pnum = u_pidx + 1
+            u_key = f"unmatched_{u_pnum}"
+            student_page_groups[u_key] = {
+                "user_id": None,
+                "student_name": f"Student (Page {u_pnum})",
+                "roll_no": "",
+                "is_matched": False,
+                "confidence": 0,
+                "matched_by": "Unmatched",
+                "pages": [u_pidx],
+            }
 
-    # 5. Extract and save sub-PDFs for each segment
-    for seg in segments:
-        s_idx = seg["segment_index"]
-        from_p = seg["start_page"] - 1
-        to_p = seg["end_page"] - 1
-        try:
-            sub_doc = fitz.open()
-            sub_doc.insert_pdf(doc, from_page=from_p, to_page=to_p)
+        # 5. Extract and save sub-PDFs for each unique student combining ALL their pages
+        segments = []
+        for s_idx, (st_key, s_data) in enumerate(student_page_groups.items()):
+            p_list = sorted(s_data["pages"])
             sub_pdf_filename = f"segment_{s_idx}.pdf"
-            sub_doc.save(os.path.join(temp_dir, sub_pdf_filename))
-            sub_doc.close()
-            seg["sub_pdf_file"] = sub_pdf_filename
-        except Exception as split_err:
-            print(f"[split_multi_student_pdf] Error splitting segment {s_idx}: {split_err}")
+            try:
+                sub_doc = fitz.open()
+                for p_i in p_list:
+                    sub_doc.insert_pdf(doc, from_page=p_i, to_page=p_i)
+                sub_doc.save(os.path.join(temp_dir, sub_pdf_filename))
+                sub_doc.close()
+            except Exception as split_err:
+                print(f"[split_multi_student_pdf] Error splitting segment {s_idx}: {split_err}")
+
+            first_p = p_list[0] + 1
+            last_p = p_list[-1] + 1
+            segments.append({
+                "segment_index": s_idx,
+                "start_page": first_p,
+                "end_page": last_p,
+                "total_pages": len(p_list),  # e.g. 2 pages for Ben
+                "user_id": s_data["user_id"],
+                "student_name": s_data["student_name"],
+                "roll_no": s_data["roll_no"],
+                "is_matched": s_data["is_matched"],
+                "confidence": s_data["confidence"],
+                "matched_by": s_data["matched_by"],
+                "sub_pdf_file": sub_pdf_filename,
+                "thumbnail_url": page_data[p_list[0]]["thumb_b64"],
+            })
 
     doc.close()
 
