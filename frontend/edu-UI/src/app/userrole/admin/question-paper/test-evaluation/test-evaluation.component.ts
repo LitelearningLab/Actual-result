@@ -85,6 +85,25 @@ export interface MultiStudentSplitBatch {
   segments: MultiStudentSplitSegment[];
 }
 
+export interface StudentLiveProgress {
+  userId: string;
+  studentName: string;
+  rollNo: string;
+  status: 'Waiting' | 'Evaluating' | 'Completed' | 'Failed';
+  statusPhase: string;
+  totalQuestions: number;
+  completedQuestions: number;
+  failedQuestions?: number;
+  progressPercent: number;
+  isExpanded: boolean;
+  questions: Array<{
+    questionId?: string;
+    number: number | string;
+    status: 'Waiting' | 'Evaluating' | 'Evaluated' | 'Failed';
+    marks?: string | number;
+  }>;
+}
+
 export interface BulkFileItem {
   id: number;
   fileName: string;
@@ -324,6 +343,17 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     percentage: 0,
     message: ''
   };
+  isBulkDetailsExpanded: boolean = false;
+  studentLiveList: StudentLiveProgress[] = [];
+
+  toggleLiveDetails(): void {
+    this.isBulkDetailsExpanded = !this.isBulkDetailsExpanded;
+  }
+
+  toggleStudentQuestions(st: StudentLiveProgress): void {
+    st.isExpanded = !st.isExpanded;
+  }
+
   private bulkEvalEventSource?: EventSource;
 
   constructor(
@@ -395,6 +425,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.closeAnswerSheetPreview();
     this.stopCameraStream();
+    if (this.pdfDoc) {
+      try {
+        this.pdfDoc.destroy();
+      } catch { }
+      this.pdfDoc = null;
+    }
     if (this.bulkEvalEventSource) {
       this.bulkEvalEventSource.close();
       this.bulkEvalEventSource = undefined;
@@ -3435,6 +3471,32 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.bulkProgress.failed = data.failed || 0;
         this.bulkProgress.percentage = data.percentage || 0;
         if (data.students && Array.isArray(data.students)) {
+          this.studentLiveList = data.students.map((stData: any) => {
+            const matchingStudent = this.students.find((s) => String(s.user_id) === String(stData.user_id));
+            const rollNo = stData.roll_no || matchingStudent?.rollNo || '';
+            const totalQ = stData.total_questions || (stData.questions ? stData.questions.length : 1);
+            const compQ = stData.completed_questions || (stData.status === 'completed' ? totalQ : 0);
+            const percent = totalQ > 0 ? Math.round((compQ / totalQ) * 100) : 0;
+            return {
+              userId: String(stData.user_id),
+              studentName: stData.student_name || matchingStudent?.name || 'Student',
+              rollNo: rollNo,
+              status: stData.status === 'completed' ? 'Completed' : (stData.status === 'evaluating' ? 'Evaluating' : (stData.status === 'failed' ? 'Failed' : 'Waiting')),
+              statusPhase: stData.status_phase || (stData.status === 'completed' ? 'Completed' : (stData.status === 'evaluating' ? 'AI Evaluating – All Questions' : 'Waiting in queue')),
+              totalQuestions: totalQ,
+              completedQuestions: compQ,
+              failedQuestions: stData.failed_questions || 0,
+              progressPercent: percent,
+              isExpanded: false,
+              questions: Array.isArray(stData.questions) ? stData.questions.map((q: any) => ({
+                questionId: q.question_id ? String(q.question_id) : undefined,
+                number: q.number,
+                status: q.status || 'Waiting',
+                marks: q.marks
+              })) : []
+            };
+          });
+
           data.students.forEach((stData: any) => {
             if (this.stoppedStudentIds.has(String(stData.user_id))) {
               return;
@@ -3479,10 +3541,97 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           student.actionText = 'Evaluating...';
           student.actionClass = 'btn-evaluating-pulse';
         }
+        const liveTarget = this.studentLiveList.find((s) => String(s.userId) === String(data.user_id));
+        if (liveTarget) {
+          liveTarget.status = 'Evaluating';
+          liveTarget.statusPhase = data.status_phase || 'AI Evaluating – All Questions';
+          if (Array.isArray(data.questions) && data.questions.length > 0) {
+            liveTarget.questions = data.questions.map((q: any) => ({
+              questionId: q.question_id ? String(q.question_id) : undefined,
+              number: q.number,
+              status: q.status || 'Evaluating',
+              marks: q.marks
+            }));
+            liveTarget.totalQuestions = data.questions.length;
+          } else {
+            liveTarget.questions.forEach((q) => q.status = 'Evaluating');
+          }
+        }
         this.bulkProgress.message = data.message || `Evaluating ${data.student_name}...`;
         this.cdr.detectChanges();
       } catch (err) {
         console.warn('Error parsing sheet_started:', err);
+      }
+    });
+
+    this.bulkEvalEventSource.addEventListener('question_saved', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        const liveTarget = this.studentLiveList.find((s) => String(s.userId) === String(data.user_id));
+        if (liveTarget) {
+          // Match by question_id if available and matched, else match by question number
+          let targetQ: any = undefined;
+          if (data.question_id) {
+            targetQ = liveTarget.questions.find((q) => q.questionId && String(q.questionId) === String(data.question_id));
+          }
+          if (!targetQ && data.question_number !== undefined) {
+            targetQ = liveTarget.questions.find((q) => String(q.number) === String(data.question_number));
+          }
+          if (targetQ) {
+            targetQ.status = data.status === 'Failed' ? 'Failed' : 'Evaluated';
+            targetQ.marks = data.marks;
+            if (data.question_id) {
+              targetQ.questionId = String(data.question_id);
+            }
+          }
+          if (data.completed_questions !== undefined) {
+            liveTarget.completedQuestions = data.completed_questions;
+          }
+          if (data.failed_questions !== undefined) {
+            liveTarget.failedQuestions = data.failed_questions;
+          }
+          if (liveTarget.totalQuestions > 0) {
+            liveTarget.progressPercent = Math.min(
+              100,
+              Math.round((liveTarget.completedQuestions / liveTarget.totalQuestions) * 100)
+            );
+          }
+          if (data.status === 'Failed') {
+            liveTarget.statusPhase = `Error saving Q${data.question_number}`;
+          } else if (liveTarget.completedQuestions >= liveTarget.totalQuestions) {
+            liveTarget.statusPhase = 'Completed';
+          } else {
+            liveTarget.statusPhase = `Saved Q${data.question_number} (${liveTarget.completedQuestions}/${liveTarget.totalQuestions})`;
+          }
+          this.cdr.detectChanges();
+        }
+      } catch (err) {
+        console.warn('Error parsing question_saved event:', err);
+      }
+    });
+
+    this.bulkEvalEventSource.addEventListener('questions_committed', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        const liveTarget = this.studentLiveList.find((s) => String(s.userId) === String(data.user_id));
+        if (liveTarget) {
+          liveTarget.status = 'Completed';
+          liveTarget.statusPhase = 'Completed';
+          if (Array.isArray(data.questions) && data.questions.length > 0) {
+            liveTarget.questions = data.questions.map((q: any) => ({
+              questionId: q.question_id ? String(q.question_id) : undefined,
+              number: q.number,
+              status: 'Evaluated',
+              marks: q.marks
+            }));
+            liveTarget.completedQuestions = data.questions.length;
+            liveTarget.totalQuestions = data.questions.length;
+            liveTarget.progressPercent = 100;
+          }
+        }
+        this.cdr.detectChanges();
+      } catch (err) {
+        console.warn('Error parsing questions_committed:', err);
       }
     });
 
@@ -3491,6 +3640,23 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         const data = JSON.parse(e.data);
         if (this.stoppedStudentIds.has(String(data.user_id))) {
           return;
+        }
+        const liveTarget = this.studentLiveList.find((s) => String(s.userId) === String(data.user_id));
+        if (liveTarget) {
+          liveTarget.status = 'Completed';
+          liveTarget.statusPhase = 'Completed';
+          liveTarget.completedQuestions = liveTarget.totalQuestions;
+          liveTarget.progressPercent = 100;
+          if (Array.isArray(data.questions) && data.questions.length > 0) {
+            liveTarget.questions = data.questions.map((q: any) => ({
+              questionId: q.question_id ? String(q.question_id) : undefined,
+              number: q.number,
+              status: 'Evaluated',
+              marks: q.marks
+            }));
+          } else {
+            liveTarget.questions.forEach((q) => q.status = 'Evaluated');
+          }
         }
         const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
         if (student) {
@@ -3548,6 +3714,16 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           student.actionText = 'Retry';
           student.actionClass = 'btn-retry-danger';
         }
+        const liveTarget = this.studentLiveList.find((s) => String(s.userId) === String(data.user_id));
+        if (liveTarget) {
+          liveTarget.status = 'Failed';
+          liveTarget.statusPhase = 'Evaluation failed';
+          liveTarget.questions.forEach((q) => {
+            if (q.status !== 'Evaluated') {
+              q.status = 'Failed';
+            }
+          });
+        }
         this.bulkProgress.completed = data.completed;
         this.bulkProgress.failed = data.failed || 1;
         this.bulkProgress.percentage = data.percentage;
@@ -3568,6 +3744,15 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         sessionStorage.removeItem('activeBulkJobId');
         this.bulkProgress.percentage = 100;
         this.bulkProgress.message = data.message || 'All evaluations complete.';
+        this.studentLiveList.forEach((st) => {
+          if (st.status === 'Evaluating') {
+            st.status = 'Completed';
+            st.statusPhase = 'Completed';
+            st.completedQuestions = st.totalQuestions;
+            st.progressPercent = 100;
+            st.questions.forEach((q) => (q.status = 'Evaluated'));
+          }
+        });
         notify(data.message || `Evaluation completed: ${data.completed} succeeded, ${data.failed} failed.`, data.failed > 0 ? 'info' : 'success');
         if (this.bulkEvalEventSource) {
           this.bulkEvalEventSource.close();
@@ -4144,6 +4329,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     objectUrl: string;
     safeUrl?: SafeResourceUrl;
     file?: File;
+    segmentStartPage?: number;
+    segmentEndPage?: number;
   } | null = null;
   previewZoom: number = 1;
   previewPdfDoc: any = null;
@@ -4194,6 +4381,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     let isScanning: boolean | undefined;
     let thumbnailUrl: string | undefined;
     let subPdfFile: string | undefined;
+    let splitBatchId: string | undefined;
+    let segmentData: MultiStudentSplitSegment | undefined;
 
     if ('file' in item && item.file) {
       file = item.file;
@@ -4203,6 +4392,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       isScanning = item.isScanning;
       thumbnailUrl = (item as BulkFileItem).thumbnailUrl;
       subPdfFile = (item as BulkFileItem).subPdfFile;
+      splitBatchId = (item as BulkFileItem).splitBatchId;
+      segmentData = (item as BulkFileItem).segmentData;
     } else if ('rawFile' in item && item.rawFile) {
       file = item.rawFile;
       fileName = item.matchedFile || file.name;
@@ -4210,6 +4401,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       isMatched = item.isMatched;
       thumbnailUrl = (item as StudentEvaluation).thumbnailUrl;
       subPdfFile = (item as StudentEvaluation).subPdfFile;
+      splitBatchId = (item as StudentEvaluation).splitBatchId;
+      segmentData = (item as StudentEvaluation).splitSegment;
     } else if ('matchedFile' in item && item.matchedFile) {
       const foundBulk = this.bulkFiles.find((b) => b.fileName === item.matchedFile);
       if (foundBulk) {
@@ -4219,6 +4412,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         isMatched = true;
         thumbnailUrl = foundBulk.thumbnailUrl || (item as StudentEvaluation).thumbnailUrl;
         subPdfFile = foundBulk.subPdfFile || (item as StudentEvaluation).subPdfFile;
+        splitBatchId = foundBulk.splitBatchId || (item as StudentEvaluation).splitBatchId;
+        segmentData = foundBulk.segmentData || (item as StudentEvaluation).splitSegment;
       }
     }
 
@@ -4228,13 +4423,99 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // If it's a split segment with a thumbnail preview from backend
-    if (thumbnailUrl && (!file || fileName.includes('(Pages '))) {
-      this.closeAnswerSheetPreview();
+    this.closeAnswerSheetPreview();
+
+    // Determine segment page boundaries if applicable (e.g. Pages 2–4)
+    let segmentStartPage: number | undefined;
+    let segmentEndPage: number | undefined;
+    if (segmentData && segmentData.start_page && segmentData.end_page) {
+      segmentStartPage = Number(segmentData.start_page);
+      segmentEndPage = Number(segmentData.end_page);
+    } else if (fileName.includes('(Pages ')) {
+      const match = fileName.match(/\(Pages?\s+(\d+)\s*[–\-]\s*(\d+)\)/i);
+      if (match) {
+        segmentStartPage = parseInt(match[1], 10);
+        segmentEndPage = parseInt(match[2], 10);
+      }
+    }
+
+    const isPdf =
+      (file && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) ||
+      fileName.toLowerCase().endsWith('.pdf') ||
+      !!(subPdfFile && subPdfFile.toLowerCase().endsWith('.pdf'));
+
+    if (isPdf) {
+      this.previewZoom = 1;
+      this.previewError = false;
+      this.previewPdfDoc = null;
+      this.previewPdfCurrentPage = 1;
+      this.previewPdfTotalPages = 1;
+      this.isPreviewPdfLoading = true;
+
+      if (file) {
+        const objectUrl = URL.createObjectURL(file);
+        const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(objectUrl);
+        this.previewAnswerSheet = {
+          fileName,
+          studentName,
+          isMatched,
+          isScanning,
+          isPdf: true,
+          objectUrl,
+          safeUrl,
+          file,
+          segmentStartPage,
+          segmentEndPage
+        };
+        this.loadModalPdf(file, objectUrl, segmentStartPage, segmentEndPage);
+      } else if (subPdfFile && splitBatchId) {
+        const subPdfUrl = `${API_BASE}/uploads/media/temp_bulk_splits/${splitBatchId}/${subPdfFile}`;
+        const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(subPdfUrl);
+        this.previewAnswerSheet = {
+          fileName,
+          studentName,
+          isMatched,
+          isScanning,
+          isPdf: true,
+          objectUrl: subPdfUrl,
+          safeUrl,
+          segmentStartPage: 1,
+          segmentEndPage: segmentData?.total_pages
+        };
+        this.loadModalPdf(subPdfUrl, subPdfUrl);
+      } else if (thumbnailUrl) {
+        // Fallback to static thumbnail if no PDF data is present
+        const previewImgUrl =
+          thumbnailUrl.startsWith('data:') || thumbnailUrl.startsWith('http') || thumbnailUrl.startsWith('blob:')
+            ? thumbnailUrl
+            : `${API_BASE}${thumbnailUrl}`;
+        const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(previewImgUrl);
+        this.previewAnswerSheet = {
+          fileName,
+          studentName,
+          isMatched,
+          isScanning,
+          isPdf: false,
+          objectUrl: previewImgUrl,
+          safeUrl
+        };
+        this.isPreviewPdfLoading = false;
+      } else {
+        notify('No preview file available.', 'info');
+        this.isPreviewPdfLoading = false;
+        return;
+      }
+    } else {
+      // Image File Preview
+      if (!file && !thumbnailUrl) {
+        notify('No local image available to preview.', 'info');
+        return;
+      }
+      const rawUrl = file ? URL.createObjectURL(file) : (thumbnailUrl || '');
       const previewImgUrl =
-        thumbnailUrl.startsWith('data:') || thumbnailUrl.startsWith('http') || thumbnailUrl.startsWith('blob:')
-          ? thumbnailUrl
-          : `${API_BASE}${thumbnailUrl}`;
+        rawUrl.startsWith('data:') || rawUrl.startsWith('http') || rawUrl.startsWith('blob:')
+          ? rawUrl
+          : `${API_BASE}${rawUrl}`;
       const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(previewImgUrl);
 
       this.previewZoom = 1;
@@ -4251,52 +4532,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         isScanning,
         isPdf: false,
         objectUrl: previewImgUrl,
-        safeUrl
+        safeUrl,
+        file
       };
-
-      setTimeout(() => {
-        document.getElementById('answer-sheet-preview-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 60);
-      return;
-    }
-
-    if (!file) {
-      notify('No local file available to preview.', 'info');
-      return;
-    }
-
-    // Toggle close if already open for this file
-    if (this.previewAnswerSheet && this.previewAnswerSheet.fileName === fileName) {
-      this.closeAnswerSheetPreview();
-      return;
-    }
-
-    this.closeAnswerSheetPreview();
-
-    const isPdf = fileName.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
-    const objectUrl = URL.createObjectURL(file);
-    const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(objectUrl);
-
-    this.previewZoom = 1;
-    this.previewError = false;
-    this.previewPdfDoc = null;
-    this.previewPdfCurrentPage = 1;
-    this.previewPdfTotalPages = 1;
-    this.isPreviewPdfLoading = true;
-
-    this.previewAnswerSheet = {
-      fileName,
-      studentName,
-      isMatched,
-      isScanning,
-      isPdf,
-      objectUrl,
-      safeUrl,
-      file
-    };
-
-    if (isPdf) {
-      this.loadModalPdf(file, objectUrl);
     }
 
     setTimeout(() => {
@@ -4304,20 +4542,37 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }, 60);
   }
 
-  async loadModalPdf(file: File, objectUrl: string): Promise<void> {
+  async loadModalPdf(fileOrUrl: File | string, objectUrl: string, segmentStartPage?: number, segmentEndPage?: number): Promise<void> {
     this.isPreviewPdfLoading = true;
     this.previewError = false;
     try {
       this.cdr.detectChanges();
-      const arrayBuffer = await file.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({
-        data: arrayBuffer,
-        cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
-        cMapPacked: true,
-      });
+      let loadingTask: any;
+      if (typeof fileOrUrl === 'string') {
+        loadingTask = pdfjsLib.getDocument({
+          url: fileOrUrl,
+          cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
+          cMapPacked: true,
+        });
+      } else {
+        const arrayBuffer = await fileOrUrl.arrayBuffer();
+        loadingTask = pdfjsLib.getDocument({
+          data: arrayBuffer,
+          cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
+          cMapPacked: true,
+        });
+      }
 
       this.previewPdfDoc = await loadingTask.promise;
-      this.previewPdfTotalPages = this.previewPdfDoc.numPages || 1;
+      const docTotal = this.previewPdfDoc.numPages || 1;
+
+      if (segmentStartPage && segmentEndPage) {
+        const boundedStart = Math.max(1, Math.min(segmentStartPage, docTotal));
+        const boundedEnd = Math.max(boundedStart, Math.min(segmentEndPage, docTotal));
+        this.previewPdfTotalPages = boundedEnd - boundedStart + 1;
+      } else {
+        this.previewPdfTotalPages = docTotal;
+      }
       this.previewPdfCurrentPage = 1;
 
       await this.renderModalPdfPage(1);
@@ -4357,7 +4612,13 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.isPreviewPdfLoading = true;
       const safePageNum = Math.max(1, Math.min(pageNumber, this.previewPdfTotalPages));
       this.previewPdfCurrentPage = safePageNum;
-      const page = await this.previewPdfDoc.getPage(safePageNum);
+
+      let docPageNum = safePageNum;
+      if (this.previewAnswerSheet?.segmentStartPage) {
+        docPageNum = this.previewAnswerSheet.segmentStartPage + safePageNum - 1;
+      }
+
+      const page = await this.previewPdfDoc.getPage(docPageNum);
 
       const dpr = window.devicePixelRatio || 1;
       const baseViewport = page.getViewport({ scale: 1.5 });
@@ -4432,8 +4693,16 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       } catch { }
       this.previewPdfRenderTask = null;
     }
+    if (this.previewPdfDoc) {
+      try {
+        this.previewPdfDoc.destroy();
+      } catch { }
+      this.previewPdfDoc = null;
+    }
     if (this.previewAnswerSheet?.objectUrl && this.previewAnswerSheet.objectUrl.startsWith('blob:')) {
-      URL.revokeObjectURL(this.previewAnswerSheet.objectUrl);
+      try {
+        URL.revokeObjectURL(this.previewAnswerSheet.objectUrl);
+      } catch { }
     }
     this.previewAnswerSheet = null;
     this.previewPdfDoc = null;

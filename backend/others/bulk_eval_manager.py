@@ -101,13 +101,64 @@ class BulkEvaluationManager:
                 "user_role": str(getattr(current_user, "user_role", ""))
             }
 
+        # Query actual exam question IDs and order numbers from database mapping
+        actual_questions = []
+        try:
+            from others.exams import SQLiteDB, ExamQuestionMapping, Exam
+            from sqlalchemy import or_
+            db_temp = SQLiteDB()
+            sess_temp = db_temp.connect()
+            if sess_temp:
+                exam_obj = (
+                    sess_temp.query(Exam)
+                    .filter(or_(Exam.exam_id == str(exam_id), Exam.schedule_id == str(exam_id)))
+                    .first()
+                )
+                target_exam_ids = list({str(exam_id), str(exam_obj.exam_id)}) if exam_obj else [str(exam_id)]
+                eqm_rows = (
+                    sess_temp.query(ExamQuestionMapping.question_id, ExamQuestionMapping.order_number)
+                    .filter(ExamQuestionMapping.exam_id.in_(target_exam_ids))
+                    .order_by(ExamQuestionMapping.order_number.asc())
+                    .all()
+                )
+                seen_qids = set()
+                actual_questions = []
+                for idx, r in enumerate(eqm_rows):
+                    qid_str = str(r[0])
+                    if qid_str and qid_str not in seen_qids:
+                        seen_qids.add(qid_str)
+                        actual_questions.append({
+                            "question_id": qid_str,
+                            "number": r[1] if r[1] is not None else len(actual_questions) + 1
+                        })
+                sess_temp.close()
+        except Exception as q_err:
+            logger.warning(f"[BulkEvalManager] Could not read question mapping: {q_err}")
+
+        if not actual_questions:
+            actual_questions = [{"question_id": f"q_{i}", "number": i} for i in range(1, 6)]
+
         students_map = {}
         for t in student_tasks:
             uid = str(t["user_id"])
             students_map[uid] = {
                 "user_id": uid,
                 "student_name": t.get("student_name") or "Student",
+                "roll_no": t.get("roll_no") or "",
                 "status": "queued",  # queued | evaluating | completed | failed
+                "status_phase": "Waiting in queue",
+                "total_questions": len(actual_questions),
+                "completed_questions": 0,
+                "failed_questions": 0,
+                "questions": [
+                    {
+                        "question_id": q["question_id"],
+                        "number": q["number"],
+                        "status": "Waiting",
+                        "marks": None
+                    }
+                    for q in actual_questions
+                ],
                 "marks": None,
                 "total_pages": None,
                 "error": None,
@@ -159,6 +210,9 @@ class BulkEvaluationManager:
             if not st_record or st_record.get("cancelled"):
                 return
             st_record["status"] = "evaluating"
+            st_record["status_phase"] = "AI Evaluating – All Questions"
+            for q in st_record.get("questions", []):
+                q["status"] = "Evaluating"
             st_record["started_at"] = datetime.utcnow().isoformat()
             self._persist_job(job_id)
 
@@ -166,9 +220,42 @@ class BulkEvaluationManager:
             "job_id": job_id,
             "user_id": user_id,
             "student_name": student_name,
+            "roll_no": st_record.get("roll_no", ""),
             "status": "evaluating",
+            "status_phase": "AI Evaluating – All Questions",
+            "total_questions": st_record.get("total_questions", 0),
+            "completed_questions": 0,
+            "questions": st_record.get("questions", []),
             "message": f"Evaluating answer sheet for {student_name}..."
         })
+
+        def on_sheet_progress(event_type, payload):
+            if event_type == "question_saved":
+                with self.lock:
+                    j = self.jobs.get(job_id)
+                    if j:
+                        st = j["students"].get(user_id)
+                        if st:
+                            qid_target = str(payload.get("question_id") or "")
+                            qnum_target = str(payload.get("question_number") or "")
+                            for q in st.get("questions", []):
+                                if (qid_target and str(q.get("question_id")) == qid_target) or (qnum_target and str(q.get("number")) == qnum_target):
+                                    q["status"] = payload.get("status")
+                                    q["marks"] = payload.get("marks")
+                                    if qid_target:
+                                        q["question_id"] = qid_target
+                                    break
+                            st["completed_questions"] = payload.get("completed_questions", st.get("completed_questions", 0))
+                            st["failed_questions"] = payload.get("failed_questions", st.get("failed_questions", 0))
+                            if payload.get("status") == "Failed":
+                                st["status_phase"] = f"Error saving Q{payload.get('question_number')}"
+                            else:
+                                st["status_phase"] = f"Saved Q{payload.get('question_number')} ({st['completed_questions']}/{st['total_questions']})"
+                            self._persist_job(job_id)
+                self._emit_event(job_id, "question_saved", {
+                    "job_id": job_id,
+                    **payload
+                })
 
         # 2. Execute evaluation using core function with isolated DB session
         from others.exams import process_single_student_answer_sheet
@@ -179,7 +266,8 @@ class BulkEvaluationManager:
                 user_id=user_id,
                 file_items=file_items,
                 replace=True,
-                current_user=user_info
+                current_user=user_info,
+                on_progress=on_sheet_progress
             )
 
             # Check if cancelled while LLM / processing was executing
@@ -236,9 +324,14 @@ class BulkEvaluationManager:
                     "job_id": job_id,
                     "user_id": user_id,
                     "student_name": student_name,
+                    "roll_no": st_record.get("roll_no", "") if st_record else "",
                     "status": "AI Evaluated",
+                    "status_phase": "Completed",
                     "marks": marks_str,
                     "total_pages": total_pages,
+                    "completed_questions": st_record.get("completed_questions", len(st_record.get("questions", []))) if st_record else 1,
+                    "total_questions": st_record.get("total_questions", len(st_record.get("questions", []))) if st_record else 1,
+                    "questions": st_record.get("questions", []) if st_record else [],
                     "completed": completed_cnt,
                     "failed": failed_cnt,
                     "total": total_cnt,
@@ -366,8 +459,12 @@ class BulkEvaluationManager:
             st_record = job["students"].get(user_id)
             if st_record:
                 st_record["status"] = "failed"
+                st_record["status_phase"] = "Evaluation failed"
                 st_record["error"] = error_msg
                 st_record["completed_at"] = datetime.utcnow().isoformat()
+                for q in st_record.get("questions", []):
+                    if q.get("status") != "Evaluated":
+                        q["status"] = "Failed"
             job["failed_students"] += 1
             completed_cnt = job["completed_students"]
             failed_cnt = job["failed_students"]
@@ -381,7 +478,10 @@ class BulkEvaluationManager:
             "job_id": job_id,
             "user_id": user_id,
             "student_name": student_name,
+            "roll_no": st_record.get("roll_no", "") if st_record else "",
             "status": "Failed",
+            "status_phase": "Evaluation failed",
+            "questions": st_record.get("questions", []) if st_record else [],
             "error": error_msg,
             "completed": completed_cnt,
             "failed": failed_cnt,

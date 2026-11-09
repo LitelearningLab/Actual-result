@@ -434,6 +434,9 @@ class Option(Base):
 
 class Answer(Base):
      __tablename__ = 'Answers'
+     __table_args__ = (
+         UniqueConstraint('attempt_id', 'question_id', name='uq_answers_attempt_question'),
+     )
      answer_id = Column(String(50), primary_key=True, default=generate_uuid)
      user_id = Column(String, ForeignKey('Users.user_id'), nullable=False)
      schedule_id = Column(String, ForeignKey('ExamSchedules.schedule_id'), nullable=False)

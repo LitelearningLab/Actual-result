@@ -4982,7 +4982,7 @@ def finalize_student_evaluation(request, current_user=None):
 
 
 def process_single_student_answer_sheet(
-    exam_id, user_id, file_items, replace=True, current_user=None
+    exam_id, user_id, file_items, replace=True, current_user=None, on_progress=None
 ):
     """
     Core function to process and AI-evaluate a single student's answer sheet.
@@ -5336,6 +5336,10 @@ def process_single_student_answer_sheet(
                     }
                 )
 
+            # Pre-commit Exam_Attempt and AnswerSheetPages before evaluation
+            # so foreign key references are committed and valid
+            session.commit()
+
             # Build question blueprint & rubric for AI visual evaluation
             target_exam_ids = list({str(exam_id), str(exam_obj.exam_id)}) if exam_obj else [str(exam_id)]
             sec_rows = (
@@ -5675,205 +5679,253 @@ def process_single_student_answer_sheet(
                 print(f"AI evaluation warning in upload_answer_sheet: {eval_err}")
 
             # Clean old review comments for this attempt before re-evaluating
-            session.query(ExamReviewComments).filter(
-                func.cast(ExamReviewComments.attempt_id, String) == str(attempt_id)
-            ).delete(synchronize_session=False)
+            # Persist genuine evaluation results question-by-question with individual atomic commits
+            completed_q_count = 0
+            failed_q_count = 0
+            total_q_count = len(seen_qids_rubric)
 
-            # Persist genuine evaluation results without hardcoded defaults
             for qid_str in seen_qids_rubric:
-                q_obj = (
-                    session.query(Question)
-                    .filter(func.cast(Question.question_id, String) == qid_str)
-                    .first()
-                )
-                q_marks = float(q_obj.marks or 1.0) if q_obj else 1.0
-                q_type = str(getattr(q_obj, "question_type", "")).lower() if q_obj else ""
-                is_objective = q_type not in ("descriptive", "paragraph")
+                q_num = exam_q_num_by_qid.get(qid_str) or 1
+                try:
+                    # Clean previous review comments strictly for this attempt and this question_id
+                    session.query(ExamReviewComments).filter(
+                        func.cast(ExamReviewComments.attempt_id, String) == str(attempt_id),
+                        func.cast(ExamReviewComments.question_id, String) == str(qid_str)
+                    ).delete(synchronize_session=False)
 
-                existing_ans = (
-                    session.query(Answer)
-                    .filter(
-                        func.cast(Answer.attempt_id, String) == str(attempt_id),
-                        func.cast(Answer.question_id, String) == qid_str,
+                    q_obj = (
+                        session.query(Question)
+                        .filter(func.cast(Question.question_id, String) == qid_str)
+                        .first()
                     )
-                    .first()
-                )
+                    q_marks = float(q_obj.marks or 1.0) if q_obj else 1.0
+                    q_type = str(getattr(q_obj, "question_type", "")).lower() if q_obj else ""
+                    is_objective = q_type not in ("descriptive", "paragraph")
 
-                q_num = exam_q_num_by_qid.get(qid_str)
-                is_detected = (
-                    (q_num in detected_q_nums_set) if detected_q_nums_set else False
-                )
-                is_uncertain = (
-                    (q_num in uncertain_q_nums_set) if uncertain_q_nums_set else False
-                )
-                ev = evaluations_by_qid.get(qid_str) if is_detected else None
-                manual_review = 1 if (is_uncertain and not ev) else 0
-
-                matched_opt_id = None
-                if is_objective:
-                    student_snippet = ev.get("student_answer_snippet", "").strip() if ev else ""
-                    detected_pages = (
-                        detected_pages_by_qid.get(qid_str)
-                        or pages_by_qnum.get(q_num)
-                        or (ev.get("detected_on_pages") if ev else [])
-                        or []
-                    )
-                    conf = int(ev.get("ai_confidence", 0)) if (ev and ev.get("ai_confidence") is not None) else 0
-
-                    if is_detected and ev:
-                        # 1. Trust the AI evaluation directly (No Python scoring)
-                        awarded = float(ev.get("suggested_marks", 0.0))
-                        is_corr = int(ev.get("is_correct", 0))
-                        fb = ev.get("feedback", "")
-                        manual_review = 1 if (is_uncertain or int(ev.get("manual_review_required", 0)) == 1) else 0
-                        is_val = 1
-
-                        # 2. Map AI-selected letter directly to option ID (Zero Python matching fallback)
-                        selected_letter = str(ev.get("selected_option_letter") or "").strip().lower()
-                        matched_opt_id = opt_id_by_letter_by_qid.get(qid_str, {}).get(selected_letter)
-                    else:
-                        awarded = 0.0
-                        is_corr = 0
-                        manual_review = 1 if is_uncertain else 0
-                        is_val = 1
-                        fb = "Question was not attempted or not found on the uploaded answer sheet."
-                elif is_detected and ev:
-                    awarded = float(ev.get("suggested_marks", 0.0))
-                    conf = int(ev.get("ai_confidence", 0))
-                    fb = ev.get("feedback") or ""
-                    is_corr = int(
-                        ev.get(
-                            "is_correct", 1 if awarded >= q_marks and q_marks > 0 else 0
+                    existing_ans = (
+                        session.query(Answer)
+                        .filter(
+                            func.cast(Answer.attempt_id, String) == str(attempt_id),
+                            func.cast(Answer.question_id, String) == qid_str,
                         )
+                        .first()
                     )
-                    is_val = 1
-                    detected_pages = (
-                        detected_pages_by_qid.get(qid_str)
-                        or pages_by_qnum.get(q_num)
-                        or ev.get("detected_on_pages")
-                        or []
+
+                    q_num = exam_q_num_by_qid.get(qid_str)
+                    is_detected = (
+                        (q_num in detected_q_nums_set) if detected_q_nums_set else False
                     )
-                    student_snippet = ev.get("student_answer_snippet", "") or ""
-                else:
-                    # Question was in rubric but NOT physically detected in vision anchor detection -> Unattempted
-                    awarded = float(ev.get("suggested_marks", 0.0)) if ev else 0.0
-                    # Dynamic visual confidence from Phase 1 vision detection results:
-                    if ev and ev.get("ai_confidence") is not None:
-                        conf = int(ev["ai_confidence"])
-                    elif is_uncertain:
-                        conf = 30  # Vision detector flagged uncertainty in question boundaries
-                        manual_review = 1
-                    elif detection_result and detection_result.get("status"):
-                        conf = 95  # Vision detector cleanly verified question is absent across all pages
-                    else:
-                        conf = 20  # Detector failed to run or verify evidence: flag for review
-                        manual_review = 1
-                    fb = (ev.get("feedback") if ev and ev.get("feedback") else None) or "Question was not attempted or not found on the uploaded answer sheet."
-                    is_corr = int(ev.get("is_correct", 0)) if ev else 0
-                    is_val = 1
-                    detected_pages = (ev.get("detected_on_pages") if ev else []) or []
-                    manual_review = 1 if is_uncertain else 0
-                    student_snippet = (ev.get("student_answer_snippet") if ev else "") or ""
+                    is_uncertain = (
+                        (q_num in uncertain_q_nums_set) if uncertain_q_nums_set else False
+                    )
+                    ev = evaluations_by_qid.get(qid_str) if is_detected else None
+                    manual_review = 1 if (is_uncertain and not ev) else 0
 
-                meta_payload = json.dumps(
-                    {
-                        "detected_pages": detected_pages,
-                        "student_answer": format_math_for_display(student_snippet, is_math=is_math_exam),
-                    }
-                )
-
-                if existing_ans:
-                    existing_ans.marks_awarded = awarded
-                    existing_ans.ai_marks = awarded if is_val else None
-                    existing_ans.ai_confidence = conf
-                    existing_ans.feedback = fb
-                    existing_ans.is_validated = is_val
-                    existing_ans.is_correct = is_corr
-                    existing_ans.manual_review_required = manual_review
-                    existing_ans.written_answer = meta_payload
+                    matched_opt_id = None
                     if is_objective:
-                        existing_ans.selected_option_id = matched_opt_id
-                else:
-                    ans = Answer(
-                        answer_id=str(uuid.uuid4()),
-                        attempt_id=str(attempt_id),
-                        schedule_id=str(attempt.schedule_id),
-                        user_id=user_id,
-                        question_id=qid_str,
-                        written_answer=meta_payload,
-                        marks_awarded=awarded,
-                        ai_marks=awarded if is_val else None,
-                        ai_confidence=conf,
-                        manual_review_required=manual_review,
-                        feedback=fb,
-                        is_validated=is_val,
-                        is_correct=is_corr,
-                        selected_option_id=matched_opt_id if is_objective else None,
-                    )
-                    session.add(ans)
+                        student_snippet = ev.get("student_answer_snippet", "").strip() if ev else ""
+                        detected_pages = (
+                            detected_pages_by_qid.get(qid_str)
+                            or pages_by_qnum.get(q_num)
+                            or (ev.get("detected_on_pages") if ev else [])
+                            or []
+                        )
+                        conf = int(ev.get("ai_confidence", 0)) if (ev and ev.get("ai_confidence") is not None) else 0
 
-                if ev and not is_objective:
-                    for cat in ["missing", "incomplete", "incorrect"]:
-                        raw_cat_val = ev.get(cat)
-                        items = []
-                        default_lbl = "Correct" if cat == "incorrect" else ("Needed" if cat == "missing" else "Complete")
-                        if isinstance(raw_cat_val, str):
-                            if raw_cat_val.strip().lower() not in ("none", "null", "n/a", ""):
-                                for pt in raw_cat_val.split("|"):
-                                    pt = pt.strip()
-                                    if not pt or pt.lower() in ("none", "null", "n/a"):
-                                        continue
-                                    parts = re.split(rf"\b{default_lbl}\s*:\s*", pt, flags=re.IGNORECASE)
-                                    left_side = parts[0].strip() if len(parts) > 0 else pt
-                                    stmt_text = parts[1].strip() if len(parts) > 1 else ""
-                                    if ":" in left_side:
-                                        sub = left_side.split(":", 1)
-                                        top_text, iss_text = sub[0].strip(), sub[1].strip()
-                                        top_text = top_text.strip("() \t\n\r")
-                                    else:
-                                        top_text, iss_text = "", left_side
-                                    items.append({
-                                        "topic": top_text,
-                                        "issue": iss_text,
-                                        "label": default_lbl,
-                                        "statement": stmt_text
-                                    })
-                        elif isinstance(raw_cat_val, dict):
-                            items = [raw_cat_val]
-                        elif isinstance(raw_cat_val, list):
-                            items = raw_cat_val
+                        if is_detected and ev:
+                            # 1. Trust the AI evaluation directly (No Python scoring)
+                            awarded = float(ev.get("suggested_marks", 0.0))
+                            is_corr = int(ev.get("is_correct", 0))
+                            fb = ev.get("feedback", "")
+                            manual_review = 1 if (is_uncertain or int(ev.get("manual_review_required", 0)) == 1) else 0
+                            is_val = 1
 
-                        for item in items:
-                            if not isinstance(item, dict):
-                                continue
-                            top = str(item.get("topic") or "").strip().strip("() \t\n\r")
-                            iss = str(item.get("issue") or "").strip()
-                            lbl = str(item.get("label") or default_lbl).strip()
-                            stmt = str(item.get("statement") or "").strip()
-                            if not iss and not stmt and not top:
-                                continue
-                            comment_text = f"({top}): {iss} {lbl}: {stmt}" if top and iss and stmt else (f"{top}: {iss}" if top and not stmt else (f"{iss} {lbl}: {stmt}" if stmt and iss else (iss or stmt or top)))
-                            comment_text = comment_text[:255]
-                            rc = ExamReviewComments(
-                                comment_id=str(uuid.uuid4()),
-                                attempt_id=str(attempt_id),
-                                question_id=qid_str,
-                                topic=top,
-                                issue=iss,
-                                label=lbl,
-                                statement=stmt,
-                                comment_text=comment_text,
-                                category=cat,
-                                reviewer_id=None,
+                            # 2. Map AI-selected letter directly to option ID (Zero Python matching fallback)
+                            selected_letter = str(ev.get("selected_option_letter") or "").strip().lower()
+                            matched_opt_id = opt_id_by_letter_by_qid.get(qid_str, {}).get(selected_letter)
+                        else:
+                            awarded = 0.0
+                            is_corr = 0
+                            manual_review = 1 if is_uncertain else 0
+                            is_val = 1
+                            fb = "Question was not attempted or not found on the uploaded answer sheet."
+                    elif is_detected and ev:
+                        awarded = float(ev.get("suggested_marks", 0.0))
+                        conf = int(ev.get("ai_confidence", 0))
+                        fb = ev.get("feedback") or ""
+                        is_corr = int(
+                            ev.get(
+                                "is_correct", 1 if awarded >= q_marks and q_marks > 0 else 0
                             )
-                            session.add(rc)
+                        )
+                        is_val = 1
+                        detected_pages = (
+                            detected_pages_by_qid.get(qid_str)
+                            or pages_by_qnum.get(q_num)
+                            or ev.get("detected_on_pages")
+                            or []
+                        )
+                        student_snippet = ev.get("student_answer_snippet", "") or ""
+                    else:
+                        # Question was in rubric but NOT physically detected in vision anchor detection -> Unattempted
+                        awarded = float(ev.get("suggested_marks", 0.0)) if ev else 0.0
+                        # Dynamic visual confidence from Phase 1 vision detection results:
+                        if ev and ev.get("ai_confidence") is not None:
+                            conf = int(ev["ai_confidence"])
+                        elif is_uncertain:
+                            conf = 30  # Vision detector flagged uncertainty in question boundaries
+                            manual_review = 1
+                        elif detection_result and detection_result.get("status"):
+                            conf = 95  # Vision detector cleanly verified question is absent across all pages
+                        else:
+                            conf = 20  # Detector failed to run or verify evidence: flag for review
+                            manual_review = 1
+                        fb = (ev.get("feedback") if ev and ev.get("feedback") else None) or "Question was not attempted or not found on the uploaded answer sheet."
+                        is_corr = int(ev.get("is_correct", 0)) if ev else 0
+                        is_val = 1
+                        detected_pages = (ev.get("detected_on_pages") if ev else []) or []
+                        manual_review = 1 if is_uncertain else 0
+                        student_snippet = (ev.get("student_answer_snippet") if ev else "") or ""
 
-            # Calculate final attempt score and percentage
-            total_awarded = sum(
-                float(ans.marks_awarded or 0.0)
-                for ans in session.query(Answer)
+                    meta_payload = json.dumps(
+                        {
+                            "detected_pages": detected_pages,
+                            "student_answer": format_math_for_display(student_snippet, is_math=is_math_exam),
+                        }
+                    )
+
+                    if existing_ans:
+                        existing_ans.marks_awarded = awarded
+                        existing_ans.ai_marks = awarded if is_val else None
+                        existing_ans.ai_confidence = conf
+                        existing_ans.feedback = fb
+                        existing_ans.is_validated = is_val
+                        existing_ans.is_correct = is_corr
+                        existing_ans.manual_review_required = manual_review
+                        existing_ans.written_answer = meta_payload
+                        if is_objective:
+                            existing_ans.selected_option_id = matched_opt_id
+                    else:
+                        ans = Answer(
+                            answer_id=str(uuid.uuid4()),
+                            attempt_id=str(attempt_id),
+                            schedule_id=str(attempt.schedule_id),
+                            user_id=user_id,
+                            question_id=qid_str,
+                            written_answer=meta_payload,
+                            marks_awarded=awarded,
+                            ai_marks=awarded if is_val else None,
+                            ai_confidence=conf,
+                            manual_review_required=manual_review,
+                            feedback=fb,
+                            is_validated=is_val,
+                            is_correct=is_corr,
+                            selected_option_id=matched_opt_id if is_objective else None,
+                        )
+                        session.add(ans)
+
+                    if ev and not is_objective:
+                        for cat in ["missing", "incomplete", "incorrect"]:
+                            raw_cat_val = ev.get(cat)
+                            items = []
+                            default_lbl = "Correct" if cat == "incorrect" else ("Needed" if cat == "missing" else "Complete")
+                            if isinstance(raw_cat_val, str):
+                                if raw_cat_val.strip().lower() not in ("none", "null", "n/a", ""):
+                                    for pt in raw_cat_val.split("|"):
+                                        pt = pt.strip()
+                                        if not pt or pt.lower() in ("none", "null", "n/a"):
+                                            continue
+                                        parts = re.split(rf"\b{default_lbl}\s*:\s*", pt, flags=re.IGNORECASE)
+                                        left_side = parts[0].strip() if len(parts) > 0 else pt
+                                        stmt_text = parts[1].strip() if len(parts) > 1 else ""
+                                        if ":" in left_side:
+                                            sub = left_side.split(":", 1)
+                                            top_text, iss_text = sub[0].strip(), sub[1].strip()
+                                            top_text = top_text.strip("() \t\n\r")
+                                        else:
+                                            top_text, iss_text = "", left_side
+                                        items.append({
+                                            "topic": top_text,
+                                            "issue": iss_text,
+                                            "label": default_lbl,
+                                            "statement": stmt_text
+                                        })
+                            elif isinstance(raw_cat_val, dict):
+                                items = [raw_cat_val]
+                            elif isinstance(raw_cat_val, list):
+                                items = raw_cat_val
+
+                            for item in items:
+                                if not isinstance(item, dict):
+                                    continue
+                                top = str(item.get("topic") or "").strip().strip("() \t\n\r")
+                                iss = str(item.get("issue") or "").strip()
+                                lbl = str(item.get("label") or default_lbl).strip()
+                                stmt = str(item.get("statement") or "").strip()
+                                if not iss and not stmt and not top:
+                                    continue
+                                comment_text = f"({top}): {iss} {lbl}: {stmt}" if top and iss and stmt else (f"{top}: {iss}" if top and not stmt else (f"{iss} {lbl}: {stmt}" if stmt and iss else (iss or stmt or top)))
+                                comment_text = comment_text[:255]
+                                rc = ExamReviewComments(
+                                    comment_id=str(uuid.uuid4()),
+                                    attempt_id=str(attempt_id),
+                                    question_id=qid_str,
+                                    topic=top,
+                                    issue=iss,
+                                    label=lbl,
+                                    statement=stmt,
+                                    comment_text=comment_text,
+                                    category=cat,
+                                    reviewer_id=None,
+                                )
+                                session.add(rc)
+
+                    # Commit this individual question's answer and review comments
+                    session.commit()
+                    completed_q_count += 1
+                    if on_progress:
+                        try:
+                            on_progress("question_saved", {
+                                "user_id": str(user_id),
+                                "question_id": str(qid_str),
+                                "question_number": q_num,
+                                "status": "Evaluated",
+                                "marks": round(awarded, 1),
+                                "completed_questions": completed_q_count,
+                                "failed_questions": failed_q_count,
+                                "total_questions": total_q_count
+                            })
+                        except Exception as cb_err:
+                            print(f"[upload_answer_sheet] progress callback warning: {cb_err}")
+                except Exception as q_err:
+                    session.rollback()
+                    failed_q_count += 1
+                    print(f"[upload_answer_sheet] Error saving Question {q_num} (qid: {qid_str}): {q_err}")
+                    if on_progress:
+                        try:
+                            on_progress("question_saved", {
+                                "user_id": str(user_id),
+                                "question_id": str(qid_str),
+                                "question_number": q_num,
+                                "status": "Failed",
+                                "marks": None,
+                                "completed_questions": completed_q_count,
+                                "failed_questions": failed_q_count,
+                                "total_questions": total_q_count,
+                                "error": str(q_err)
+                            })
+                        except Exception as cb_err:
+                            print(f"[upload_answer_sheet] progress callback warning: {cb_err}")
+
+            # Calculate final attempt score and percentage strictly from successfully saved Answer records in DB
+            saved_answers = (
+                session.query(Answer)
                 .filter(func.cast(Answer.attempt_id, String) == str(attempt_id))
                 .all()
+            )
+            total_awarded = sum(
+                float(ans.marks_awarded or 0.0)
+                for ans in saved_answers
             )
             attempt.score = total_awarded
             from others.exam_review import get_exam_total_marks
@@ -5891,13 +5943,13 @@ def process_single_student_answer_sheet(
                     (total_awarded / total_possible * 100), 2
                 )
                 attempt.percentage = final_percentage
-            attempt.status = "evaluated"
+            attempt.status = "evaluated" if (failed_q_count == 0 and completed_q_count == total_q_count) else "in_progress"
             session.add(attempt)
 
             # Calculate total pages from in-memory attempt pages before closing session
             total_pages_count = len(all_attempt_pages) if all_attempt_pages else len(created_pages)
 
-            # Single atomic commit for everything
+            # Final commit for attempt score and status
             session.commit()
             session.close()
 
@@ -6832,6 +6884,7 @@ def confirm_and_enqueue_split_evaluations(request, current_user=None):
     for mapping in confirmed_mappings:
         user_id = str(mapping.get("user_id") or "")
         student_name = mapping.get("student_name") or "Student"
+        roll_no = str(mapping.get("roll_no") or mapping.get("rollNo") or "")
         seg_idx = mapping.get("segment_index")
 
         if not user_id or user_id.lower() in ("null", "none", "choose student"):
@@ -6847,6 +6900,7 @@ def confirm_and_enqueue_split_evaluations(request, current_user=None):
             student_tasks.append({
                 "user_id": user_id,
                 "student_name": student_name,
+                "roll_no": roll_no,
                 "file_items": [(target_filename, pdf_bytes)]
             })
 

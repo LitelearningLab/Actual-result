@@ -1665,15 +1665,205 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
     font-size: 0.8125rem;
     color: #334155;
 
-    .progress-count-info {
-      strong {
-        color: #0f172a;
+    .progress-count-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      .progress-count-info {
+        strong {
+          color: #0f172a;
+        }
+      }
+
+      .btn-toggle-live-details {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: #ffffff;
+        border: 1px solid #bae6fd;
+        padding: 0.2rem 0.5rem;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #0284c7;
+        transition: all 0.15s ease;
+
+        .toggle-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+        }
+
+        &:hover {
+          background: #e0f2fe;
+          border-color: #7dd3fc;
+        }
       }
     }
 
     .progress-error-info {
       color: #dc2626;
       font-weight: 600;
+    }
+  }
+
+  // Nested Student-Wise Details Container
+  .live-students-container {
+    margin-top: 0.875rem;
+    padding-top: 0.875rem;
+    border-top: 1px dashed #bae6fd;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+    max-height: 290px;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+
+    &::-webkit-scrollbar {
+      width: 5px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: #bae6fd;
+      border-radius: 4px;
+    }
+
+    .live-student-card {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #e0f2fe;
+      border-radius: 0.625rem;
+      padding: 0.625rem 0.875rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      transition: border-color 0.15s ease;
+
+      &:hover {
+        border-color: #bae6fd;
+      }
+
+      .live-student-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        user-select: none;
+
+        .st-info-left {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+
+          .st-name-wrap {
+            display: flex;
+            align-items: baseline;
+            gap: 0.375rem;
+
+            .st-name {
+              font-size: 0.875rem;
+              font-weight: 700;
+              color: #0f172a;
+            }
+
+            .st-roll {
+              font-size: 0.75rem;
+              color: #64748b;
+              font-weight: 500;
+            }
+          }
+        }
+
+        .st-info-right {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+
+          .st-phase-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+
+            &.phase-evaluating {
+              background: #e0f2fe;
+              color: #0284c7;
+              border: 1px solid #bae6fd;
+
+              .mini-spin-icon {
+                font-size: 13px;
+                width: 13px;
+                height: 13px;
+                animation: spin-icon 1.2s linear infinite;
+              }
+            }
+
+            &.phase-completed {
+              background: #dcfce7;
+              color: #15803d;
+
+              .check-icon {
+                font-size: 13px;
+                width: 13px;
+                height: 13px;
+              }
+            }
+
+            &.phase-waiting {
+              background: #f1f5f9;
+              color: #64748b;
+            }
+
+            &.phase-failed {
+              background: #fee2e2;
+              color: #dc2626;
+            }
+          }
+
+          .st-progress-count {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #475569;
+          }
+        }
+      }
+
+      .st-mini-track {
+        width: 100%;
+        height: 4px;
+        background: #f1f5f9;
+        border-radius: 2px;
+        margin-top: 0.5rem;
+        overflow: hidden;
+
+        .st-mini-fill {
+          height: 100%;
+          border-radius: 2px;
+          transition: width 0.3s ease;
+
+          &.fill-evaluating {
+            background: #0284c7;
+          }
+          &.fill-completed {
+            background: #16a34a;
+          }
+          &.fill-failed {
+            background: #dc2626;
+          }
+        }
+      }
+    }
+  }
+
+  @keyframes evalPulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.2);
+    }
+    70% {
+      box-shadow: 0 0 0 4px rgba(2, 132, 199, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(2, 132, 199, 0);
     }
   }
 }

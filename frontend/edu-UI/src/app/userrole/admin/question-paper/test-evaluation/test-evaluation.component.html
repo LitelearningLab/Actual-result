@@ -763,13 +763,53 @@
               <div class="progress-fill-line" [style.width.%]="bulkProgress.percentage"></div>
             </div>
             <div class="progress-banner-bottom">
-              <span class="progress-count-info">
-                <strong>{{ bulkProgress.completed }}</strong> of <strong>{{ bulkProgress.total }}</strong> sheets
-                completed
-              </span>
+              <div class="progress-count-group">
+                <span class="progress-count-info">
+                  <strong>{{ bulkProgress.completed }}</strong> of <strong>{{ bulkProgress.total }}</strong> sheets completed
+                </span>
+                <button type="button" class="btn-toggle-live-details" (click)="toggleLiveDetails()"
+                  [matTooltip]="isBulkDetailsExpanded ? 'Collapse student evaluation details' : 'View student-wise evaluation details'">
+                  <span>{{ isBulkDetailsExpanded ? 'Hide Details' : 'View Student Details' }}</span>
+                  <mat-icon class="toggle-icon">{{ isBulkDetailsExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                </button>
+              </div>
               <span class="progress-error-info" *ngIf="bulkProgress.failed > 0">
                 {{ bulkProgress.failed }} failed (retryable)
               </span>
+            </div>
+
+            <!-- Nested Student-Wise Progress List (Inside Existing Container) -->
+            <div class="live-students-container" *ngIf="isBulkDetailsExpanded && studentLiveList.length > 0">
+              <div class="live-student-card" *ngFor="let st of studentLiveList">
+                <div class="live-student-header">
+                  <div class="st-info-left">
+                    <div class="st-name-wrap">
+                      <span class="st-name">{{ st.studentName }}</span>
+                      <span class="st-roll" *ngIf="st.rollNo">({{ st.rollNo }})</span>
+                    </div>
+                  </div>
+                  <div class="st-info-right">
+                    <span class="st-phase-badge" [ngClass]="{
+                      'phase-evaluating': st.status === 'Evaluating',
+                      'phase-completed': st.status === 'Completed',
+                      'phase-waiting': st.status === 'Waiting',
+                      'phase-failed': st.status === 'Failed'
+                    }">
+                      <mat-icon class="mini-spin-icon" *ngIf="st.status === 'Evaluating'">sync</mat-icon>
+                      <mat-icon class="check-icon" *ngIf="st.status === 'Completed'">check</mat-icon>
+                      <span>{{ st.statusPhase }}</span>
+                    </span>
+                    <span class="st-progress-count">{{ st.completedQuestions }} / {{ st.totalQuestions }} Qs ({{ st.progressPercent }}%)</span>
+                  </div>
+                </div>
+
+                <!-- Mini Student Progress Bar -->
+                <div class="st-mini-track">
+                  <div class="st-mini-fill" [style.width.%]="st.progressPercent"
+                    [ngClass]="st.status === 'Completed' ? 'fill-completed' : (st.status === 'Failed' ? 'fill-failed' : 'fill-evaluating')">
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
