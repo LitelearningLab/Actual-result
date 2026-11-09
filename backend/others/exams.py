@@ -6721,10 +6721,12 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                 conf = 75
                 insp["matched_by"] = f"Assigned by sequence (Page {start_pnum})"
 
+            chunk_pages = list(range(start_idx + 1, end_idx + 2))
             segments.append({
                 "segment_index": s_idx,
                 "start_page": start_idx + 1,
                 "end_page": end_idx + 1,
+                "page_numbers": chunk_pages,
                 "total_pages": (end_idx - start_idx + 1),
                 "user_id": u_id,
                 "student_name": s_name or f"Student (Pages {start_idx + 1}-{end_idx + 1})",
@@ -6814,10 +6816,12 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
 
             first_p = p_list[0] + 1
             last_p = p_list[-1] + 1
+            page_nums = [p + 1 for p in p_list]
             segments.append({
                 "segment_index": s_idx,
                 "start_page": first_p,
                 "end_page": last_p,
+                "page_numbers": page_nums,
                 "total_pages": len(p_list),  # e.g. 2 pages for Ben
                 "user_id": s_data["user_id"],
                 "student_name": s_data["student_name"],

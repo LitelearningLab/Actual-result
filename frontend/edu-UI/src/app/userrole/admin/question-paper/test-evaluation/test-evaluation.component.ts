@@ -65,6 +65,7 @@ export interface MultiStudentSplitSegment {
   segment_index: number;
   start_page: number;
   end_page: number;
+  page_numbers?: number[];
   total_pages: number;
   user_id?: string;
   student_name: string;
@@ -3119,7 +3120,22 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           let matchedCount = 0;
 
           res.segments.forEach((seg: MultiStudentSplitSegment, idx: number) => {
-            const segmentLabel = `${file.name} (Pages ${seg.start_page}–${seg.end_page})`;
+            let pagesLabel = '';
+            if (seg.page_numbers && seg.page_numbers.length > 0) {
+              const isSeq = seg.page_numbers.every((p, i, arr) => i === 0 || p === arr[i - 1] + 1);
+              if (seg.page_numbers.length === 1) {
+                pagesLabel = `Page ${seg.page_numbers[0]}`;
+              } else if (isSeq) {
+                pagesLabel = `Pages ${seg.page_numbers[0]}–${seg.page_numbers[seg.page_numbers.length - 1]}`;
+              } else {
+                pagesLabel = `Pages ${seg.page_numbers.join(', ')}`;
+              }
+            } else if (seg.start_page === seg.end_page) {
+              pagesLabel = `Page ${seg.start_page}`;
+            } else {
+              pagesLabel = `Pages ${seg.start_page}–${seg.end_page}`;
+            }
+            const segmentLabel = `${file.name} (${pagesLabel})`;
 
             // Try matching to student
             let foundStudent: StudentEvaluation | undefined;
@@ -4331,6 +4347,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     file?: File;
     segmentStartPage?: number;
     segmentEndPage?: number;
+    pageNumbers?: number[];
   } | null = null;
   previewZoom: number = 1;
   previewPdfDoc: any = null;
@@ -4425,17 +4442,43 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     this.closeAnswerSheetPreview();
 
-    // Determine segment page boundaries if applicable (e.g. Pages 2–4)
+    // Determine segment page boundaries and exact page numbers if applicable
     let segmentStartPage: number | undefined;
     let segmentEndPage: number | undefined;
-    if (segmentData && segmentData.start_page && segmentData.end_page) {
+    let pageNumbers: number[] | undefined;
+
+    if (segmentData && Array.isArray(segmentData.page_numbers) && segmentData.page_numbers.length > 0) {
+      pageNumbers = segmentData.page_numbers.map((n) => Number(n)).filter((n) => !isNaN(n));
+      segmentStartPage = pageNumbers[0];
+      segmentEndPage = pageNumbers[pageNumbers.length - 1];
+    } else if (segmentData && segmentData.start_page && segmentData.end_page) {
       segmentStartPage = Number(segmentData.start_page);
       segmentEndPage = Number(segmentData.end_page);
-    } else if (fileName.includes('(Pages ')) {
-      const match = fileName.match(/\(Pages?\s+(\d+)\s*[–\-]\s*(\d+)\)/i);
-      if (match) {
-        segmentStartPage = parseInt(match[1], 10);
-        segmentEndPage = parseInt(match[2], 10);
+      if (segmentStartPage === segmentEndPage) {
+        pageNumbers = [segmentStartPage];
+      }
+    } else if (fileName.includes('(Page')) {
+      const matchRange = fileName.match(/\(Pages?\s+([0-9,\s\-–]+)\)/i);
+      if (matchRange) {
+        const rawPart = matchRange[1].trim();
+        const parts = rawPart.split(',');
+        const parsedNums: number[] = [];
+        for (const p of parts) {
+          const sub = p.trim();
+          const dashMatch = sub.match(/(\d+)\s*[–\-]\s*(\d+)/);
+          if (dashMatch) {
+            const start = parseInt(dashMatch[1], 10);
+            const end = parseInt(dashMatch[2], 10);
+            for (let i = start; i <= end; i++) parsedNums.push(i);
+          } else if (!isNaN(Number(sub)) && sub !== '') {
+            parsedNums.push(Number(sub));
+          }
+        }
+        if (parsedNums.length > 0) {
+          pageNumbers = parsedNums;
+          segmentStartPage = parsedNums[0];
+          segmentEndPage = parsedNums[parsedNums.length - 1];
+        }
       }
     }
 
@@ -4465,9 +4508,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           safeUrl,
           file,
           segmentStartPage,
-          segmentEndPage
+          segmentEndPage,
+          pageNumbers
         };
-        this.loadModalPdf(file, objectUrl, segmentStartPage, segmentEndPage);
+        this.loadModalPdf(file, objectUrl, segmentStartPage, segmentEndPage, pageNumbers);
       } else if (subPdfFile && splitBatchId) {
         const subPdfUrl = `${API_BASE}/uploads/media/temp_bulk_splits/${splitBatchId}/${subPdfFile}`;
         const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(subPdfUrl);
@@ -4480,7 +4524,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           objectUrl: subPdfUrl,
           safeUrl,
           segmentStartPage: 1,
-          segmentEndPage: segmentData?.total_pages
+          segmentEndPage: segmentData?.total_pages || (pageNumbers ? pageNumbers.length : 1),
+          pageNumbers: undefined
         };
         this.loadModalPdf(subPdfUrl, subPdfUrl);
       } else if (thumbnailUrl) {
@@ -4542,7 +4587,13 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }, 60);
   }
 
-  async loadModalPdf(fileOrUrl: File | string, objectUrl: string, segmentStartPage?: number, segmentEndPage?: number): Promise<void> {
+  async loadModalPdf(
+    fileOrUrl: File | string,
+    objectUrl: string,
+    segmentStartPage?: number,
+    segmentEndPage?: number,
+    pageNumbers?: number[]
+  ): Promise<void> {
     this.isPreviewPdfLoading = true;
     this.previewError = false;
     try {
@@ -4566,7 +4617,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.previewPdfDoc = await loadingTask.promise;
       const docTotal = this.previewPdfDoc.numPages || 1;
 
-      if (segmentStartPage && segmentEndPage) {
+      if (pageNumbers && pageNumbers.length > 0) {
+        this.previewPdfTotalPages = pageNumbers.length;
+      } else if (segmentStartPage && segmentEndPage) {
         const boundedStart = Math.max(1, Math.min(segmentStartPage, docTotal));
         const boundedEnd = Math.max(boundedStart, Math.min(segmentEndPage, docTotal));
         this.previewPdfTotalPages = boundedEnd - boundedStart + 1;
@@ -4614,7 +4667,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.previewPdfCurrentPage = safePageNum;
 
       let docPageNum = safePageNum;
-      if (this.previewAnswerSheet?.segmentStartPage) {
+      if (this.previewAnswerSheet?.pageNumbers && this.previewAnswerSheet.pageNumbers.length > 0) {
+        docPageNum = this.previewAnswerSheet.pageNumbers[safePageNum - 1] || safePageNum;
+      } else if (this.previewAnswerSheet?.segmentStartPage) {
         docPageNum = this.previewAnswerSheet.segmentStartPage + safePageNum - 1;
       }
 
