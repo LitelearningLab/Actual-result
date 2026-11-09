@@ -1,4 +1,12 @@
 # Changelog
+## [2.3.5] - 2026-11-09
+
+### Features & Enhancements
+- Description of feature 1
+- Description of feature 2
+
+### Bug Fixes
+- Description of bug fix 1
 ## [2.3.4] - 2026-11-09
 
 ### Enhancements & Bug Fixes
