@@ -6226,29 +6226,57 @@ def remove_answer_sheet(request, current_user=None):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
     try:
-        from db.models import ExamReviewCommentsHistory
+        from db.models import ExamReviewCommentsHistory, MarksHistory, PaperSchedule, ExamSchedule
 
         # Institute-level access check if current_user provided and not superadmin
         if current_user and getattr(current_user, "user_role", None) not in ("super_admin", "superadmin", "super-admin"):
             curr_inst = str(getattr(current_user, "institute_id", "") or "").strip()
             if curr_inst:
                 exam = session.query(Exam).filter(Exam.exam_id == str(exam_id)).first()
+                if not exam:
+                    ps = session.query(PaperSchedule).filter(PaperSchedule.schedule_id == str(exam_id)).first()
+                    if ps:
+                        exam = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
                 if exam and str(getattr(exam, "institute_id", "") or "").strip() and str(exam.institute_id).strip() != curr_inst:
                     return {"statusMessage": "Unauthorized access to exam in different institute", "status": False}, 403
 
-        # Find all attempts for this student and exam
+        # Collect all candidate schedule_id and master exam_id values across PaperSchedules and ExamSchedules
+        sched_id_candidates = {str(exam_id)}
+
+        # 1. Resolve PaperSchedule (Paper Exam tests)
+        ps_matches = session.query(PaperSchedule).filter(
+            or_(
+                func.cast(PaperSchedule.schedule_id, String) == str(exam_id),
+                func.cast(PaperSchedule.exam_id, String) == str(exam_id),
+            )
+        ).all()
+        for ps_item in ps_matches:
+            if ps_item.schedule_id:
+                sched_id_candidates.add(str(ps_item.schedule_id))
+            if ps_item.exam_id:
+                sched_id_candidates.add(str(ps_item.exam_id))
+
+        # 2. Resolve ExamSchedule (Online Exam tests)
+        es_matches = session.query(ExamSchedule).filter(
+            or_(
+                func.cast(ExamSchedule.schedule_id, String) == str(exam_id),
+                func.cast(ExamSchedule.exam_id, String) == str(exam_id),
+            )
+        ).all()
+        for es_item in es_matches:
+            if es_item.schedule_id:
+                sched_id_candidates.add(str(es_item.schedule_id))
+            if es_item.exam_id:
+                sched_id_candidates.add(str(es_item.exam_id))
+
+        candidate_list = [c for c in sched_id_candidates if c]
+
+        # Find all attempts for this student and exam using all resolved candidate IDs
         all_attempt_rows = (
             session.query(Exam_Attempt.attempt_id)
             .filter(
-                Exam_Attempt.user_id == user_id,
-                or_(
-                    Exam_Attempt.schedule_id == exam_id,
-                    Exam_Attempt.schedule_id.in_(
-                        session.query(ExamSchedule.schedule_id).filter(
-                            ExamSchedule.exam_id == exam_id
-                        )
-                    ),
-                ),
+                func.cast(Exam_Attempt.user_id, String) == str(user_id),
+                func.cast(Exam_Attempt.schedule_id, String).in_(candidate_list),
             )
             .all()
         )
@@ -6271,8 +6299,8 @@ def remove_answer_sheet(request, current_user=None):
                 if old_p.image_path and not old_p.image_path.startswith("http"):
                     paths_to_delete.append(old_p.image_path)
 
-            gcs_folder_prefix = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}"
-            paths_to_delete.append(f"{gcs_folder_prefix}/answersheet.pdf")
+            for cid in candidate_list:
+                paths_to_delete.append(f"student_answers/test_evaluation/{user_id}/test_id_{cid}/answersheet.pdf")
 
             # Static directory for local fallback files
             static_dir = os.path.join(
@@ -6287,6 +6315,21 @@ def remove_answer_sheet(request, current_user=None):
         # 2. Database Cleanup immediately (strict foreign key deletion order)
         db_start = time.perf_counter()
         if all_att_ids:
+            # First collect answer IDs to cleanly cascade MarksHistory before Answers deletion
+            ans_id_rows = (
+                session.query(Answer.answer_id)
+                .filter(func.cast(Answer.attempt_id, String).in_(all_att_ids))
+                .all()
+            )
+            all_ans_ids = [str(r[0]) for r in ans_id_rows if r[0]]
+            if all_ans_ids:
+                try:
+                    session.query(MarksHistory).filter(
+                        func.cast(MarksHistory.answer_id, String).in_(all_ans_ids)
+                    ).delete(synchronize_session=False)
+                except Exception as e:
+                    print(f"[remove_answer_sheet] DB delete MarksHistory notice: {e}")
+
             try:
                 session.query(ExamReviewCommentsHistory).filter(
                     func.cast(ExamReviewCommentsHistory.attempt_id, String).in_(all_att_ids)

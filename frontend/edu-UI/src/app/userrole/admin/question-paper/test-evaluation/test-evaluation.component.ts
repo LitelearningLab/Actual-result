@@ -1412,81 +1412,87 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const examId = this.selectedExamId;
     const userId = student.user_id;
 
-    // Also find and reset the student directly inside this.students by user_id
-    const targetInList = this.students.find(s => String(s.user_id) === String(userId));
-    if (targetInList) {
-      targetInList.isUploaded = false;
-      targetInList.rawFile = undefined;
-      targetInList.matchedFile = undefined;
-      targetInList.matchedBy = undefined;
-      targetInList.isMatched = false;
-      targetInList.pagesInfo = '0 of 0 pages';
-      targetInList.missingPagesWarning = undefined;
-      targetInList.status = 'Not Evaluated';
-      targetInList.marks = 'Not marked';
-      targetInList.actionText = 'Evaluate';
-      targetInList.actionClass = 'btn-outline-blue';
+    if (!examId || !userId) {
+      this.isRemovingSheet = false;
+      this.closeConfirmRemoveModal(true);
+      notify('Missing exam or student ID for removal.', 'error');
+      return;
     }
 
+    // Call backend first to guarantee database deletion before updating UI state
+    this.http.post<any>(`${API_BASE}/test-evaluation/remove-answer-sheet`, {
+      exam_id: examId,
+      user_id: userId
+    }).subscribe({
+      next: (res) => {
+        this.isRemovingSheet = false;
+        if (res && res.status) {
+          // Successfully deleted from database: now update UI state to match DB
+          const targetInList = this.students.find(s => String(s.user_id) === String(userId));
+          if (targetInList) {
+            targetInList.isUploaded = false;
+            targetInList.rawFile = undefined;
+            targetInList.matchedFile = undefined;
+            targetInList.matchedBy = undefined;
+            targetInList.isMatched = false;
+            targetInList.pagesInfo = '0 of 0 pages';
+            targetInList.missingPagesWarning = undefined;
+            targetInList.status = 'Not Evaluated';
+            targetInList.marks = 'Not marked';
+            targetInList.actionText = 'Evaluate';
+            targetInList.actionClass = 'btn-outline-blue';
+          }
 
-    const bIdx = this.bulkFiles.findIndex(
-      (f) => (f.selectedUserId && f.selectedUserId === student.user_id) || (f.studentName && f.studentName === student.name)
-    );
-    if (bIdx !== -1) {
-      this.bulkFiles.splice(bIdx, 1);
-    }
+          const bIdx = this.bulkFiles.findIndex(
+            (f) => (f.selectedUserId && String(f.selectedUserId) === String(userId)) || (f.studentName && f.studentName === student.name)
+          );
+          if (bIdx !== -1) {
+            this.bulkFiles.splice(bIdx, 1);
+          }
 
-    // Also update in-memory assigned_users in allPublishedExams so filters don't revert to old evaluation
-    const currentExam = this.allPublishedExams.find(e => e.exam_id === examId);
-    if (currentExam && Array.isArray(currentExam.assigned_users)) {
-      const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(userId));
-      if (u) {
-        u.pages_count = 0;
-        u.evaluation_status = 'Not Evaluated';
-        u.status = 'Not Evaluated';
-        u.marks_awarded = null;
-        u.score = null;
-        u.percentage = null;
-      }
-    }
+          const currentExam = this.allPublishedExams.find(e => e.exam_id === examId);
+          if (currentExam && Array.isArray(currentExam.assigned_users)) {
+            const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(userId));
+            if (u) {
+              u.pages_count = 0;
+              u.evaluation_status = 'Not Evaluated';
+              u.status = 'Not Evaluated';
+              u.marks_awarded = null;
+              u.score = null;
+              u.percentage = null;
+            }
+          }
 
-    this.recalculateKpiTotals();
-    this.filterStudents();
+          this.recalculateKpiTotals();
+          this.filterStudents();
 
-    // Immediately close modal and transition back to list view with zero delay
-    this.closeConfirmRemoveModal(true);
-    if (this.currentView === 'evaluate') {
-      this.currentView = 'list';
-      this.evaluatingStudent = null;
-      this.evaluationDetails = null;
-      this.pdfDoc = null;
-      this.currentLoadedPdfUrl = '';
-      if (this.pdfRenderTask) {
-        try {
-          this.pdfRenderTask.cancel();
-        } catch { }
-        this.pdfRenderTask = null;
-      }
-    }
+          this.closeConfirmRemoveModal(true);
+          if (this.currentView === 'evaluate') {
+            this.currentView = 'list';
+            this.evaluatingStudent = null;
+            this.evaluationDetails = null;
+            this.pdfDoc = null;
+            this.currentLoadedPdfUrl = '';
+            if (this.pdfRenderTask) {
+              try {
+                this.pdfRenderTask.cancel();
+              } catch { }
+              this.pdfRenderTask = null;
+            }
+          }
 
-    if (examId && userId) {
-      this.http.post<any>(`${API_BASE}/test-evaluation/remove-answer-sheet`, {
-        exam_id: examId,
-        user_id: userId
-      }).subscribe({
-        next: (res) => {
-          notify(`Answer sheet removed for ${student.name}`, 'info');
+          notify(`Answer sheet and evaluation removed successfully for ${student.name}`, 'info');
           this.refreshData();
-        },
-        error: (err) => {
-          console.error('Error removing answer sheet from server:', err);
-          notify('Notice: Server cleanup encountered an error.', 'error');
-          this.refreshData();
+        } else {
+          notify(res?.statusMessage || 'Server could not remove answer sheet.', 'error');
         }
-      });
-    } else {
-      notify(`Answer sheet removed for ${student.name}`, 'info');
-    }
+      },
+      error: (err) => {
+        this.isRemovingSheet = false;
+        console.error('Error removing answer sheet from server:', err);
+        notify(err?.error?.statusMessage || 'Failed to remove answer sheet from server. Database was not changed.', 'error');
+      }
+    });
   }
 
   loadEvaluationDetails(examId: string, userId: string): void {
