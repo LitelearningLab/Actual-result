@@ -1,4 +1,21 @@
 # Changelog
+## [2.3.4] - 2026-11-09
+
+### Enhancements & Bug Fixes
+- **Vision AI Objective Evaluation (`backend/others/llm.py`)**:
+  - Replaced Python regex matching with direct Vision AI evaluation for MCQs.
+  - Added support for various handwritten answer formats (`1. d) Mass`, `(D) Mass`, `Q1: D`, etc.).
+  - Added `selected_option_letter` and `manual_review_required` to AI response schema.
+- **Backend Evaluation Flow (`backend/others/exams.py`)**:
+  - Direct 1:1 option ID mapping using in-memory rubric lookup without random UUID sorting.
+  - Removed Python override logic that previously overwrote student marks to 0.0.
+  - Preserved evaluation results when opening the evaluation review screen.
+- **Test Evaluation UI & Bulk Sync (`test-evaluation.component.ts`)**:
+  - Synced in-memory exam cache (`allPublishedExams`) immediately upon `sheet_completed`.
+  - Automatically reloaded database records via `loadPublishedExams` upon `job_completed`.
+  - Auto-cleared uploaded files tray and row-level attached blue chips on completion.
+
+---
 ## [2.3.3] - 2026-11-06
 
 ### Features & Enhancements
