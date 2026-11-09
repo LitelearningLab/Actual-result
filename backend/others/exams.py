@@ -6474,6 +6474,24 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
         finally:
             session.close()
 
+    # Fallback to frontend-provided students roster if DB query returned empty
+    if not students_roster:
+        try:
+            req_st = request.form.get("students")
+            if req_st:
+                parsed_st = json.loads(req_st)
+                if isinstance(parsed_st, list):
+                    students_roster = [
+                        {
+                            "user_id": str(s.get("user_id")),
+                            "name": s.get("name") or "",
+                            "roll_no": str(s.get("roll_no") or s.get("rollNo") or ""),
+                        }
+                        for s in parsed_st
+                    ]
+        except Exception as fallback_err:
+            print(f"[split_multi_student_pdf] Fallback roster parse error: {fallback_err}")
+
     # 3. Pre-extract page texts and images for all pages
     page_data = []
     for p_idx in range(total_pages):
@@ -6525,20 +6543,30 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                 for s in students_roster
             ]
             system_prompt = (
-                "You are an expert AI exam grading assistant specializing in identifying student answer sheets.\n"
-                "Examine this page image and determine:\n"
-                "1. Is this page the START of a student's answer sheet (e.g. contains student name, roll number, title box, header, or question 1 start)?\n"
-                "2. Match the student name or roll number against the candidate students roster.\n\n"
+                "You are an expert AI vision assistant specializing in handwriting analysis on student exam papers.\n"
+                "Examine this page image carefully. Look at the top, header, corners, title area, and question numbering to determine:\n"
+                "1. Student Identification: Read the handwritten Name and Roll Number / Register Number.\n"
+                "2. Handwriting Ambiguity Resolution: Cursive letters can easily look ambiguous (e.g. cursive 'P' looks like 'B', 'r' looks like 'v', 'n' looks like 'm'). "
+                "Always cross-reference with the Candidate Students Roster as your ground truth. If the handwriting or roll number closely matches a roster student (e.g. 'Bethika 2308' -> Prethika), map it to that official student.\n"
+                "3. Boundary Detection (is_start): Set 'is_start': true if this page is the start of a student's answer sheet (e.g., contains student name/roll number header, title box, 'Section-A', or Question 1).\n\n"
                 f"Candidate Students Roster:\n{json.dumps(roster_summary, ensure_ascii=False)}\n\n"
-                "Return ONLY a JSON object (no markdown):\n"
-                '{"is_start": true/false, "matched": true/false, "student_name": "<name>", "roll_no": "<roll>", "user_id": "<id>", "confidence": 90, "detected_text": "<text>"}'
+                "Return ONLY a valid JSON object (no markdown, no backticks):\n"
+                '{\n'
+                '  "is_start": true,\n'
+                '  "matched": true,\n'
+                '  "student_name": "<official student name from roster>",\n'
+                '  "roll_no": "<roll number from roster>",\n'
+                '  "user_id": "<user_id from roster>",\n'
+                '  "confidence": 95,\n'
+                '  "detected_text": "<exact handwritten text seen on paper>"\n'
+                '}'
             )
 
             try:
                 base64_img = base64.b64encode(img_bytes).decode("utf-8")
                 data_uri = f"data:image/jpeg;base64,{base64_img}"
                 user_content = [
-                    {"type": "text", "text": f"Inspect Page {p_num} to detect if this starts a student's answer sheet and identify the student."},
+                    {"type": "text", "text": f"Analyze Page {p_num}: detect student name and roll number, match against candidate roster, and check if it starts a student sheet."},
                     {"type": "image_url", "image_url": {"url": data_uri}}
                 ]
                 resp = client.chat_completion(
@@ -6560,6 +6588,24 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                         parsed = json.loads(raw_c)
                         parsed["page_num"] = p_num
                         parsed["matched_by"] = f"AI Vision on Page {p_num}"
+
+                        # If AI detected the roll number or name but left user_id blank, link with roster:
+                        if not parsed.get("user_id") and (parsed.get("roll_no") or parsed.get("student_name")):
+                            d_roll = str(parsed.get("roll_no") or "").strip().lower()
+                            d_name = str(parsed.get("student_name") or "").strip().lower()
+                            for st in students_roster:
+                                s_roll = str(st.get("roll_no") or "").strip().lower()
+                                s_name = str(st.get("name") or "").strip().lower()
+                                if (d_roll and s_roll and (d_roll == s_roll or d_roll in s_roll)) or (
+                                    d_name and s_name and (d_name == s_name or d_name in s_name)
+                                ):
+                                    parsed["user_id"] = str(st.get("user_id"))
+                                    parsed["student_name"] = st.get("name")
+                                    parsed["roll_no"] = st.get("roll_no")
+                                    parsed["matched"] = True
+                                    parsed["is_start"] = True
+                                    break
+
                         return parsed
             except Exception as vis_err:
                 print(f"[split_multi_student_pdf] Vision error on page {p_num}: {vis_err}")
@@ -6653,7 +6699,29 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
         for p_idx in range(total_pages):
             pnum = p_idx + 1
             insp = inspections_by_pnum.get(pnum, {})
-            is_start = insp.get("is_start") or insp.get("matched") or (pnum == 1)
+            uid = insp.get("user_id")
+            roll = str(insp.get("roll_no") or "").strip().lower()
+            name = str(insp.get("student_name") or "").strip().lower()
+            is_m = bool(insp.get("matched"))
+
+            # Check if this page belongs to the same student as current active segment
+            same_student = False
+            if curr_segment is not None:
+                c_uid = curr_segment.get("user_id")
+                c_roll = str(curr_segment.get("roll_no") or "").strip().lower()
+                c_name = str(curr_segment.get("student_name") or "").strip().lower()
+                if uid and c_uid and str(uid) == str(c_uid):
+                    same_student = True
+                elif roll and c_roll and roll == c_roll:
+                    same_student = True
+                elif name and c_name and name == c_name:
+                    same_student = True
+
+            # Decide if a new segment starts:
+            # - First page always starts segment 0
+            # - An identified student different from the current segment starts a new segment
+            # - An explicit is_start marker from AI starts a new segment unless confirmed same student
+            is_start = (pnum == 1) or (is_m and not same_student) or (bool(insp.get("is_start")) and not same_student)
 
             if is_start:
                 if curr_segment is not None:
@@ -6669,8 +6737,8 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                     "user_id": insp.get("user_id"),
                     "student_name": insp.get("student_name") or f"Student (Page {pnum})",
                     "roll_no": insp.get("roll_no") or "",
-                    "is_matched": bool(insp.get("matched")),
-                    "confidence": insp.get("confidence", 90 if insp.get("matched") else 0),
+                    "is_matched": is_m,
+                    "confidence": insp.get("confidence", 90 if is_m else 0),
                     "matched_by": insp.get("matched_by", f"Detected on Page {pnum}"),
                     "thumbnail_url": page_data[p_idx]["thumb_b64"]
                 }
