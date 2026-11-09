@@ -2438,19 +2438,20 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
       overflow-y: auto;
       flex: 1;
 
-      // AI Evaluation Progress Indicator Box
+      // AI Evaluation Progress Indicator Card (Live & Expandable)
       .attach-ai-progress-box {
         display: flex;
-        align-items: center;
-        gap: 0.875rem;
+        flex-direction: column;
+        gap: 0.75rem;
         background: #f0fdf4;
         border: 1px solid #bbf7d0;
         border-radius: 0.75rem;
-        padding: 0.75rem 1rem;
+        padding: 0.875rem 1rem;
+        transition: all 0.25s ease;
 
         .ai-spinner-circle {
-          width: 40px;
-          height: 40px;
+          width: 32px;
+          height: 32px;
           background: #dcfce7;
           border-radius: 50%;
           display: flex;
@@ -2461,25 +2462,236 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
 
           .spin-icon {
             animation: spin 1.2s linear infinite;
-            font-size: 22px;
-            width: 22px;
-            height: 22px;
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
           }
         }
 
-        .ai-progress-text {
-          h4 {
-            font-size: 0.875rem;
-            font-weight: 700;
-            color: #15803d;
-            margin: 0 0 0.25rem 0;
+        .progress-card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          .header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+
+            .progress-card-title {
+              font-size: 0.9375rem;
+              font-weight: 700;
+              color: #15803d;
+              margin: 0;
+            }
           }
 
-          p {
+          .processing-badge {
+            background: #dcfce7;
+            color: #15803d;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.2rem 0.625rem;
+            border-radius: 9999px;
+            letter-spacing: 0.02em;
+          }
+        }
+
+        .question-progress-summary {
+          display: flex;
+          flex-direction: column;
+          gap: 0.375rem;
+
+          .progress-summary-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            .summary-label {
+              font-size: 0.8125rem;
+              font-weight: 600;
+              color: #334155;
+            }
+
+            .progress-toggle-btn {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.25rem;
+              background: transparent;
+              border: 1px solid transparent;
+              padding: 0.125rem 0.375rem;
+              border-radius: 0.375rem;
+              cursor: pointer;
+              transition: all 0.15s ease;
+
+              .question-count-text {
+                font-size: 0.875rem;
+                font-weight: 700;
+                color: #0f172a;
+              }
+
+              .toggle-icon {
+                font-size: 18px;
+                width: 18px;
+                height: 18px;
+                color: #15803d;
+                transition: transform 0.2s ease;
+              }
+
+              &:hover {
+                background: #dcfce7;
+                border-color: #bbf7d0;
+              }
+            }
+          }
+
+          .progress-stats-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+
+            .progress-percentage-val {
+              font-size: 1.5rem;
+              font-weight: 800;
+              color: #16a34a;
+              line-height: 1.1;
+            }
+
+            .questions-remaining-lbl {
+              font-size: 0.8125rem;
+              color: #475569;
+              font-weight: 500;
+            }
+          }
+
+          .progress-bar-track {
+            width: 100%;
+            height: 6px;
+            background: #dcfce7;
+            border-radius: 9999px;
+            overflow: hidden;
+            margin-top: 0.125rem;
+
+            .progress-bar-fill {
+              height: 100%;
+              background: #16a34a;
+              border-radius: 9999px;
+              transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+          }
+
+          .progress-hint {
             font-size: 0.75rem;
             color: #166534;
-            margin: 0;
-            line-height: 1.4;
+            margin: 0.25rem 0 0;
+            opacity: 0.9;
+          }
+        }
+
+        .question-details-container {
+          margin-top: 0.375rem;
+          padding-top: 0.625rem;
+          border-top: 1px dashed #bbf7d0;
+          animation: modalPopIn 0.2s ease;
+
+          .details-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+
+            .btn-collapse-header {
+              background: none;
+              border: none;
+              cursor: pointer;
+              color: #64748b;
+              padding: 2px;
+              border-radius: 4px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+
+              mat-icon {
+                font-size: 18px;
+                width: 18px;
+                height: 18px;
+              }
+
+              &:hover {
+                color: #0f172a;
+                background: #dcfce7;
+              }
+            }
+          }
+
+          .question-items-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.375rem;
+            max-height: 160px;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+
+            &::-webkit-scrollbar {
+              width: 5px;
+            }
+            &::-webkit-scrollbar-thumb {
+              background: #bbf7d0;
+              border-radius: 4px;
+            }
+          }
+
+          .question-status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.375rem 0.625rem;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #dcfce7;
+            border-radius: 0.5rem;
+
+            .q-label {
+              font-size: 0.8125rem;
+              font-weight: 600;
+              color: #334155;
+            }
+
+            .q-status-badge {
+              display: inline-flex;
+              align-items: center;
+              gap: 0.25rem;
+              font-size: 0.75rem;
+              font-weight: 700;
+              padding: 0.15rem 0.5rem;
+              border-radius: 9999px;
+
+              &.status-evaluated {
+                background: #dcfce7;
+                color: #15803d;
+              }
+              &.status-evaluating {
+                background: #e0f2fe;
+                color: #0284c7;
+              }
+              &.status-waiting {
+                background: #f1f5f9;
+                color: #64748b;
+              }
+              &.status-failed {
+                background: #fee2e2;
+                color: #dc2626;
+              }
+
+              .mini-spin {
+                font-size: 12px;
+                width: 12px;
+                height: 12px;
+                animation: spin 1.2s linear infinite;
+              }
+            }
           }
         }
       }
@@ -2495,6 +2707,40 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         justify-content: center;
         text-align: center;
         transition: all 0.2s ease;
+
+        &.compact-dropzone {
+          padding: 0.625rem 0.875rem;
+
+          .cloud-badge-circle {
+            width: 28px;
+            height: 28px;
+            margin-bottom: 0.25rem;
+
+            .cloud-icon {
+              font-size: 16px;
+              width: 16px;
+              height: 16px;
+            }
+          }
+
+          .drag-title {
+            font-size: 0.8125rem;
+            margin-bottom: 0.125rem;
+          }
+
+          .file-types-lbl {
+            display: none;
+          }
+
+          .btn-choose-file {
+            padding: 0.25rem 0.625rem;
+            font-size: 0.75rem;
+          }
+        }
+
+        &.evaluating-collapsed {
+          display: none;
+        }
 
         &.disabled-zone {
           opacity: 0.6;

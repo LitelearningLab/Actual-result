@@ -398,6 +398,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.bulkEvalEventSource.close();
       this.bulkEvalEventSource = undefined;
     }
+    if (this.evalProgressInterval) {
+      clearInterval(this.evalProgressInterval);
+      this.evalProgressInterval = null;
+    }
     if (this.authSubscription) {
       this.authSubscription.unsubscribe();
     }
@@ -2155,19 +2159,56 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.pendingAttachStudent = null;
   }
 
+  // ─── Attach Answer Sheet: Live AI Evaluation Progress State ───
+  isEvalProgressExpanded: boolean = false;
+  evalProgressTotal: number = 0;
+  evalProgressCompleted: number = 0;
+  evalProgressPercent: number = 0;
+  evalQuestionList: Array<{
+    number: number;
+    status: 'Evaluated' | 'Evaluating' | 'Waiting' | 'Failed';
+  }> = [];
+  private evalProgressInterval: any = null;
+
+  get evalProgressRemaining(): number {
+    return Math.max(0, this.evalProgressTotal - this.evalProgressCompleted);
+  }
+
+  toggleEvalProgressDetails(): void {
+    this.isEvalProgressExpanded = !this.isEvalProgressExpanded;
+  }
+
   openAttachModal(student?: StudentEvaluation): void {
     this.selectedStudentForAttach = student || this.evaluatingStudent || null;
     this.isAttachModalOpen = true;
     this.selectedFilesList = [];
     this.uploadedRawFiles = [];
+    this.isEvalProgressExpanded = false;
+    this.evalProgressTotal = 0;
+    this.evalProgressCompleted = 0;
+    this.evalProgressPercent = 0;
+    this.evalQuestionList = [];
+    if (this.evalProgressInterval) {
+      clearInterval(this.evalProgressInterval);
+      this.evalProgressInterval = null;
+    }
   }
 
   closeAttachModal(): void {
+    if (this.evalProgressInterval) {
+      clearInterval(this.evalProgressInterval);
+      this.evalProgressInterval = null;
+    }
     this.isAttachModalOpen = false;
     this.selectedStudentForAttach = null;
     this.selectedFilesList = [];
     this.uploadedRawFiles = [];
     this.isUploading = false;
+    this.isEvalProgressExpanded = false;
+    this.evalProgressTotal = 0;
+    this.evalProgressCompleted = 0;
+    this.evalProgressPercent = 0;
+    this.evalQuestionList = [];
   }
 
   removeFileFromList(index: number): void {
@@ -2244,6 +2285,44 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }
 
     this.isUploading = true;
+    this.isEvalProgressExpanded = false;
+
+    // Initialize Question Progress from exam details or default to 5
+    const parsedQ = parseInt(String(this.testDetails?.totalQuestions || '').replace(/[^\d]/g, ''), 10);
+    const totalQ = parsedQ > 0 ? parsedQ : 5;
+    this.evalProgressTotal = totalQ;
+    this.evalProgressCompleted = 0;
+    this.evalProgressPercent = 0;
+
+    this.evalQuestionList = Array.from({ length: totalQ }, (_, i) => ({
+      number: i + 1,
+      status: (i === 0 ? 'Evaluating' : 'Waiting') as 'Evaluated' | 'Evaluating' | 'Waiting' | 'Failed'
+    }));
+
+    if (this.evalProgressInterval) {
+      clearInterval(this.evalProgressInterval);
+      this.evalProgressInterval = null;
+    }
+
+    // Dynamic pacing across questions during the upload & AI evaluation HTTP call
+    let currentActiveIdx = 0;
+    this.evalProgressInterval = setInterval(() => {
+      if (!this.isUploading) {
+        clearInterval(this.evalProgressInterval);
+        return;
+      }
+      if (currentActiveIdx < totalQ - 1) {
+        // Mark previous as evaluated
+        this.evalQuestionList[currentActiveIdx].status = 'Evaluated';
+        currentActiveIdx++;
+        // Mark current as evaluating
+        this.evalQuestionList[currentActiveIdx].status = 'Evaluating';
+        this.evalProgressCompleted = currentActiveIdx;
+        this.evalProgressPercent = Math.min(95, Math.round((this.evalProgressCompleted / totalQ) * 100));
+        this.cdr.detectChanges();
+      }
+    }, 2800);
+
     const formData = new FormData();
     formData.append('exam_id', examId);
     formData.append('user_id', userId);
@@ -2255,52 +2334,77 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     this.http.post<any>(`${API_BASE}/test-evaluation/upload-answer-sheet`, formData).subscribe({
       next: (res) => {
-        this.isUploading = false;
+        if (this.evalProgressInterval) {
+          clearInterval(this.evalProgressInterval);
+          this.evalProgressInterval = null;
+        }
+
         if (res && res.status) {
-          notify(res.statusMessage || 'Answer sheet uploaded successfully.', 'success');
-          if (targetStudent) {
-            const pagesCount = res.data?.total_pages || res.data?.pages?.length || 1;
-            targetStudent.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
-            targetStudent.missingPagesWarning = undefined;
-            targetStudent.status = 'AI Evaluated';
-            if (res.data?.marks) {
-              targetStudent.marks = res.data.marks;
-            }
-            targetStudent.matchedFile = undefined;
-            targetStudent.isUploaded = true;
-            targetStudent.actionText = 'Review';
-            targetStudent.actionClass = 'btn-solid-blue';
+          // Complete all questions to 100% Evaluated
+          this.evalProgressCompleted = totalQ;
+          this.evalProgressPercent = 100;
+          this.evalQuestionList.forEach(q => q.status = 'Evaluated');
+          this.cdr.detectChanges();
 
-            // Instantly sync in-memory cache in allPublishedExams so table never lags or shows stale data
-            const currentExam = this.allPublishedExams.find(e => e.exam_id === examId);
-            if (currentExam && Array.isArray(currentExam.assigned_users)) {
-              const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(userId));
-              if (u) {
-                u.pages_count = pagesCount;
-                u.evaluation_status = 'AI Evaluated';
-                u.status = 'AI Evaluated';
-                u.score = res.data?.score != null ? res.data.score : u.score;
-                u.marks_awarded = res.data?.score != null ? res.data.score : u.marks_awarded;
-                u.percentage = res.data?.percentage != null ? res.data.percentage : u.percentage;
+          setTimeout(() => {
+            this.isUploading = false;
+            notify(res.statusMessage || 'Answer sheet uploaded successfully.', 'success');
+            if (targetStudent) {
+              const pagesCount = res.data?.total_pages || res.data?.pages?.length || 1;
+              targetStudent.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
+              targetStudent.missingPagesWarning = undefined;
+              targetStudent.status = 'AI Evaluated';
+              if (res.data?.marks) {
+                targetStudent.marks = res.data.marks;
               }
-            }
+              targetStudent.matchedFile = undefined;
+              targetStudent.isUploaded = true;
+              targetStudent.actionText = 'Review';
+              targetStudent.actionClass = 'btn-solid-blue';
 
-            this.recalculateKpiTotals();
-            this.filterStudents();
-            this.cdr.detectChanges();
-          }
-          this.closeAttachModal();
-          if (targetStudent) {
-            this.openStudentEvaluation(targetStudent);
-          } else if (this.currentView === 'evaluate' && this.evaluatingStudent?.user_id === userId) {
-            this.loadEvaluationDetails(examId, userId);
-          }
+              // Instantly sync in-memory cache in allPublishedExams so table never lags or shows stale data
+              const currentExam = this.allPublishedExams.find(e => e.exam_id === examId);
+              if (currentExam && Array.isArray(currentExam.assigned_users)) {
+                const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(userId));
+                if (u) {
+                  u.pages_count = pagesCount;
+                  u.evaluation_status = 'AI Evaluated';
+                  u.status = 'AI Evaluated';
+                  u.score = res.data?.score != null ? res.data.score : u.score;
+                  u.marks_awarded = res.data?.score != null ? res.data.score : u.marks_awarded;
+                  u.percentage = res.data?.percentage != null ? res.data.percentage : u.percentage;
+                }
+              }
+
+              this.recalculateKpiTotals();
+              this.filterStudents();
+              this.cdr.detectChanges();
+            }
+            this.closeAttachModal();
+            if (targetStudent) {
+              this.openStudentEvaluation(targetStudent);
+            } else if (this.currentView === 'evaluate' && this.evaluatingStudent?.user_id === userId) {
+              this.loadEvaluationDetails(examId, userId);
+            }
+          }, 600);
         } else {
+          this.isUploading = false;
+          // Flag current evaluating question as Failed
+          const activeQ = this.evalQuestionList.find(q => q.status === 'Evaluating');
+          if (activeQ) activeQ.status = 'Failed';
+          this.cdr.detectChanges();
           notify(res?.statusMessage || 'Failed to upload answer sheet.', 'error');
         }
       },
       error: (err) => {
+        if (this.evalProgressInterval) {
+          clearInterval(this.evalProgressInterval);
+          this.evalProgressInterval = null;
+        }
         this.isUploading = false;
+        const activeQ = this.evalQuestionList.find(q => q.status === 'Evaluating');
+        if (activeQ) activeQ.status = 'Failed';
+        this.cdr.detectChanges();
         console.error('Error uploading answer sheet:', err);
         notify(err?.error?.statusMessage || 'Error uploading answer sheet.', 'error');
       }
@@ -3252,6 +3356,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.bulkEvalEventSource.close();
       this.bulkEvalEventSource = undefined;
     }
+    if (this.evalProgressInterval) {
+      clearInterval(this.evalProgressInterval);
+      this.evalProgressInterval = null;
+    }
 
     const token = sessionStorage.getItem('token') || '';
     const streamUrl = `${API_BASE}/test-evaluation/evaluation-stream/${jobId}?token=${encodeURIComponent(token)}`;
@@ -3584,6 +3692,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (this.bulkEvalEventSource) {
       this.bulkEvalEventSource.close();
       this.bulkEvalEventSource = undefined;
+    }
+    if (this.evalProgressInterval) {
+      clearInterval(this.evalProgressInterval);
+      this.evalProgressInterval = null;
     }
 
     for (const s of this.students) {

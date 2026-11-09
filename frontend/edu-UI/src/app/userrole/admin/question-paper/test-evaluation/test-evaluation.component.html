@@ -2100,19 +2100,71 @@
 
       <!-- Modal Body -->
       <div class="attach-modal-body">
-        <!-- AI Uploading Progress State Banner -->
-        <div class="attach-ai-progress-box" *ngIf="isUploading">
-          <div class="ai-spinner-circle">
-            <mat-icon class="spin-icon">sync</mat-icon>
+        <!-- Live AI Evaluation Progress Card -->
+        <div class="attach-ai-progress-box live-progress-card" *ngIf="isUploading">
+          <!-- Card Header Row -->
+          <div class="progress-card-header">
+            <div class="header-left">
+              <div class="ai-spinner-circle">
+                <mat-icon class="spin-icon">sync</mat-icon>
+              </div>
+              <h4 class="progress-card-title">AI Evaluation in Progress</h4>
+            </div>
+            <span class="processing-badge">Processing</span>
           </div>
-          <div class="ai-progress-text">
-            <h4>AI Evaluation in Progress...</h4>
-            <p>Rasterizing pages, detecting question answers, and calculating AI scores. Please wait a moment.</p>
+
+          <!-- Question Progress Summary Row -->
+          <div class="question-progress-summary">
+            <div class="progress-summary-top">
+              <span class="summary-label">Question Progress</span>
+              <button type="button" class="progress-toggle-btn" (click)="toggleEvalProgressDetails()"
+                [matTooltip]="isEvalProgressExpanded ? 'Hide question details' : 'View question details'">
+                <span class="question-count-text">{{ evalProgressCompleted }} / {{ evalProgressTotal }}</span>
+                <mat-icon class="toggle-icon">{{ isEvalProgressExpanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+              </button>
+            </div>
+
+            <div class="progress-stats-row">
+              <span class="progress-percentage-val">{{ evalProgressPercent }}%</span>
+              <span class="questions-remaining-lbl">
+                {{ evalProgressRemaining }} {{ evalProgressRemaining === 1 ? 'question' : 'questions' }} remaining
+              </span>
+            </div>
+
+            <!-- Dynamic Progress Bar -->
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" [style.width.%]="evalProgressPercent"></div>
+            </div>
+
+            <p class="progress-hint" *ngIf="!isEvalProgressExpanded">
+              Click the arrow to view individual question status.
+            </p>
+          </div>
+
+          <!-- Expandable Question Details List -->
+          <div class="question-details-container" *ngIf="isEvalProgressExpanded">
+            <div class="details-section-header">
+              <span>Question Details</span>
+              <button type="button" class="btn-collapse-header" (click)="toggleEvalProgressDetails()"
+                matTooltip="Collapse details">
+                <mat-icon>expand_less</mat-icon>
+              </button>
+            </div>
+            <div class="question-items-list">
+              <div class="question-status-row" *ngFor="let q of evalQuestionList">
+                <span class="q-label">Question {{ q.number }}</span>
+                <span class="q-status-badge" [ngClass]="'status-' + (q.status | lowercase)">
+                  <mat-icon class="mini-spin" *ngIf="q.status === 'Evaluating'">sync</mat-icon>
+                  {{ q.status }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Dashed Dropzone Area -->
-        <div class="modal-dropzone" [class.disabled-zone]="isUploading" (dragover)="onModalDragOver($event)"
+        <!-- Dashed Dropzone Area (Collapsed when file is selected or evaluating) -->
+        <div class="modal-dropzone" [class.compact-dropzone]="isUploading || (selectedFilesList && selectedFilesList.length > 0)"
+          [class.evaluating-collapsed]="isUploading" [class.disabled-zone]="isUploading" (dragover)="onModalDragOver($event)"
           (dragleave)="onModalDragLeave($event)" (drop)="onModalFileDrop($event)">
           <div class="cloud-badge-circle">
             <mat-icon class="cloud-icon">cloud_upload</mat-icon>
