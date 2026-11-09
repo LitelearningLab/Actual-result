@@ -4734,21 +4734,7 @@ def get_student_evaluation_details(request, current_user=None):
             sel_opt_id = str(ans.selected_option_id) if (ans and ans.selected_option_id) else None
             if is_objective_q:
                 model_answer = ""
-                feedback = ""
                 review_comments = []
-                if student_written_text:
-                    matched_opt, _ = _match_objective_option(student_written_text, options)
-                    expected_opt_id = str(matched_opt.options_id).lower() if matched_opt else None
-                    if expected_opt_id != (sel_opt_id.lower() if sel_opt_id else None):
-                        sel_opt_id = expected_opt_id
-                        if ans:
-                            ans.selected_option_id = matched_opt.options_id if matched_opt else None
-                            if getattr(ans, "manual_marks", None) is None:
-                                is_opt_corr = str(getattr(matched_opt, "is_correct", 0)).lower() in ("1", "true") if matched_opt else False
-                                ans.marks_awarded = q_marks if is_opt_corr else 0.0
-                                ans.is_correct = 1 if is_opt_corr else 0
-                                marks_awarded = ans.marks_awarded
-                            needs_evaluation_commit = True
 
             questions_data.append(
                 {
@@ -5362,6 +5348,7 @@ def process_single_student_answer_sheet(
             )
             rubric_sections = []
             seen_qids_rubric = set()
+            opt_id_by_letter_by_qid = {}
 
             if sec_rows:
                 for sec in sec_rows:
@@ -5420,6 +5407,7 @@ def process_single_student_answer_sheet(
                                 correct_texts = []
                                 for idx, opt in enumerate(options):
                                     letter = chr(ord("a") + idx)
+                                    opt_id_by_letter_by_qid.setdefault(str(q.question_id), {})[letter] = str(opt.options_id)
                                     opt_text = opt.option_text or ""
                                     formatted_options.append(
                                         {"letter": letter, "text": opt_text}
@@ -5488,6 +5476,7 @@ def process_single_student_answer_sheet(
                         correct_texts = []
                         for idx, opt in enumerate(options):
                             letter = chr(ord("a") + idx)
+                            opt_id_by_letter_by_qid.setdefault(str(q.question_id), {})[letter] = str(opt.options_id)
                             opt_text = opt.option_text or ""
                             formatted_options.append(
                                 {"letter": letter, "text": opt_text}
@@ -5729,38 +5718,24 @@ def process_single_student_answer_sheet(
                         or (ev.get("detected_on_pages") if ev else [])
                         or []
                     )
-                    manual_review = 0
-                    is_val = 1
                     conf = int(ev.get("ai_confidence", 0)) if (ev and ev.get("ai_confidence") is not None) else 0
 
-                    if is_detected and student_snippet:
-                        q_options = (
-                            session.query(Option)
-                            .filter(Option.question_id == q_obj.question_id)
-                            .all()
-                        ) if q_obj else []
-                        matched_option, matched_letter = _match_objective_option(student_snippet, q_options)
+                    if is_detected and ev:
+                        # 1. Trust the AI evaluation directly (No Python scoring)
+                        awarded = float(ev.get("suggested_marks", 0.0))
+                        is_corr = int(ev.get("is_correct", 0))
+                        fb = ev.get("feedback", "")
+                        manual_review = 1 if (is_uncertain or int(ev.get("manual_review_required", 0)) == 1) else 0
+                        is_val = 1
 
-                        if matched_option:
-                            matched_opt_id = str(matched_option.options_id)
-                            is_opt_correct = str(
-                                getattr(matched_option, "is_correct", 0)
-                            ).lower() in ("1", "true")
-                            if is_opt_correct:
-                                awarded = q_marks
-                                is_corr = 1
-                                fb = f"Correct. Selected Option ({matched_letter}) {matched_option.option_text}"
-                            else:
-                                awarded = 0.0
-                                is_corr = 0
-                                fb = f"Incorrect. Selected Option ({matched_letter}) {matched_option.option_text}"
-                        else:
-                            awarded = 0.0
-                            is_corr = 0
-                            fb = f"Student's answer '{student_snippet}' is not among the options."
+                        # 2. Map AI-selected letter directly to option ID (Zero Python matching fallback)
+                        selected_letter = str(ev.get("selected_option_letter") or "").strip().lower()
+                        matched_opt_id = opt_id_by_letter_by_qid.get(qid_str, {}).get(selected_letter)
                     else:
                         awarded = 0.0
                         is_corr = 0
+                        manual_review = 1 if is_uncertain else 0
+                        is_val = 1
                         fb = "Question was not attempted or not found on the uploaded answer sheet."
                 elif is_detected and ev:
                     awarded = float(ev.get("suggested_marks", 0.0))

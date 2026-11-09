@@ -921,9 +921,16 @@ EVALUATION RULES:
    - Illustrative Examples: If the rubric provides a sample example (e.g., class Dog, method bark()), accept any valid, functionally correct student example (e.g. Student, Car) unless the question explicitly mandated that exact name.
 
 3. OBJECTIVE / MULTIPLE CHOICE QUESTIONS:
-   - Identify option letter (e.g. 'a', 'b') or option text written under the question label. If a student crossed out or scribbled an initial mark and wrote an answer next to it (e.g. scribble then '2'), extract the final intended answer (e.g. '2').
-   - If it matches the correct option letter or text (case-insensitive), award full marks (suggested_marks = max_marks, is_correct = 1, missing = [], incomplete = [], incorrect = []).
-   - If incorrect, award 0.0 marks and specify the error.
+   - Identify the student's chosen answer regardless of written format:
+     * Accepts: 'd) Mass', '(D) Mass', 'D', 'd', '1. d) Mass', '3. a) mv', 'Q1: D', or option text.
+     * Extract the chosen option letter into "selected_option_letter" ('a', 'b', 'c', 'd', etc., or null if unattempted or unclear).
+   - If the student crossed out or scribbled an answer and wrote another next to it, extract the final intended answer.
+   - If handwriting or chosen option is illegible, scribbled over, or truly ambiguous, do NOT guess:
+     * Set "manual_review_required": 1, "suggested_marks": 0.0, "is_correct": 0, "ai_confidence": 40, and explain the ambiguity in "feedback".
+   - If clearly identified:
+     * Compare the student's choice with the rubric's "correct_option_letter" and "correct_option_text".
+     * If correct: set "suggested_marks": max_marks, "is_correct": 1, "manual_review_required": 0, "missing": [], "incomplete": [], "incorrect": [], "feedback": "Correct. Selected Option (<letter>) <text>".
+     * If incorrect: set "suggested_marks": 0.0, "is_correct": 0, "manual_review_required": 0, "feedback": "Incorrect. Selected Option (<letter>) <text>. Correct answer is (<correct_letter>) <correct_text>".
 
 4. REVIEW POINTS CLASSIFICATION (missing, incomplete, incorrect):
    - Check handwritten text first; if a concept is mentioned or attempted anywhere, it CANNOT be placed in "missing".
@@ -955,6 +962,8 @@ OUTPUT JSON STRUCTURE:
       "max_marks": <float maximum marks for this question>,
       "is_correct": <1 if full marks awarded, 0 otherwise>,
       "ai_confidence": <integer between 0 and 100>,
+      "selected_option_letter": "<a|b|c|d or null if unattempted/unclear>",
+      "manual_review_required": <1 if handwriting or answer is ambiguous/illegible, otherwise 0>,
       "missing": [
         {
           "topic": "<Specific Topic/Concept>",
