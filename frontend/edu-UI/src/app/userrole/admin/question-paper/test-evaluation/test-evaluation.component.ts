@@ -54,6 +54,10 @@ export interface StudentEvaluation {
   isMatched?: boolean;
   rawFile?: File;
   isUploaded?: boolean;
+  thumbnailUrl?: string;
+  subPdfFile?: string;
+  splitSegment?: MultiStudentSplitSegment;
+  splitBatchId?: string;
 }
 
 export interface MultiStudentSplitSegment {
@@ -97,6 +101,10 @@ export interface BulkFileItem {
   selectedUserId?: string;
   file?: File;
   isUploaded?: boolean;
+  thumbnailUrl?: string;
+  subPdfFile?: string;
+  segmentData?: MultiStudentSplitSegment;
+  splitBatchId?: string;
 }
 
 @Component({
@@ -2691,6 +2699,24 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const files: FileList = event.target?.files;
     if (!files || files.length === 0) return;
 
+    // Check if a single combined/multi-student PDF was uploaded
+    if (files.length === 1) {
+      const singleFile = files[0];
+      const sName = singleFile.name.toLowerCase();
+      if (
+        sName.endsWith('.pdf') &&
+        (sName.includes('multistudent') ||
+          sName.includes('multi_student') ||
+          sName.includes('multi-student') ||
+          sName.includes('combined') ||
+          sName.includes('batch_all') ||
+          this.bulkUploadMode === 'combined_pdf')
+      ) {
+        this.processMultiStudentPdf(singleFile);
+        return;
+      }
+    }
+
     let fastMatchedCount = 0;
     let pendingScanCount = 0;
 
@@ -2848,26 +2874,159 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.processMultiStudentPdf(file);
+  }
+
+  processMultiStudentPdf(file: File): void {
+    if (!this.selectedExamId) {
+      notify('Please select an exam first.', 'info');
+      return;
+    }
+
+    this.hasStartedEvaluation = false;
     this.combinedPdfFileName = file.name;
     this.isSplittingPdf = true;
+
+    // Create a temporary scanning file item in bulkFiles so top chip shows "Scanning..." immediately
+    const tempScanId = Date.now();
+    const tempScanItem: BulkFileItem = {
+      id: tempScanId,
+      fileName: file.name,
+      studentName: 'Analyzing & Splitting Multi-Student PDF...',
+      matchedBy: 'AI scanning student boundaries & pages...',
+      isMatched: false,
+      isScanning: true,
+      pagesInfo: 'Multi-student PDF',
+      isPageWarning: false,
+      aiStatus: 'Waiting',
+      evaluation: 'Ready for evaluation',
+      actionText: 'Scanning...',
+      actionClass: 'btn-disabled',
+      file: file
+    };
+    this.bulkFiles.push(tempScanItem);
+    this.recalculateKpiTotals();
+    this.filterStudents();
+
     notify(`Analyzing multi-student PDF "${file.name}"... AI is scanning pages and identifying students.`, 'info');
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('exam_id', this.selectedExamId);
 
+    const studentRoster = this.students.map((s) => ({
+      user_id: s.user_id,
+      name: s.name,
+      roll_no: s.rollNo
+    }));
+    formData.append('students', JSON.stringify(studentRoster));
+
     this.http.post<any>(`${API_BASE}/test-evaluation/split-multi-student-pdf`, formData).subscribe({
       next: (res) => {
         this.isSplittingPdf = false;
-        if (res && res.status && res.segments) {
+        // Remove the temporary scanning placeholder
+        const scanIdx = this.bulkFiles.findIndex((b) => b.id === tempScanId);
+        if (scanIdx !== -1) {
+          this.bulkFiles.splice(scanIdx, 1);
+        }
+
+        if (res && res.status && res.segments && res.segments.length > 0) {
           this.splitBatchData = res;
-          notify(`Identified ${res.identified_count} of ${res.total_students} student papers across ${res.total_pages} pages.`, 'success');
+          let matchedCount = 0;
+
+          res.segments.forEach((seg: MultiStudentSplitSegment, idx: number) => {
+            const segmentLabel = `${file.name} (Pages ${seg.start_page}–${seg.end_page})`;
+
+            // Try matching to student
+            let foundStudent: StudentEvaluation | undefined;
+            if (seg.user_id) {
+              foundStudent = this.students.find((s) => String(s.user_id) === String(seg.user_id));
+            }
+            if (!foundStudent && seg.student_name) {
+              const segName = seg.student_name.toLowerCase();
+              foundStudent = this.students.find(
+                (s) =>
+                  (s.name && s.name.toLowerCase() === segName) ||
+                  (seg.roll_no && s.rollNo && s.rollNo.toLowerCase() === seg.roll_no.toLowerCase())
+              );
+            }
+
+            const isMatched = !!foundStudent;
+            if (isMatched) {
+              matchedCount++;
+              seg.is_matched = true;
+              seg.user_id = String(foundStudent!.user_id);
+              seg.student_name = foundStudent!.name;
+              seg.roll_no = foundStudent!.rollNo || '';
+            }
+
+            const isAlreadyEvaluated =
+              foundStudent?.status === 'AI Evaluated' ||
+              foundStudent?.status === 'Manual Reviewed' ||
+              foundStudent?.status === 'Need to Check';
+
+            const bulkItem: BulkFileItem = {
+              id: Date.now() + idx + Math.floor(Math.random() * 1000),
+              fileName: segmentLabel,
+              studentName: foundStudent ? foundStudent.name : seg.student_name || 'Student not identified',
+              matchedBy: seg.matched_by || (foundStudent ? 'Identified from test paper' : 'No student matched'),
+              isMatched: isMatched,
+              isScanning: false,
+              pagesInfo: `${seg.total_pages} of ${seg.total_pages} pages`,
+              isPageWarning: false,
+              aiStatus: isMatched ? (isAlreadyEvaluated ? 'Completed' : 'Waiting') : 'Waiting',
+              evaluation:
+                foundStudent?.marks !== 'Not marked'
+                  ? foundStudent?.marks || 'Ready for evaluation'
+                  : 'Ready for evaluation',
+              actionText: isMatched ? (isAlreadyEvaluated ? 'Review' : 'Evaluate') : 'Select student',
+              actionClass: isMatched ? 'btn-solid-blue' : 'btn-disabled',
+              selectedStudent: foundStudent ? foundStudent.name : undefined,
+              selectedUserId: foundStudent ? foundStudent.user_id : undefined,
+              thumbnailUrl: seg.thumbnail_url,
+              subPdfFile: seg.sub_pdf_file,
+              segmentData: seg,
+              splitBatchId: res.batch_id,
+              file: file
+            };
+
+            if (foundStudent) {
+              foundStudent.matchedFile = segmentLabel;
+              foundStudent.matchedBy = bulkItem.matchedBy;
+              foundStudent.isMatched = true;
+              foundStudent.pagesInfo = bulkItem.pagesInfo;
+              foundStudent.status = isAlreadyEvaluated ? foundStudent.status : 'Not Evaluated';
+              foundStudent.actionText = isAlreadyEvaluated ? 'Review' : 'Evaluate';
+              foundStudent.actionClass = 'btn-solid-blue';
+              foundStudent.thumbnailUrl = seg.thumbnail_url;
+              foundStudent.subPdfFile = seg.sub_pdf_file;
+              foundStudent.splitSegment = seg;
+              foundStudent.splitBatchId = res.batch_id;
+            }
+
+            this.bulkFiles.push(bulkItem);
+          });
+
+          this.recalculateKpiTotals();
+          this.filterStudents();
+          notify(
+            `Detected ${res.segments.length} student answer sheets (${matchedCount} identified automatically).`,
+            'success'
+          );
         } else {
+          this.recalculateKpiTotals();
+          this.filterStudents();
           notify(res?.statusMessage || 'Failed to split and identify multi-student PDF.', 'error');
         }
       },
       error: (err) => {
         this.isSplittingPdf = false;
+        const scanIdx = this.bulkFiles.findIndex((b) => b.id === tempScanId);
+        if (scanIdx !== -1) {
+          this.bulkFiles.splice(scanIdx, 1);
+        }
+        this.recalculateKpiTotals();
+        this.filterStudents();
         console.error('Error splitting multi-student PDF:', err);
         notify(err?.error?.statusMessage || 'Error analyzing and splitting multi-student PDF.', 'error');
       }
@@ -2992,7 +3151,29 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.closeAnswerSheetPreview();
     }
 
-    const pendingUploads = this.students.filter((s) => s.rawFile && !s.isUploaded && s.user_id);
+    // 1. Check for split segments from multi-student PDF
+    const splitStudents = this.students.filter(
+      (s) => s.splitSegment && s.user_id && (s.matchedFile || s.isMatched)
+    );
+    if (this.splitBatchData && splitStudents.length > 0) {
+      this.splitBatchData.segments.forEach((seg) => {
+        const assignedStudent = this.students.find((s) => s.splitSegment === seg);
+        if (assignedStudent && assignedStudent.user_id) {
+          seg.user_id = String(assignedStudent.user_id);
+          seg.student_name = assignedStudent.name;
+          seg.roll_no = assignedStudent.rollNo || '';
+          seg.is_matched = true;
+        }
+      });
+      this.confirmSplitAndEvaluate();
+      // If no other pending raw individual files, evaluation queue has started
+      const pendingRaw = this.students.filter((s) => s.rawFile && !s.isUploaded && s.user_id && !s.splitSegment);
+      if (pendingRaw.length === 0) {
+        return;
+      }
+    }
+
+    const pendingUploads = this.students.filter((s) => s.rawFile && !s.isUploaded && s.user_id && !s.splitSegment);
 
     if (pendingUploads.length > 0) {
       notify(`Queuing ${pendingUploads.length} answer sheet(s) for background AI evaluation...`, 'info');
@@ -3482,8 +3663,24 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         foundStudent.status = foundStudent.status === 'Not Evaluated' ? 'AI Evaluated' : foundStudent.status;
         foundStudent.actionText = 'Review';
         foundStudent.actionClass = 'btn-solid-blue';
+        if (fileItem.thumbnailUrl) foundStudent.thumbnailUrl = fileItem.thumbnailUrl;
+        if (fileItem.subPdfFile) foundStudent.subPdfFile = fileItem.subPdfFile;
+        if (fileItem.segmentData) {
+          fileItem.segmentData.user_id = String(foundStudent.user_id);
+          fileItem.segmentData.student_name = foundStudent.name;
+          fileItem.segmentData.roll_no = foundStudent.rollNo || '';
+          fileItem.segmentData.is_matched = true;
+          fileItem.segmentData.matched_by = 'Manually assigned';
+          foundStudent.splitSegment = fileItem.segmentData;
+          foundStudent.splitBatchId = fileItem.splitBatchId;
+        }
       }
     } else {
+      if (fileItem.segmentData) {
+        fileItem.segmentData.user_id = undefined;
+        fileItem.segmentData.student_name = '';
+        fileItem.segmentData.is_matched = false;
+      }
       fileItem.studentName = 'Student not identified';
       fileItem.selectedUserId = undefined;
       fileItem.isMatched = false;
@@ -3558,7 +3755,21 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (fileName) {
       const bIdx = this.bulkFiles.findIndex((f) => f.fileName === fileName || (f.file && f.file === student.rawFile));
       if (bIdx !== -1) {
-        this.bulkFiles.splice(bIdx, 1);
+        const bf = this.bulkFiles[bIdx];
+        if (bf.segmentData) {
+          bf.isMatched = false;
+          bf.studentName = 'Student not identified';
+          bf.selectedStudent = undefined;
+          bf.selectedUserId = undefined;
+          bf.matchedBy = 'No student matched';
+          bf.actionText = 'Select student';
+          bf.actionClass = 'btn-disabled';
+          bf.segmentData.is_matched = false;
+          bf.segmentData.user_id = undefined;
+          bf.segmentData.student_name = '';
+        } else {
+          this.bulkFiles.splice(bIdx, 1);
+        }
       }
     }
     this.resetStudentEvaluationFile(student);
@@ -3576,6 +3787,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     student.matchedBy = undefined;
     student.isMatched = false;
     student.rawFile = undefined;
+    student.thumbnailUrl = undefined;
+    student.subPdfFile = undefined;
+    student.splitSegment = undefined;
+    student.splitBatchId = undefined;
     student.missingPagesWarning = undefined;
     if (!student.isUploaded) {
       student.pagesInfo = '0 of 0 pages';
@@ -3772,6 +3987,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     let studentName: string | undefined;
     let isMatched: boolean | undefined;
     let isScanning: boolean | undefined;
+    let thumbnailUrl: string | undefined;
+    let subPdfFile: string | undefined;
 
     if ('file' in item && item.file) {
       file = item.file;
@@ -3779,19 +3996,63 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       studentName = item.studentName;
       isMatched = item.isMatched;
       isScanning = item.isScanning;
+      thumbnailUrl = (item as BulkFileItem).thumbnailUrl;
+      subPdfFile = (item as BulkFileItem).subPdfFile;
     } else if ('rawFile' in item && item.rawFile) {
       file = item.rawFile;
       fileName = item.matchedFile || file.name;
       studentName = item.name;
       isMatched = item.isMatched;
+      thumbnailUrl = (item as StudentEvaluation).thumbnailUrl;
+      subPdfFile = (item as StudentEvaluation).subPdfFile;
     } else if ('matchedFile' in item && item.matchedFile) {
       const foundBulk = this.bulkFiles.find((b) => b.fileName === item.matchedFile);
-      if (foundBulk && foundBulk.file) {
+      if (foundBulk) {
         file = foundBulk.file;
         fileName = foundBulk.fileName;
         studentName = item.name || foundBulk.studentName;
         isMatched = true;
+        thumbnailUrl = foundBulk.thumbnailUrl || (item as StudentEvaluation).thumbnailUrl;
+        subPdfFile = foundBulk.subPdfFile || (item as StudentEvaluation).subPdfFile;
       }
+    }
+
+    // Toggle close if already open for this file
+    if (this.previewAnswerSheet && this.previewAnswerSheet.fileName === fileName) {
+      this.closeAnswerSheetPreview();
+      return;
+    }
+
+    // If it's a split segment with a thumbnail preview from backend
+    if (thumbnailUrl && (!file || fileName.includes('(Pages '))) {
+      this.closeAnswerSheetPreview();
+      const previewImgUrl =
+        thumbnailUrl.startsWith('data:') || thumbnailUrl.startsWith('http') || thumbnailUrl.startsWith('blob:')
+          ? thumbnailUrl
+          : `${API_BASE}${thumbnailUrl}`;
+      const safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(previewImgUrl);
+
+      this.previewZoom = 1;
+      this.previewError = false;
+      this.previewPdfDoc = null;
+      this.previewPdfCurrentPage = 1;
+      this.previewPdfTotalPages = 1;
+      this.isPreviewPdfLoading = false;
+
+      this.previewAnswerSheet = {
+        fileName,
+        studentName,
+        isMatched,
+        isScanning,
+        isPdf: false,
+        objectUrl: previewImgUrl,
+        safeUrl
+      };
+
+      setTimeout(() => {
+        document.getElementById('answer-sheet-preview-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 60);
+      return;
     }
 
     if (!file) {
@@ -3966,7 +4227,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       } catch { }
       this.previewPdfRenderTask = null;
     }
-    if (this.previewAnswerSheet?.objectUrl) {
+    if (this.previewAnswerSheet?.objectUrl && this.previewAnswerSheet.objectUrl.startsWith('blob:')) {
       URL.revokeObjectURL(this.previewAnswerSheet.objectUrl);
     }
     this.previewAnswerSheet = null;

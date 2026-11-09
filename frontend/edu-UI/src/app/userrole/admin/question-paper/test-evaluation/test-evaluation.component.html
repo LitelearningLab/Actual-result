@@ -341,7 +341,7 @@
 
           <!-- Mode 1: Single Combined PDF Upload Dropzone -->
           <div class="bulk-dropzone-container combined-dropzone"
-            *ngIf="bulkUploadMode === 'combined_pdf' && !splitBatchData">
+            *ngIf="bulkUploadMode === 'combined_pdf'">
             <div class="cloud-badge-circle combined-cloud-badge">
               <mat-icon class="cloud-icon">auto_awesome</mat-icon>
             </div>
@@ -351,8 +351,6 @@
               AI will automatically detect student boundaries, identify each student, split the PDF, and evaluate each
               paper.
             </p>
-
-
 
             <label class="btn-upload-files combined-upload-btn" [class.btn-disabled]="isSplittingPdf">
               <mat-icon *ngIf="!isSplittingPdf">upload_file</mat-icon>
@@ -378,91 +376,6 @@
               <span>Upload Files</span>
               <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg" (change)="onBulkFilesSelected($event)" hidden />
             </label>
-          </div>
-
-          <!-- Splitting & Review Table Card (Shown when splitBatchData is available) -->
-          <div class="split-review-wrapper" *ngIf="splitBatchData && !isBulkEvaluating">
-            <div class="split-review-card">
-              <div class="split-card-header">
-                <div class="split-title-group">
-                  <mat-icon class="split-header-icon">call_split</mat-icon>
-                  <div>
-                    <h4 class="split-title">Multi-Student PDF Split Results</h4>
-                    <p class="split-subtitle">
-                      {{ splitBatchData.total_pages }} Pages Processed &bull;
-                      <strong>{{ splitBatchData.identified_count }}</strong> of {{ splitBatchData.segments.length }}
-                      Students Automatically Identified
-                    </p>
-                  </div>
-                </div>
-                <div class="split-header-actions">
-                  <button type="button" class="btn-split-discard" (click)="cancelSplitReview()">
-                    <mat-icon>close</mat-icon>
-                    <span>Discard</span>
-                  </button>
-                  <button type="button" class="btn-split-confirm" [disabled]="isUploading || isBulkEvaluating"
-                    (click)="confirmSplitAndEvaluate()">
-                    <mat-icon>auto_awesome</mat-icon>
-                    <span>Confirm & Evaluate All ({{ splitBatchData.identified_count }})</span>
-                  </button>
-                </div>
-              </div>
-
-              <div class="split-table-responsive">
-                <table class="split-table">
-                  <thead>
-                    <tr>
-                      <th>S.NO</th>
-                      <th>PAGES</th>
-                      <th>FIRST PAGE PREVIEW</th>
-                      <th>MATCHED STUDENT</th>
-                      <th>MATCH METHOD</th>
-                      <th>CONFIDENCE</th>
-                      <th>ASSIGN / REASSIGN</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr *ngFor="let seg of splitBatchData.segments; let i = index"
-                      [class.unmatched-row]="!seg.is_matched">
-                      <td class="col-sno">{{ i + 1 }}</td>
-                      <td class="col-pages">
-                        <span class="page-range-pill">
-                          {{ seg.start_page === seg.end_page ? ('Page ' + seg.start_page) : ('Pages ' + seg.start_page +
-                          ' - ' + seg.end_page) }}
-                        </span>
-                        <span class="pages-count-text">({{ seg.total_pages }} page{{ seg.total_pages > 1 ? 's' : ''
-                          }})</span>
-                      </td>
-                      <td class="col-thumb">
-                        <img [src]="seg.thumbnail_url" alt="Page Thumbnail" class="split-thumb-img" />
-                      </td>
-                      <td class="col-student-name">
-                        <div class="seg-student-name">{{ seg.student_name }}</div>
-                        <div class="seg-student-roll" *ngIf="seg.roll_no">Roll: {{ seg.roll_no }}</div>
-                      </td>
-                      <td class="col-method">
-                        <span class="method-text">{{ seg.matched_by }}</span>
-                      </td>
-                      <td class="col-conf">
-                        <span class="conf-pill"
-                          [ngClass]="seg.confidence >= 80 ? 'conf-high' : (seg.confidence > 0 ? 'conf-med' : 'conf-none')">
-                          {{ seg.confidence }}%
-                        </span>
-                      </td>
-                      <td class="col-assign">
-                        <select class="split-student-select" [ngModel]="seg.user_id || 'unmatched'"
-                          (ngModelChange)="onSegmentStudentChange(seg, $event)">
-                          <option value="unmatched" disabled>Choose student to link...</option>
-                          <option *ngFor="let st of students" [value]="st.user_id">
-                            {{ st.name }} ({{ st.rollNo }})
-                          </option>
-                        </select>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
           </div>
 
           <!-- Uploaded Files Manager Tray (Quick View & Delete Mistakes) -->
