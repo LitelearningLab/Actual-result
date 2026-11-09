@@ -1202,11 +1202,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.loadEvaluationDetails(this.selectedExamId, this.evaluatingStudent.user_id);
       return;
     }
-    if (this.selectedExamId) {
-      // Prioritize refreshing the currently active test locally with zero delay
+    const instId = this.activeInstituteId;
+    if (instId) {
+      this.loadPublishedExams(instId);
+    } else if (this.selectedExamId) {
       this.onTestChange(this.selectedExamId);
-    } else if (this.activeInstituteId) {
-      this.loadPublishedExams(this.activeInstituteId);
     }
   }
 
@@ -1311,6 +1311,20 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       questions: [],
       pages: []
     };
+
+    // If student has a split multi-student PDF segment, evaluate that segment
+    if (student.splitSegment && student.splitBatchId && !student.isUploaded) {
+      this.splitBatchData = {
+        batch_id: student.splitBatchId,
+        total_pages: student.splitSegment.total_pages || 1,
+        segments: [student.splitSegment],
+        total_students: 1,
+        identified_count: 1,
+        unmatched_count: 0
+      };
+      this.confirmSplitAndEvaluate();
+      return;
+    }
 
     // If student has a matched local file that hasn't been uploaded to backend yet, upload & evaluate first
     if (student.rawFile && !student.isUploaded) {
@@ -3286,12 +3300,29 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }
 
     // 1. Check for split segments from multi-student PDF
+    if (!this.splitBatchData && this.bulkFiles.some((b) => b.segmentData && b.splitBatchId)) {
+      const firstWithBatch = this.bulkFiles.find((b) => b.segmentData && b.splitBatchId);
+      if (firstWithBatch && firstWithBatch.splitBatchId) {
+        const segs = this.bulkFiles.map((b) => b.segmentData).filter((s): s is MultiStudentSplitSegment => !!s);
+        this.splitBatchData = {
+          batch_id: firstWithBatch.splitBatchId,
+          total_pages: segs.reduce((acc, s) => acc + (s.total_pages || 1), 0),
+          segments: segs,
+          total_students: segs.length,
+          identified_count: segs.filter((s) => s.is_matched).length,
+          unmatched_count: segs.filter((s) => !s.is_matched).length
+        };
+      }
+    }
+
     const splitStudents = this.students.filter(
       (s) => s.splitSegment && s.user_id && (s.matchedFile || s.isMatched)
     );
-    if (this.splitBatchData && splitStudents.length > 0) {
+    if (this.splitBatchData && (splitStudents.length > 0 || this.bulkFiles.some((b) => b.isMatched && b.segmentData))) {
       this.splitBatchData.segments.forEach((seg) => {
-        const assignedStudent = this.students.find((s) => s.splitSegment === seg);
+        const assignedStudent = this.students.find(
+          (s) => s.splitSegment === seg || (s.splitSegment && s.splitSegment.segment_index === seg.segment_index)
+        );
         if (assignedStudent && assignedStudent.user_id) {
           seg.user_id = String(assignedStudent.user_id);
           seg.student_name = assignedStudent.name;
@@ -3465,11 +3496,26 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         if (student) {
           student.status = 'AI Evaluated';
           student.matchedFile = undefined;
+          student.splitSegment = undefined;
+          student.rawFile = undefined;
           student.marks = data.marks || student.marks;
           student.isUploaded = true;
           student.pagesInfo = `${data.total_pages || 1} of ${data.total_pages || 1} pages`;
           student.actionText = 'Review';
           student.actionClass = 'btn-solid-blue';
+
+          // Sync in-memory cache so table filters preserve the new score
+          const currentExam = this.allPublishedExams.find((e) => e.exam_id === this.selectedExamId);
+          if (currentExam && Array.isArray(currentExam.assigned_users)) {
+            const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(data.user_id));
+            if (u) {
+              u.pages_count = data.total_pages || 1;
+              u.evaluation_status = 'AI Evaluated';
+              u.status = 'AI Evaluated';
+              u.marks_awarded = data.marks;
+              u.score = data.marks;
+            }
+          }
         }
         // Update corresponding item in bulkFiles table if present
         for (const bf of this.bulkFiles) {
@@ -3518,6 +3564,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         const data = JSON.parse(e.data);
         this.isBulkEvaluating = false;
         this.isUploading = false;
+        this.hasStartedEvaluation = false;
         sessionStorage.removeItem('activeBulkJobId');
         this.bulkProgress.percentage = 100;
         this.bulkProgress.message = data.message || 'All evaluations complete.';
@@ -3526,9 +3573,25 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           this.bulkEvalEventSource.close();
           this.bulkEvalEventSource = undefined;
         }
-        this.recalculateKpiTotals();
-        this.filterStudents();
-        this.cdr.detectChanges();
+
+        // 1. Clear top uploaded bulk tray so it disappears after evaluation
+        this.bulkFiles = [];
+        this.splitBatchData = null;
+
+        // 2. Clear attached file chips and segments from all student rows
+        this.students.forEach((s) => {
+          s.matchedFile = undefined;
+          s.rawFile = undefined;
+          s.splitSegment = undefined;
+        });
+
+        // 3. Fetch fresh evaluation status & marks from the database
+        const instId = this.activeInstituteId;
+        if (instId) {
+          this.loadPublishedExams(instId);
+        } else {
+          this.refreshData();
+        }
       } catch (err) {
         console.warn('Error parsing job_completed:', err);
       }
