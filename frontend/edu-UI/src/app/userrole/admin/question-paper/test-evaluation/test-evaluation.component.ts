@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, ChangeDetectorRef, TemplateRef, ViewContainerRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { MatIconModule } from '@angular/material/icon';
@@ -365,7 +365,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private overlay: Overlay,
     private vcr: ViewContainerRef,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private route: ActivatedRoute
   ) {
     this.detectUserRole();
   }
@@ -377,6 +378,14 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.activeBulkJobId = savedJobId;
     }
     this.loadAIConfidenceThreshold();
+
+    // Check query params if navigated from exam-reports
+    const qExamId = this.route?.snapshot?.queryParams?.['exam_id'] || this.route?.snapshot?.queryParams?.['schedule_id'];
+    const qUserId = this.route?.snapshot?.queryParams?.['user_id'] || this.route?.snapshot?.queryParams?.['student_id'];
+    if (qExamId && qUserId) {
+      sessionStorage.setItem('test_eval_exam_id', String(qExamId));
+      sessionStorage.setItem('test_eval_user_id', String(qUserId));
+    }
 
     // If refreshing while on student evaluation review, restore immediately without falling back to list
     const savedExamId = sessionStorage.getItem('test_eval_exam_id');

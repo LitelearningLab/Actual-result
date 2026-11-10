@@ -15,6 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatRadioModule } from '@angular/material/radio';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { OverlayModule } from '@angular/cdk/overlay';
@@ -41,6 +42,7 @@ import { ExamReportsComponent } from './exam-reports.component';
     MatAutocompleteModule,
     MatDatepickerModule,
     MatCheckboxModule,
+    MatRadioModule,
     FormsModule,
     HttpClientModule,
     OverlayModule,

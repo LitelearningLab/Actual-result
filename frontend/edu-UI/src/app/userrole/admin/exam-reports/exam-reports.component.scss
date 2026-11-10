@@ -62,6 +62,56 @@ $shadow-hover: 0 0.5rem 1.25rem rgba(0,0,0,0.08);
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.875rem; padding-bottom: 0.75rem; border-bottom: 0.0625rem solid rgba(0,0,0,0.06); }
 .controls { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
 
+// ── Reports Header & Radio Selection Bar ──
+.reports-header-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  margin-bottom: 0.75rem;
+
+  .reports-title-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+
+    .reports-header-icon {
+      width: 22px;
+      height: 22px;
+      color: #2563eb;
+    }
+
+    .reports-header-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+  }
+
+  .report-type-radio-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 1.25rem;
+
+    .report-type-radio {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #334155;
+
+      &.mat-radio-checked {
+        color: #2563eb;
+      }
+    }
+  }
+}
+
 // ── Top Action & Applied Filters Header Row ──
 .top-filter-bar-row {
   display: flex;
@@ -4496,6 +4546,116 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
           gap: 0.5rem;
           margin-top: 0;
           border-radius: 6px;
+        }
+      }
+    }
+  }
+}
+
+// ── Paper Test Selection Display Boxes ──
+.paper-test-selection-card {
+  .paper-selection-header {
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .paper-display-boxes-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+
+    .paper-display-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.625rem;
+      padding: 1rem 1.125rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-height: 5.5rem;
+      transition: all 0.2s ease;
+
+      &.box-selected {
+        background: #ffffff;
+        border-color: #93c5fd;
+        box-shadow: 0 2px 10px rgba(37, 99, 235, 0.06);
+
+        .box-label {
+          color: #2563eb;
+
+          .box-icon {
+            color: #2563eb;
+          }
+        }
+      }
+
+      .box-label {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #64748b;
+        letter-spacing: 0.04em;
+
+        .box-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+          color: #64748b;
+        }
+      }
+
+      .box-value-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+
+        .box-main-text {
+          font-size: 0.95rem;
+          font-weight: 600;
+          color: #0f172a;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .box-tags {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          flex-wrap: wrap;
+
+          .box-tag {
+            font-size: 0.75rem;
+            font-weight: 500;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+
+            &.subject-tag {
+              background: #eff6ff;
+              color: #1d4ed8;
+              border: 1px solid #bfdbfe;
+            }
+
+            &.marks-tag {
+              background: #ecfdf5;
+              color: #047857;
+              border: 1px solid #a7f3d0;
+            }
+
+            &.count-tag {
+              background: #f1f5f9;
+              color: #475569;
+              border: 1px solid #e2e8f0;
+            }
+          }
         }
       }
     }

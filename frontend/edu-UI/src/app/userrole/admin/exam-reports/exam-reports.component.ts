@@ -25,7 +25,7 @@ import {
   DateRangeDialogResult,
 } from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 import { SharedModule } from 'src/app/shared/shared.module';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { GlobalInstituteContextService } from 'src/app/shared/services/global-institute-context.service';
 import { AuthService } from 'src/app/home/service/auth.service';
 import {
@@ -49,13 +49,34 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   isUserReportRefreshing = false;
   private searchDebounceTimer: any = null;
 
+  activeReportType: 'online' | 'paper' = 'online';
+
+  // Paper Test state
+  paperSchedulesList: any[] = [];
+  filteredPaperSchedulesList: any[] = [];
+  paperSearchQuery = '';
+  selectedPaperSchedule: any = null;
+  selectedPaperQuestionTitle = '';
+  paperSubjectName = '';
+  paperScheduleDateDisplay = '';
+  paperScheduleDisplayLabel = '';
+  paperTotalMarks: number | null = null;
+  paperTotalQuestions: number | null = null;
+  loadingPaperSchedules = false;
+  selectedPaperSubject = '';
+  paperSubjectsList: string[] = [];
+
   onStudentSearchInput() {
     if (this.searchDebounceTimer) {
       clearTimeout(this.searchDebounceTimer);
     }
     this.searchDebounceTimer = setTimeout(() => {
       this.currentPage = 1;
-      this.loadUserReport(1, true);
+      if (this.activeReportType === 'paper') {
+        this.loadPaperUserReport(1);
+      } else {
+        this.loadUserReport(1, true);
+      }
     }, 300);
   }
 
@@ -63,10 +84,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.isUserReportRefreshing) return;
     this.isUserReportRefreshing = true;
 
-    if (this.activeMainTabIndex === 0) {
-      this.loadAnalytics();
+    if (this.activeReportType === 'paper') {
+      if (this.activeMainTabIndex === 0) {
+        this.loadPaperAnalytics();
+      } else {
+        this.loadPaperUserReport(this.currentPage || 1);
+      }
     } else {
-      this.loadUserReport(this.currentPage || 1);
+      if (this.activeMainTabIndex === 0) {
+        this.loadAnalytics();
+      } else {
+        this.loadUserReport(this.currentPage || 1);
+      }
     }
 
     setTimeout(() => {
@@ -85,7 +114,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     private globalContextService: GlobalInstituteContextService,
     private dialog: MatDialog,
     private auth: AuthService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private router: Router
   ) {
     try {
       this.isSuperAdmin =
@@ -210,7 +240,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.userSortDirection = 'asc';
     }
     this.currentPage = 1;
-    this.loadUserReport(1, true);
+    if (this.activeReportType === 'paper') {
+      this.loadPaperUserReport(1);
+    } else {
+      this.loadUserReport(1, true);
+    }
   }
 
   // user review panel state & controls
@@ -437,6 +471,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   openAnswerSheetInNewTab(row?: any): void {
     const targetRow = row || this.currentReviewRow;
+    if (this.activeReportType === 'paper') {
+      this.openPaperStudentEvaluation(targetRow);
+      return;
+    }
     const userId =
       targetRow?.user_id ||
       targetRow?.student_id ||
@@ -587,10 +625,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.appliedFilterChips.length === 0) {
       this.hasAppliedFilters = false;
     } else {
-      if (this.activeMainTabIndex === 0) {
-        this.loadAnalytics();
+      if (this.activeReportType === 'paper') {
+        if (this.activeMainTabIndex === 0) {
+          this.loadPaperAnalytics();
+        } else {
+          this.loadPaperUserReport(1);
+        }
       } else {
-        this.loadUserReport(1);
+        if (this.activeMainTabIndex === 0) {
+          this.loadAnalytics();
+        } else {
+          this.loadUserReport(1);
+        }
       }
     }
   }
@@ -1955,6 +2001,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   openUserReview(row: any) {
     if (!row) return;
+    if (this.activeReportType === 'paper') {
+      this.openPaperStudentEvaluation(row);
+      return;
+    }
     const resVal = String(row.result || row.status || '').trim().toLowerCase();
     if (resVal === 'no attempt' || resVal === 'no_attempt' || resVal === 'unattempted') {
       this._snack.open('This student has not attempted the test yet.', 'Close', { duration: 4000 });
@@ -2521,7 +2571,398 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.wrongDistribution = [];
   }
 
+  onReportTypeChange(type: 'online' | 'paper') {
+    if (this.activeReportType === type) return;
+    this.activeReportType = type;
+    this.selectedExam = null;
+    this.reportsApplied = false;
+    this.hasAppliedFilters = false;
+    this.userReportData = [];
+    this.userReportTotal = 0;
+    this.categoryAnalytics = [];
+    this.questionSummary = [];
+    this.filteredQuestionSummary = [];
+    this.wrongDistribution = [];
+    this.resetDescriptiveAiState();
+
+    if (type === 'paper') {
+      this.selectedTestTitle = '';
+      this.selectedScheduleDate = null;
+      this.selectedScheduleId = '';
+      this.availableSchedulesOnDate = [];
+      this.userFilters.schedule_id = '';
+      this.loadPaperScheduledTests();
+    } else {
+      this.selectedPaperSchedule = null;
+      this.selectedPaperQuestionTitle = '';
+      this.paperSubjectName = '';
+      this.paperScheduleDateDisplay = '';
+      this.paperScheduleDisplayLabel = '';
+      this.paperTotalMarks = null;
+      this.paperTotalQuestions = null;
+      this.loadScheduledTest();
+    }
+  }
+
+  loadPaperScheduledTests() {
+    const instituteId = this.selectedInstituteId || this.userFilters.institute_id || this.getLoggedInInstituteId();
+    if (!instituteId && this.isSuperAdmin) {
+      this.paperSchedulesList = [];
+      this.filteredPaperSchedulesList = [];
+      this.paperSubjectsList = [];
+      return;
+    }
+    this.loadingPaperSchedules = true;
+
+    const paperSchedParams: any = { summary_only: 'true' };
+    if (instituteId) paperSchedParams.institute_id = instituteId;
+    if (this.userFilters.country_id) paperSchedParams.country_id = this.userFilters.country_id;
+    if (this.userFilters.city_id) paperSchedParams.city_id = this.userFilters.city_id;
+
+    const masterExamParams: any = { test_mode: 'paper', summary_only: '1' };
+    if (instituteId) masterExamParams.institute_id = instituteId;
+    if (this.userFilters.country_id) masterExamParams.country = this.userFilters.country_id;
+    if (this.userFilters.city_id) masterExamParams.city = this.userFilters.city_id;
+
+    forkJoin({
+      schedulesRes: this.http.get<any>(`${API_BASE}/get-paper-schedules`, { params: paperSchedParams }).pipe(catchError(() => of([]))),
+      mastersRes: this.http.get<any>(`${API_BASE}/get-exams-details`, { params: masterExamParams }).pipe(catchError(() => of([])))
+    }).subscribe({
+      next: ({ schedulesRes, mastersRes }: { schedulesRes: any; mastersRes: any }) => {
+        this.loadingPaperSchedules = false;
+        const rawSched = Array.isArray(schedulesRes?.data) ? schedulesRes.data : (Array.isArray(schedulesRes) ? schedulesRes : []);
+        const rawMasters = Array.isArray(mastersRes?.data) ? mastersRes.data : (Array.isArray(mastersRes) ? mastersRes : []);
+
+        const combinedList: any[] = [];
+        const seenKeys = new Set<string>();
+
+        // 1. Published schedules
+        rawSched.forEach((s: any) => {
+          const sid = String(s.schedule_id || s.test_id || s.id || '').trim();
+          const title = String(s.title || s.paper_title || s.schedule_name || s.name || '').trim();
+          if (sid && !seenKeys.has(sid)) {
+            seenKeys.add(sid);
+            combinedList.push({
+              ...s,
+              schedule_id: sid,
+              exam_id: s.exam_id || s.master_exam_id || sid,
+              title: title || 'Paper Test',
+              subject_name: (s.subject_name || '').trim(),
+              total_marks: s.total_marks || null,
+              total_questions: s.total_questions || null,
+              start_time: s.start_time || s.created_date || null
+            });
+          }
+        });
+
+        // 2. Master papers from Exams (test_mode = 'paper')
+        rawMasters.forEach((m: any) => {
+          const mid = String(m.exam_id || m.test_id || m.id || '').trim();
+          const mTitle = String(m.title || m.name || m.exam_name || '').trim();
+          const existingSched = combinedList.find((c: any) => String(c.exam_id) === mid);
+          if (!existingSched && mid && !seenKeys.has(mid)) {
+            seenKeys.add(mid);
+            combinedList.push({
+              ...m,
+              schedule_id: mid,
+              exam_id: mid,
+              title: mTitle || 'Paper Question',
+              subject_name: (m.subject_name || '').trim(),
+              total_marks: m.total_marks || null,
+              total_questions: m.total_questions || null,
+              start_time: m.created_date || null
+            });
+          }
+        });
+
+        this.paperSchedulesList = combinedList;
+
+        // Build unique Subject list for dropdown
+        const subjects = new Set<string>();
+        combinedList.forEach((item: any) => {
+          const sn = (item.subject_name || '').trim();
+          if (sn) subjects.add(sn);
+        });
+        this.paperSubjectsList = Array.from(subjects).sort((a, b) => a.localeCompare(b));
+
+        this.filterPaperSchedules(this.paperSearchQuery);
+      },
+      error: () => {
+        this.loadingPaperSchedules = false;
+        this.paperSchedulesList = [];
+        this.filteredPaperSchedulesList = [];
+        this.paperSubjectsList = [];
+      }
+    });
+  }
+
+  onPaperSubjectChange(subj?: string): void {
+    if (subj !== undefined) {
+      this.selectedPaperSubject = subj;
+    }
+    if (this.selectedPaperSubject && this.userFilters.schedule_id) {
+      const curr = (this.paperSchedulesList || []).find(
+        (p: any) => String(p.schedule_id) === String(this.userFilters.schedule_id)
+      );
+      if (curr && curr.subject_name && curr.subject_name.toLowerCase() !== this.selectedPaperSubject.toLowerCase()) {
+        this.userFilters.schedule_id = '';
+        this.selectedPaperSchedule = null;
+        this.selectedPaperQuestionTitle = '';
+      }
+    }
+    this.filterPaperSchedules(this.paperSearchQuery);
+  }
+
+  filterPaperSchedules(search: string) {
+    this.paperSearchQuery = search || '';
+    const q = (search || '').toLowerCase().trim();
+    const subj = (this.selectedPaperSubject || '').toLowerCase().trim();
+
+    this.filteredPaperSchedulesList = (this.paperSchedulesList || []).filter(s => {
+      if (subj && (s.subject_name || '').toLowerCase().trim() !== subj) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        (s.title || '').toLowerCase().includes(q) ||
+        (s.subject_name || '').toLowerCase().includes(q) ||
+        (s.schedule_name || '').toLowerCase().includes(q)
+      );
+    });
+  }
+
+  formatPaperScheduleDate(dateStr: any): string {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return String(dateStr);
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric'
+      }) + ', ' + d.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return String(dateStr);
+    }
+  }
+
+  applyPaperFiltersPanel() {
+    if (!this.selectedInstituteId && !this.userFilters.institute_id) {
+      this._snack.open('Please select an Institute first', 'Close', { duration: 3000 });
+      return;
+    }
+
+    if (!this.isGlobalInstituteActive && this.userFilters.institute_id) {
+      if (this.selectedInstituteId !== this.userFilters.institute_id) {
+        this.selectedInstituteId = this.userFilters.institute_id;
+        const found = this.institutes.find((i) => i.id === this.selectedInstituteId);
+        if (found) {
+          try {
+            this.instituteCtrl.setValue(found as any);
+          } catch (e) {}
+        }
+        try {
+          this.loadDepartmentList(this.selectedInstituteId);
+          this.loadTeamsList(this.selectedInstituteId);
+          this.loadCampusList(this.selectedInstituteId);
+        } catch (e) {}
+      }
+    }
+
+    const selectedVal = String(this.userFilters.schedule_id || '').trim();
+
+    if (!selectedVal) {
+      this.testNameError = true;
+      this._snack.open('Paper Test is mandatory. Please select a Paper Test.', 'Close', { duration: 4000 });
+      return;
+    }
+    this.testNameError = false;
+
+    const ps = (this.paperSchedulesList || []).find(
+      (s: any) =>
+        String(s.schedule_id || s.test_id || s.id) === selectedVal ||
+        String(s.title || '').toLowerCase() === selectedVal.toLowerCase() ||
+        String(s.schedule_name || '').toLowerCase() === selectedVal.toLowerCase()
+    );
+
+    if (ps) {
+      this.selectedPaperSchedule = ps;
+      this.selectedPaperQuestionTitle = ps.title || ps.schedule_name || 'Paper Test';
+      this.paperSubjectName = ps.subject_name || '';
+      this.paperScheduleDateDisplay = this.formatPaperScheduleDate(ps.start_time || ps.exam_date || ps.created_date);
+      this.paperScheduleDisplayLabel = ps.title || ps.schedule_name || selectedVal;
+      this.paperTotalMarks = ps.total_marks || null;
+      this.paperTotalQuestions = ps.total_questions || null;
+      this.selectedExam = {
+        id: ps.schedule_id,
+        schedule_id: ps.schedule_id,
+        exam_id: ps.exam_id,
+        title: ps.title || ps.schedule_name,
+        subject_name: ps.subject_name,
+        test_mode: 'paper'
+      };
+      this.selectedTestTitle = ps.title || ps.schedule_name;
+    } else {
+      this.selectedPaperQuestionTitle = selectedVal;
+      this.paperScheduleDisplayLabel = selectedVal;
+      this.paperScheduleDateDisplay = '—';
+      this.paperSubjectName = '';
+      this.selectedExam = {
+        id: selectedVal,
+        schedule_id: selectedVal,
+        title: selectedVal,
+        test_mode: 'paper'
+      };
+      this.selectedTestTitle = selectedVal;
+    }
+
+    this.questionCurrentPage = 1;
+    this.currentPage = 1;
+    this.reportsApplied = true;
+    this.hasAppliedFilters = true;
+
+    if (this.activeMainTabIndex === 0) {
+      this.loadPaperAnalytics();
+    } else {
+      this.loadPaperUserReport(1);
+    }
+
+    this.closeFiltersOverlay();
+  }
+
+  loadPaperAnalytics() {
+    if (!this.selectedPaperSchedule && !this.selectedExam) return;
+    const schedId = String(this.selectedPaperSchedule?.schedule_id || this.selectedExam?.schedule_id || '');
+    if (!schedId) return;
+
+    this.loadingAnalytics = true;
+    const params: any = {
+      schedule_id: schedId,
+      test_mode: 'paper'
+    };
+    const instId = this.selectedInstituteId || this.userFilters.institute_id;
+    if (instId) params.institute_id = instId;
+
+    this.http.get<any>(`${API_BASE}/get-exam-analytics`, { params }).subscribe({
+      next: (res: any) => {
+        this.loadingAnalytics = false;
+        const body = res || {};
+        const payload = body.data || body;
+        this.categoryAnalytics = Array.isArray(payload.category_report) ? payload.category_report : [];
+        this.questionSummary = Array.isArray(payload.question_summary) ? payload.question_summary : [];
+        this.wrongDistribution = Array.isArray(payload.wrong_answer_distribution) ? payload.wrong_answer_distribution : [];
+        this.filteredQuestionSummary = (this.questionSummary || []).map((q: any, idx: number) => ({ ...q, sno: idx + 1 }));
+      },
+      error: (err: any) => {
+        this.loadingAnalytics = false;
+        console.error('Failed to load paper analytics', err);
+        this.categoryAnalytics = [];
+        this.questionSummary = [];
+        this.filteredQuestionSummary = [];
+        this.wrongDistribution = [];
+      }
+    });
+  }
+
+  loadPaperUserReport(page: number = 1) {
+    if (!this.selectedPaperSchedule && !this.selectedExam) return;
+    const schedId = String(this.selectedPaperSchedule?.schedule_id || this.selectedExam?.schedule_id || '');
+    if (!schedId) return;
+
+    this.currentPage = page || 1;
+    this.loadingUserReport = true;
+
+    const params: any = {
+      schedule_id: schedId,
+      test_mode: 'paper',
+      page: String(this.currentPage),
+      page_size: String(this.pageSize)
+    };
+    const instId = this.selectedInstituteId || this.userFilters.institute_id;
+    if (instId) params.institute_id = instId;
+    if (this.searchQuery) params.q = this.searchQuery;
+    if (this.userFilters.country_id) params.country_id = this.userFilters.country_id;
+    if (this.userFilters.city_id) params.city_id = this.userFilters.city_id;
+    if (this.userFilters.campus_id) params.campus_id = this.userFilters.campus_id;
+    if (Array.isArray(this.userFilters.department_id) && this.userFilters.department_id.length) {
+      params.department_id = this.userFilters.department_id.join(',');
+    } else if (typeof this.userFilters.department_id === 'string' && this.userFilters.department_id) {
+      params.department_id = this.userFilters.department_id;
+    }
+    if (Array.isArray(this.userFilters.teams_id) && this.userFilters.teams_id.length) {
+      params.team_id = this.userFilters.teams_id.join(',');
+    } else if (typeof this.userFilters.teams_id === 'string' && this.userFilters.teams_id) {
+      params.team_id = this.userFilters.teams_id;
+    }
+    if (this.userFilters.active_status) params.active_status = this.userFilters.active_status;
+    if (this.userSortColumn) {
+      params.sort_by = this.userSortColumn;
+      params.order = this.userSortDirection;
+    }
+
+    this.http.get<any>(`${API_BASE}/get-exam-user-report`, { params }).subscribe({
+      next: (res: any) => {
+        this.loadingUserReport = false;
+        const body = res || {};
+        const payload = body.data || body;
+        if (payload && Array.isArray(payload.items)) {
+          this.userReportData = payload.items;
+          this.userReportTotal = Number(payload.total ?? payload.items.length);
+        } else if (Array.isArray(payload)) {
+          this.userReportData = payload;
+          this.userReportTotal = payload.length;
+        } else {
+          this.userReportData = [];
+          this.userReportTotal = 0;
+        }
+      },
+      error: (err: any) => {
+        this.loadingUserReport = false;
+        console.error('Failed to load paper user report', err);
+        this.userReportData = [];
+        this.userReportTotal = 0;
+      }
+    });
+  }
+
+  openPaperStudentEvaluation(row: any) {
+    if (!row) return;
+    const scheduleId = String(row.schedule_id || this.selectedPaperSchedule?.schedule_id || this.selectedExam?.schedule_id || '');
+    const userId = String(row.user_id || row.student_id || '');
+    if (!scheduleId || !userId) return;
+
+    sessionStorage.setItem('test_eval_exam_id', scheduleId);
+    sessionStorage.setItem('test_eval_user_id', userId);
+    sessionStorage.setItem('test_eval_student', JSON.stringify({
+      user_id: userId,
+      name: row.student_name || 'Student',
+      rollNo: row.roll_no || '',
+      marks: row.marks_obtained != null ? row.marks_obtained : '',
+      status: 'Evaluated'
+    }));
+    sessionStorage.setItem('test_eval_meta', JSON.stringify({
+      subject: this.paperSubjectName || '',
+      title: this.selectedPaperQuestionTitle || '',
+      totalMarks: row.total_marks || this.paperTotalMarks || 0,
+      totalQuestions: this.paperTotalQuestions || 0
+    }));
+
+    this.router.navigate(['/test-evaluation'], {
+      queryParams: {
+        exam_id: scheduleId,
+        user_id: userId
+      }
+    });
+  }
+
   applyFiltersPanel() {
+    if (this.activeReportType === 'paper') {
+      this.applyPaperFiltersPanel();
+      return;
+    }
     if (!this.selectedInstituteId && !this.userFilters.institute_id) {
       this._snack.open('Please select an Institute first', 'Close', { duration: 3000 });
       return;
@@ -2686,8 +3127,21 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.wrongDistribution = [];
     this.resetDescriptiveAiState();
 
+    // Reset paper reports state
+    this.selectedPaperSchedule = null;
+    this.selectedPaperQuestionTitle = '';
+    this.paperSubjectName = '';
+    this.paperScheduleDateDisplay = '';
+    this.paperScheduleDisplayLabel = '';
+    this.paperTotalMarks = null;
+    this.paperTotalQuestions = null;
+
     // Reload tests for the active institute / context
-    this.loadScheduledTest();
+    if (this.activeReportType === 'paper') {
+      this.loadPaperScheduledTests();
+    } else {
+      this.loadScheduledTest();
+    }
   }
 
   resetFiltersAndReload() {
@@ -2869,7 +3323,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     try {
       this.loadCountries();
     } catch (e) {}
-    this.loadScheduledTest();
+    if (this.activeReportType === 'paper') {
+      this.loadPaperScheduledTests();
+    } else {
+      this.loadScheduledTest();
+    }
   }
 
   displayInstitute(i: any) {
@@ -2899,7 +3357,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     try {
       this.loadCountries();
     } catch (e) {}
-    this.loadScheduledTest();
+    if (this.activeReportType === 'paper') {
+      this.loadPaperScheduledTests();
+    } else {
+      this.loadScheduledTest();
+    }
   }
 
   loadCountries() {
@@ -3443,7 +3905,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
 
     this.userFilters.institute_id = this.selectedInstituteId || '';
-    if (this.selectedExam) {
+    if (this.activeReportType === 'paper') {
+      if (!this.paperSchedulesList || !this.paperSchedulesList.length) {
+        this.loadPaperScheduledTests();
+      }
+      if (this.selectedPaperSchedule) {
+        this.userFilters.schedule_id = String(
+          this.selectedPaperSchedule.schedule_id || this.selectedPaperSchedule.id || this.selectedPaperSchedule.exam_id || ''
+        );
+      } else {
+        this.userFilters.schedule_id = '';
+      }
+    } else if (this.selectedExam) {
       const examTitle = this.getTestTitle(this.selectedExam);
       const examId = String(
         this.selectedExam.schedule_id || this.selectedExam.id || this.selectedExam.scheduleId || this.selectedExam.exam_id || ''
@@ -3526,6 +3999,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   onTabChange(event: any) {
     const idx = event.index;
+    if (this.activeReportType === 'paper') {
+      if (!this.selectedPaperSchedule && !this.selectedExam) {
+        return;
+      }
+      if (idx === 0) {
+        this.loadPaperAnalytics();
+      } else if (idx === 1) {
+        this.loadPaperUserReport(1);
+      }
+      return;
+    }
     if (!this.selectedExam && !this.selectedTestTitle) {
       return;
     }
@@ -3647,11 +4131,23 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   prevPage() {
-    if (this.currentPage > 1) this.loadUserReport(this.currentPage - 1);
+    if (this.currentPage > 1) {
+      if (this.activeReportType === 'paper') {
+        this.loadPaperUserReport(this.currentPage - 1);
+      } else {
+        this.loadUserReport(this.currentPage - 1);
+      }
+    }
   }
   nextPage() {
     const totalPages = Math.ceil((this.userReportTotal || 0) / this.pageSize);
-    if (this.currentPage < totalPages) this.loadUserReport(this.currentPage + 1);
+    if (this.currentPage < totalPages) {
+      if (this.activeReportType === 'paper') {
+        this.loadPaperUserReport(this.currentPage + 1);
+      } else {
+        this.loadUserReport(this.currentPage + 1);
+      }
+    }
   }
 
   get questionTotalPages(): number {

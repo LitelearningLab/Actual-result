@@ -1,5 +1,5 @@
 from db.db import SQLiteDB
-from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, QuestionMedia, ExamScheduleMapping, MarksHistory, ExamReviewComments, ExamReviewCommentsHistory, InstituteDepartment, InstituteTeam, InstituteCampus, Country, State, City
+from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, QuestionMedia, ExamScheduleMapping, MarksHistory, ExamReviewComments, ExamReviewCommentsHistory, InstituteDepartment, InstituteTeam, InstituteCampus, Country, State, City, PaperSchedule, PaperScheduleMapping
 from sqlalchemy import func, or_, and_, String
 from datetime import datetime
 from others.llm import openai_client, analyze_wrong_answers_ai, generate_ai_subtopics
@@ -13,6 +13,169 @@ def resolve_report_context(session, args):
     test_title = args.get('test_title') or args.get('exam_title')
     exam_id = args.get('exam_id')
     institute_id = args.get('institute_id')
+    test_mode = str(args.get('test_mode') or '').strip().lower()
+
+    # Dedicated Paper Test handling
+    if test_mode == 'paper':
+        is_date_range = bool(start_date_str and end_date_str)
+        if is_date_range:
+            try:
+                start_date = datetime.strptime(start_date_str[:10] + ' 00:00:00', '%Y-%m-%d %H:%M:%S')
+                end_date = datetime.strptime(end_date_str[:10] + ' 23:59:59', '%Y-%m-%d %H:%M:%S')
+            except Exception:
+                start_date = None
+                end_date = None
+            if not start_date or not end_date:
+                return {'status': False, 'message': 'Invalid date range format'}
+
+            q_sched = session.query(PaperSchedule).filter(
+                or_(PaperSchedule.is_deleted == False, PaperSchedule.is_deleted == None, PaperSchedule.is_deleted == 0)
+            )
+            if institute_id:
+                q_sched = q_sched.filter(
+                    (PaperSchedule.institute_id == institute_id) |
+                    (func.cast(PaperSchedule.institute_id, String) == str(institute_id))
+                )
+            target_exam_ids = []
+            if test_title:
+                clean_title = test_title.strip().lower()
+                exams = session.query(Exam).filter(
+                    (func.lower(Exam.title) == clean_title) |
+                    (func.lower(Exam.title).contains(clean_title)),
+                    Exam.test_mode == 'paper'
+                ).all()
+                target_exam_ids = [e.exam_id for e in exams if e and e.exam_id]
+
+                conds = [
+                    func.lower(PaperSchedule.title) == clean_title,
+                    func.lower(PaperSchedule.title).contains(clean_title)
+                ]
+                if target_exam_ids:
+                    conds.append(PaperSchedule.exam_id.in_(target_exam_ids))
+                q_sched = q_sched.filter(or_(*conds))
+            elif exam_id:
+                q_sched = q_sched.filter(
+                    (PaperSchedule.exam_id == exam_id) |
+                    (func.cast(PaperSchedule.exam_id, String) == str(exam_id))
+                )
+                target_exam_ids = [exam_id]
+
+            all_test_schedules = q_sched.all()
+            all_schedule_ids = [str(s.schedule_id) for s in all_test_schedules if s and s.schedule_id]
+
+            attempt_date_expr = func.coalesce(Exam_Attempt.submitted_date, Exam_Attempt.started_date)
+            q_attempts = session.query(Exam_Attempt).filter(
+                Exam_Attempt.status == 'evaluated',
+                attempt_date_expr >= start_date,
+                attempt_date_expr <= end_date
+            )
+            if all_schedule_ids:
+                q_attempts = q_attempts.filter(func.cast(Exam_Attempt.schedule_id, String).in_(all_schedule_ids))
+            matching_attempts = q_attempts.all()
+            matching_attempt_ids = [a.attempt_id for a in matching_attempts]
+            user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
+
+            resolved_exam_id = target_exam_ids[0] if target_exam_ids else (all_test_schedules[0].exam_id if all_test_schedules else None)
+            pass_mark = None
+            if all_test_schedules and all_test_schedules[0].pass_mark is not None:
+                pass_mark = all_test_schedules[0].pass_mark
+            elif resolved_exam_id:
+                ex = session.query(Exam).filter(Exam.exam_id == resolved_exam_id).first()
+                if ex:
+                    pass_mark = ex.pass_mark
+
+            return {
+                'status': True,
+                'mode': 'daterange',
+                'schedules': all_test_schedules,
+                'schedule_ids': all_schedule_ids,
+                'attempt_ids': matching_attempt_ids,
+                'attempts': matching_attempts,
+                'user_ids': list(user_ids_set),
+                'exam_id': resolved_exam_id,
+                'pass_mark': pass_mark,
+                'start_date': start_date,
+                'end_date': end_date,
+                'test_mode': 'paper'
+            }
+        else:
+            if not schedule_id:
+                return {'status': False, 'message': 'Missing schedule_id for paper test'}
+
+            str_sid = str(schedule_id).strip()
+            ps = session.query(PaperSchedule).filter(
+                (PaperSchedule.schedule_id == schedule_id) |
+                (func.cast(PaperSchedule.schedule_id, String) == str_sid)
+            ).first()
+
+            if not ps:
+                ps = session.query(PaperSchedule).filter(
+                    (func.lower(PaperSchedule.title) == str_sid.lower()) |
+                    (func.cast(PaperSchedule.exam_id, String) == str_sid)
+                ).first()
+
+            if not ps:
+                ex = session.query(Exam).filter(
+                    (Exam.exam_id == schedule_id) |
+                    (func.cast(Exam.exam_id, String) == str_sid) |
+                    (func.lower(Exam.title) == str_sid.lower()),
+                    Exam.test_mode == 'paper'
+                ).first()
+                if ex:
+                    ps = session.query(PaperSchedule).filter(PaperSchedule.exam_id == ex.exam_id).first()
+                    if not ps:
+                        found_sid = str(ex.exam_id)
+                        q_attempts = session.query(Exam_Attempt).filter(
+                            (func.cast(Exam_Attempt.schedule_id, String) == found_sid) |
+                            (func.cast(Exam_Attempt.exam_id, String) == found_sid),
+                            Exam_Attempt.status == 'evaluated'
+                        )
+                        matching_attempts = q_attempts.all()
+                        matching_attempt_ids = [a.attempt_id for a in matching_attempts]
+                        user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
+                        return {
+                            'status': True,
+                            'mode': 'schedule',
+                            'schedules': [ex],
+                            'schedule_ids': [found_sid],
+                            'attempt_ids': matching_attempt_ids,
+                            'attempts': matching_attempts,
+                            'user_ids': list(user_ids_set),
+                            'exam_id': ex.exam_id,
+                            'pass_mark': ex.pass_mark,
+                            'test_mode': 'paper'
+                        }
+
+            if not ps:
+                return {'status': False, 'message': 'Paper schedule not found'}
+
+            found_sid = str(ps.schedule_id)
+            schedule_ids = [found_sid]
+
+            # Require only finalized/completed attempts for paper test
+            q_attempts = session.query(Exam_Attempt).filter(
+                func.cast(Exam_Attempt.schedule_id, String) == found_sid,
+                Exam_Attempt.status == 'evaluated'
+            )
+            matching_attempts = q_attempts.all()
+            matching_attempt_ids = [a.attempt_id for a in matching_attempts]
+            user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
+
+            master_ex = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
+            pass_mark = ps.pass_mark if ps.pass_mark is not None else (master_ex.pass_mark if master_ex else None)
+
+            return {
+                'status': True,
+                'mode': 'schedule',
+                'schedules': [ps],
+                'schedule_ids': schedule_ids,
+                'attempt_ids': matching_attempt_ids,
+                'attempts': matching_attempts,
+                'user_ids': list(user_ids_set),
+                'exam_id': ps.exam_id,
+                'pass_mark': pass_mark,
+                'test_mode': 'paper'
+            }
 
     # Date Range Mode is active if start_date and end_date are provided
     is_date_range = bool(start_date_str and end_date_str)
@@ -203,6 +366,35 @@ def resolve_report_context(session, args):
             ).first()
 
         if not schedule:
+            ps = session.query(PaperSchedule).filter(
+                (PaperSchedule.schedule_id == schedule_id) |
+                (func.cast(PaperSchedule.schedule_id, String) == str_sid) |
+                (func.lower(PaperSchedule.title) == str_sid.lower()) |
+                (func.cast(PaperSchedule.exam_id, String) == str_sid)
+            ).first()
+            if ps:
+                found_sid = str(ps.schedule_id)
+                q_attempts = session.query(Exam_Attempt).filter(
+                    func.cast(Exam_Attempt.schedule_id, String) == found_sid,
+                    Exam_Attempt.status == 'evaluated'
+                )
+                matching_attempts = q_attempts.all()
+                matching_attempt_ids = [a.attempt_id for a in matching_attempts]
+                user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
+                master_ex = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
+                pass_mark = ps.pass_mark if ps.pass_mark is not None else (master_ex.pass_mark if master_ex else None)
+                return {
+                    'status': True,
+                    'mode': 'schedule',
+                    'schedules': [ps],
+                    'schedule_ids': [found_sid],
+                    'attempt_ids': matching_attempt_ids,
+                    'attempts': matching_attempts,
+                    'user_ids': list(user_ids_set),
+                    'exam_id': ps.exam_id,
+                    'pass_mark': pass_mark,
+                    'test_mode': 'paper'
+                }
             return {'status': False, 'message': 'Schedule not found'}
 
         found_sid = schedule.schedule_id
@@ -426,12 +618,21 @@ def get_user_wise_report(request):
                     ex_obj = session.query(Exam).filter(Exam.exam_id == sched_obj.exam_id).first()
                     if ex_obj and getattr(ex_obj, 'total_questions', None):
                         total_marks = ex_obj.total_questions
+            if not total_marks and sched_obj and getattr(sched_obj, 'total_marks', None):
+                total_marks = sched_obj.total_marks
             if not total_marks:
                 question_ids = list(grouped.keys())
                 if question_ids:
                     total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(question_ids)).scalar() or 0
 
             marks = sum((a.marks_awarded or 0) for a in answers)
+            if marks == 0 and user_attempts and getattr(user_attempts[0], 'score', None) is not None and user_attempts[0].score > 0:
+                marks = user_attempts[0].score
+
+            if questions_attempted == 0 and answers:
+                questions_attempted = len(answers)
+            if questions_attempted == 0 and sched_obj and getattr(sched_obj, 'total_questions', None):
+                questions_attempted = sched_obj.total_questions
 
             if mode == 'daterange':
                 user_attempts = [a for a in ctx['attempts'] if a.user_id == uid and a.schedule_id == sid]
