@@ -1781,7 +1781,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!this.userReportData) return [];
     let list: any[];
     if (this.activeReportType === 'paper') {
-      list = this.userReportData.filter(row => this.isPaperEvaluatedRow(row));
+      // Show all assigned students (both evaluated and pending evaluation)
+      list = [...this.userReportData];
     } else {
       list = this.userReportData.filter(row => this.isAttemptedRow(row));
     }

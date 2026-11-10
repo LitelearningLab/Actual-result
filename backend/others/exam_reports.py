@@ -159,27 +159,40 @@ def resolve_report_context(session, args):
                     (PaperScheduleMapping.schedule_id == found_sid) |
                     (func.cast(PaperScheduleMapping.schedule_id, String) == found_sid)
                 ).all()
-                for m in mappings:
-                    if m.user_id:
-                        assigned_user_ids.add(str(m.user_id))
-                    elif m.department_id:
-                        dept_users = session.query(User.user_id).filter(
-                            (User.department_id == m.department_id) |
-                            (func.cast(User.department_id, String) == str(m.department_id)),
-                            or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0)
-                        ).all()
-                        for du in dept_users:
-                            if du[0]:
-                                assigned_user_ids.add(str(du[0]))
-                    elif m.team_id:
-                        team_users = session.query(User.user_id).filter(
-                            (User.team_id == m.team_id) |
-                            (func.cast(User.team_id, String) == str(m.team_id)),
-                            or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0)
-                        ).all()
-                        for tu in team_users:
-                            if tu[0]:
-                                assigned_user_ids.add(str(tu[0]))
+
+                direct_uids = [str(m.user_id) for m in mappings if m.user_id]
+                mapped_depts = [str(m.department_id) for m in mappings if m.department_id]
+                mapped_teams = [str(m.team_id) for m in mappings if m.team_id]
+
+                for uid in direct_uids:
+                    assigned_user_ids.add(uid)
+
+                # If published to Class and Section, get students belonging to both
+                if mapped_depts and mapped_teams:
+                    group_users = session.query(User.user_id).filter(
+                        User.department_id.in_(mapped_depts),
+                        User.team_id.in_(mapped_teams),
+                        or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0)
+                    ).all()
+                    for gu in group_users:
+                        if gu[0]:
+                            assigned_user_ids.add(str(gu[0]))
+                elif mapped_depts:
+                    group_users = session.query(User.user_id).filter(
+                        User.department_id.in_(mapped_depts),
+                        or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0)
+                    ).all()
+                    for gu in group_users:
+                        if gu[0]:
+                            assigned_user_ids.add(str(gu[0]))
+                elif mapped_teams:
+                    group_users = session.query(User.user_id).filter(
+                        User.team_id.in_(mapped_teams),
+                        or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0)
+                    ).all()
+                    for gu in group_users:
+                        if gu[0]:
+                            assigned_user_ids.add(str(gu[0]))
             except Exception as ex:
                 print(f"[resolve_report_context] Error loading PaperScheduleMapping: {ex}")
 
@@ -195,7 +208,8 @@ def resolve_report_context(session, args):
                 matching_attempts = all_eval_attempts
 
             matching_attempt_ids = [a.attempt_id for a in matching_attempts]
-            eval_user_ids = {str(a.user_id) for a in matching_attempts if a.user_id}
+            # Include all assigned students from published schedule + any evaluated attempts
+            all_user_ids = {str(a.user_id) for a in matching_attempts if a.user_id} | set(assigned_user_ids)
 
             master_ex = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
             pass_mark = ps.pass_mark if ps.pass_mark is not None else (master_ex.pass_mark if master_ex else None)
@@ -207,8 +221,8 @@ def resolve_report_context(session, args):
                 'schedule_ids': schedule_ids,
                 'attempt_ids': matching_attempt_ids,
                 'attempts': matching_attempts,
-                'user_ids': list(eval_user_ids),
-                'assigned_user_ids': list(assigned_user_ids),
+                'user_ids': list(all_user_ids),
+                'assigned_user_ids': list(all_user_ids),
                 'exam_id': ps.exam_id,
                 'pass_mark': pass_mark,
                 'test_mode': 'paper'
@@ -558,12 +572,15 @@ def get_user_wise_report(request):
         user_sched_pairs = set()
 
         if test_mode == 'paper':
-            # For paper tests, return only assigned students whose exam_attempts.status == 'evaluated'
+            # For paper tests, include all assigned students mapped in published tab
             assigned_uids = set(str(u) for u in (ctx.get('assigned_user_ids') or []))
+            primary_sid = schedule_ids[0] if schedule_ids else None
             for att in ctx.get('attempts', []):
                 if att.user_id and att.schedule_id:
-                    if not assigned_uids or str(att.user_id) in assigned_uids:
-                        user_sched_pairs.add((att.user_id, att.schedule_id))
+                    user_sched_pairs.add((att.user_id, att.schedule_id))
+            if primary_sid:
+                for uid in assigned_uids:
+                    user_sched_pairs.add((uid, primary_sid))
         else:
             for att in ctx['attempts']:
                 if att.user_id and att.schedule_id:
