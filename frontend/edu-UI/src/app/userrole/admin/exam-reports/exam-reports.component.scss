@@ -1486,6 +1486,7 @@ td.mat-column-category, td.mat-mdc-column-category { text-align: left !important
 .result-pill { display:inline-flex; align-items:center; padding:0.1875rem 0.625rem; border-radius:1rem; font-size:0.6875rem; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; background:rgba(0,0,0,0.04); color:var(--theme-3-text-3); }
 .result-pill.result-pass { background:var(--green-bg); color:var(--green-text); border:0.0625rem solid var(--bgreen-border); }
 .result-pill.result-fail { background:var(--red-bg); color:var(--red-text); border:0.0625rem solid var(--bred-border); }
+.result-pill.result-pending { background:#fef3c7; color:#92400e; border:0.0625rem solid #fde68a; }
 
 // ── Analytics section ──
 .analytics-section { padding:0.75rem 1rem; display:flex; flex-direction:column; gap:0.75rem; }

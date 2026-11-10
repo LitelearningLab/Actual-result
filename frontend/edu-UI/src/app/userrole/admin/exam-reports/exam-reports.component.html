@@ -1517,6 +1517,9 @@
                       (row.result || '').toLowerCase() === 'fail' ||
                       (row.result || '').toLowerCase() === 'failed'
                     "
+                    [class.result-pending]="
+                      (row.result || '').toLowerCase().includes('pending')
+                    "
                     >{{ formatResult(row.result) }}</span
                   >
                 </td>

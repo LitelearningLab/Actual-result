@@ -195,7 +195,7 @@ def resolve_report_context(session, args):
                 matching_attempts = all_eval_attempts
 
             matching_attempt_ids = [a.attempt_id for a in matching_attempts]
-            user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
+            user_ids_set = {str(a.user_id) for a in matching_attempts if a.user_id} | set(str(uid) for uid in assigned_user_ids if uid)
 
             master_ex = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
             pass_mark = ps.pass_mark if ps.pass_mark is not None else (master_ex.pass_mark if master_ex else None)
@@ -208,7 +208,7 @@ def resolve_report_context(session, args):
                 'attempt_ids': matching_attempt_ids,
                 'attempts': matching_attempts,
                 'user_ids': list(user_ids_set),
-                'assigned_user_ids': list(assigned_user_ids),
+                'assigned_user_ids': list(user_ids_set),
                 'exam_id': ps.exam_id,
                 'pass_mark': pass_mark,
                 'test_mode': 'paper'
@@ -558,12 +558,15 @@ def get_user_wise_report(request):
         user_sched_pairs = set()
 
         if test_mode == 'paper':
-            # For paper tests, return only assigned students whose exam_attempts.status == 'evaluated'
-            assigned_uids = set(ctx.get('assigned_user_ids') or [])
+            # For paper tests, include all assigned students from published schedule
+            assigned_uids = set(str(u) for u in (ctx.get('assigned_user_ids') or []))
+            primary_sid = schedule_ids[0] if schedule_ids else None
             for att in ctx.get('attempts', []):
                 if att.user_id and att.schedule_id:
-                    if not assigned_uids or str(att.user_id) in assigned_uids:
-                        user_sched_pairs.add((att.user_id, att.schedule_id))
+                    user_sched_pairs.add((att.user_id, att.schedule_id))
+            if primary_sid:
+                for uid in assigned_uids:
+                    user_sched_pairs.add((uid, primary_sid))
         else:
             for att in ctx['attempts']:
                 if att.user_id and att.schedule_id:
@@ -689,7 +692,7 @@ def get_user_wise_report(request):
 
             best_percentage = None
             result = ''
-            if user_attempts:
+            if user_attempts and any(getattr(a, 'status', '') == 'evaluated' for a in user_attempts):
                 best_percentage = max((a.percentage or 0) for a in user_attempts)
                 if pass_mark is not None:
                     result = 'Pass' if (best_percentage is not None and best_percentage >= pass_mark) else 'Fail'
@@ -698,7 +701,7 @@ def get_user_wise_report(request):
             elif answers:
                 result = 'Evaluated' if any(a.is_validated for a in answers) else 'Submitted'
             else:
-                result = 'No Attempt'
+                result = 'Pending Evaluation' if test_mode == 'paper' else 'No Attempt'
 
             attempt_date_str = None
             if user_attempts:
@@ -707,6 +710,8 @@ def get_user_wise_report(request):
                     attempt_date_str = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
             if not attempt_date_str and answers and answers[0].created_date:
                 attempt_date_str = answers[0].created_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+            if not attempt_date_str and test_mode == 'paper' and sched_obj and sched_obj.start_time:
+                attempt_date_str = sched_obj.start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
             all_user_sched_attempts = session.query(Exam_Attempt).filter(
                 Exam_Attempt.schedule_id == sid,
@@ -811,7 +816,7 @@ def get_user_wise_report(request):
                 'schedule_id': str(sid),
                 'student_name': user.full_name or getattr(user, 'user_name', '') or user.email or 'Student',
                 'name': user.full_name or getattr(user, 'user_name', '') or user.email or 'Student',
-                'status': user_attempts[0].status if user_attempts else ('evaluated' if test_mode == 'paper' else result),
+                'status': user_attempts[0].status if (user_attempts and getattr(user_attempts[0], 'status', None)) else ('pending' if test_mode == 'paper' else result),
                 'test_taken_date': attempt_date_str,
                 'questions_attempted': questions_attempted,
                 'correct_answers': correct,

@@ -1781,7 +1781,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!this.userReportData) return [];
     let list: any[];
     if (this.activeReportType === 'paper') {
-      list = this.userReportData.filter(row => this.isPaperEvaluatedRow(row));
+      // Show all assigned students (both evaluated and pending evaluation)
+      list = [...this.userReportData];
     } else {
       list = this.userReportData.filter(row => this.isAttemptedRow(row));
     }
@@ -1834,10 +1835,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   get userPassRate(): number {
     const rows = this.displayedUserReportData || [];
-    const passed = rows.filter(
-      (row: any) => String(row.result || row.status || '').toLowerCase() === 'pass'
+    const evaluated = rows.filter((row: any) => {
+      const res = String(row.result || row.status || '').toLowerCase();
+      return res === 'pass' || res === 'passed' || res === 'fail' || res === 'failed';
+    });
+    const passed = evaluated.filter(
+      (row: any) => {
+        const res = String(row.result || row.status || '').toLowerCase();
+        return res === 'pass' || res === 'passed';
+      }
     ).length;
-    return rows.length ? (passed / rows.length) * 100 : 0;
+    return evaluated.length ? (passed / evaluated.length) * 100 : 0;
   }
 
   get analyticsTotalAttempts(): number {
