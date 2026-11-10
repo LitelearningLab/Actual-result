@@ -195,7 +195,7 @@ def resolve_report_context(session, args):
                 matching_attempts = all_eval_attempts
 
             matching_attempt_ids = [a.attempt_id for a in matching_attempts]
-            user_ids_set = {str(a.user_id) for a in matching_attempts if a.user_id} | set(str(uid) for uid in assigned_user_ids if uid)
+            eval_user_ids = {str(a.user_id) for a in matching_attempts if a.user_id}
 
             master_ex = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
             pass_mark = ps.pass_mark if ps.pass_mark is not None else (master_ex.pass_mark if master_ex else None)
@@ -207,8 +207,8 @@ def resolve_report_context(session, args):
                 'schedule_ids': schedule_ids,
                 'attempt_ids': matching_attempt_ids,
                 'attempts': matching_attempts,
-                'user_ids': list(user_ids_set),
-                'assigned_user_ids': list(user_ids_set),
+                'user_ids': list(eval_user_ids),
+                'assigned_user_ids': list(assigned_user_ids),
                 'exam_id': ps.exam_id,
                 'pass_mark': pass_mark,
                 'test_mode': 'paper'
@@ -558,15 +558,12 @@ def get_user_wise_report(request):
         user_sched_pairs = set()
 
         if test_mode == 'paper':
-            # For paper tests, include all assigned students from published schedule
+            # For paper tests, return only assigned students whose exam_attempts.status == 'evaluated'
             assigned_uids = set(str(u) for u in (ctx.get('assigned_user_ids') or []))
-            primary_sid = schedule_ids[0] if schedule_ids else None
             for att in ctx.get('attempts', []):
                 if att.user_id and att.schedule_id:
-                    user_sched_pairs.add((att.user_id, att.schedule_id))
-            if primary_sid:
-                for uid in assigned_uids:
-                    user_sched_pairs.add((uid, primary_sid))
+                    if not assigned_uids or str(att.user_id) in assigned_uids:
+                        user_sched_pairs.add((att.user_id, att.schedule_id))
         else:
             for att in ctx['attempts']:
                 if att.user_id and att.schedule_id:
@@ -812,6 +809,7 @@ def get_user_wise_report(request):
                 has_manual_review = False
 
             rows.append({
+                'attempt_id': user_attempts[0].attempt_id if user_attempts else None,
                 'user_id': uid,
                 'schedule_id': str(sid),
                 'student_name': user.full_name or getattr(user, 'user_name', '') or user.email or 'Student',

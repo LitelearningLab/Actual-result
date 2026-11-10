@@ -1769,7 +1769,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!row) return false;
     const res = String(row.result || '').trim().toLowerCase();
     const stat = String(row.status || '').trim().toLowerCase();
-    if (res === 'no attempt' || res === 'no_attempt' || res === 'unattempted') {
+    if (res === 'no attempt' || res === 'no_attempt' || res === 'unattempted' || res === 'pending' || res === 'pending evaluation' || stat === 'pending' || stat === 'pending evaluation') {
       return false;
     }
     const isEvaluated = stat === 'evaluated' || stat === 'completed' || res === 'evaluated' || res === 'pass' || res === 'fail' || res === 'passed' || res === 'failed';
@@ -1781,8 +1781,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!this.userReportData) return [];
     let list: any[];
     if (this.activeReportType === 'paper') {
-      // Show all assigned students (both evaluated and pending evaluation)
-      list = [...this.userReportData];
+      list = this.userReportData.filter(row => this.isPaperEvaluatedRow(row));
     } else {
       list = this.userReportData.filter(row => this.isAttemptedRow(row));
     }
@@ -3091,6 +3090,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     sessionStorage.setItem('test_eval_user_id', userId);
     sessionStorage.setItem('test_eval_student', JSON.stringify({
       user_id: userId,
+      attempt_id: row.attempt_id || '',
       name: row.student_name || 'Student',
       rollNo: row.roll_no || '',
       marks: row.marks_obtained != null ? row.marks_obtained : '',
@@ -3103,11 +3103,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       totalQuestions: this.paperTotalQuestions || 0
     }));
 
+    const queryParams: any = {
+      exam_id: scheduleId,
+      user_id: userId
+    };
+    if (row.attempt_id) {
+      queryParams.attempt_id = String(row.attempt_id);
+      sessionStorage.setItem('test_eval_attempt_id', String(row.attempt_id));
+    }
+
     this.router.navigate(['/test-evaluation'], {
-      queryParams: {
-        exam_id: scheduleId,
-        user_id: userId
-      }
+      queryParams
     });
   }
 
