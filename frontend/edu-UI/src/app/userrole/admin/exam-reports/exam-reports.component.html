@@ -485,7 +485,7 @@
                     [(ngModel)]="userFilters.schedule_id"
                     name="filterTestName"
                     (openedChange)="onSelectOpened($event, 'schedule')"
-                    (selectionChange)="testNameError = false"
+                    (selectionChange)="testNameError = false; onTestFilterSelected($event.value)"
                   >
                     <!-- Online Test Selection Options -->
                     <ng-container *ngIf="activeReportType === 'online'">

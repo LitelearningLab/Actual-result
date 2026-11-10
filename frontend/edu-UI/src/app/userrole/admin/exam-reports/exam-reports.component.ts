@@ -1321,7 +1321,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     });
     this.uniqueTestNames = Array.from(namesSet).sort((a, b) => a.localeCompare(b));
 
-    if (this.selectedTestTitle && this.uniqueTestNames.includes(this.selectedTestTitle)) {
+    const activeTitle = (this.selectedTestTitle || this.displayTestName || '').trim();
+    const matchingTitle = activeTitle
+      ? this.uniqueTestNames.find((t) => t.toLowerCase() === activeTitle.toLowerCase())
+      : null;
+
+    if (matchingTitle) {
+      this.selectedTestTitle = matchingTitle;
+      this.updateHighlightedDates();
+      this.updateAvailableSchedulesOnDate();
+    } else if (activeTitle) {
+      this.selectedTestTitle = activeTitle;
       this.updateHighlightedDates();
       this.updateAvailableSchedulesOnDate();
     } else {
@@ -1344,10 +1354,22 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   updateHighlightedDates() {
     this.highlightedDatesSet.clear();
-    if (!this.selectedTestTitle) return;
+    const targetTitle = (this.selectedTestTitle || this.displayTestName || '').trim();
+    if (!targetTitle) return;
+    if (!this.selectedTestTitle) {
+      this.selectedTestTitle = targetTitle;
+    }
     const items = (this.allSchedules && this.allSchedules.length) ? this.allSchedules : (this.allTests || []);
     items.forEach((it) => {
-      if (this.getTestTitle(it).toLowerCase() === this.selectedTestTitle.toLowerCase()) {
+      const itTitle = this.getTestTitle(it).toLowerCase();
+      const itVal = String(this.getScheduleValue(it) || '').toLowerCase();
+      const target = targetTitle.toLowerCase();
+      const schedId = String(this.userFilters.schedule_id || '').toLowerCase();
+      if (
+        itTitle === target ||
+        (itVal && itVal === target) ||
+        (schedId && itVal === schedId)
+      ) {
         const dateStr = this.getScheduleDateString(it);
         if (dateStr) {
           this.highlightedDatesSet.add(dateStr);
@@ -1362,16 +1384,28 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   updateAvailableSchedulesOnDate() {
-    if (!this.selectedTestTitle || !this.selectedScheduleDate) {
+    const targetTitle = (this.selectedTestTitle || this.displayTestName || '').trim();
+    if (!targetTitle || !this.selectedScheduleDate) {
       this.availableSchedulesOnDate = [];
       this.selectedScheduleId = '';
       return;
     }
+    if (!this.selectedTestTitle) {
+      this.selectedTestTitle = targetTitle;
+    }
     const targetDateStr = this.formatDateToYYYYMMDD(this.selectedScheduleDate);
     const items = (this.allSchedules && this.allSchedules.length) ? this.allSchedules : (this.allTests || []);
     this.availableSchedulesOnDate = items.filter((it) => {
+      const itTitle = this.getTestTitle(it).toLowerCase();
+      const itVal = String(this.getScheduleValue(it) || '').toLowerCase();
+      const target = targetTitle.toLowerCase();
+      const schedId = String(this.userFilters.schedule_id || '').toLowerCase();
+      const matchesTest =
+        itTitle === target ||
+        (itVal && itVal === target) ||
+        (schedId && itVal === schedId);
       return (
-        this.getTestTitle(it).toLowerCase() === this.selectedTestTitle.toLowerCase() &&
+        matchesTest &&
         this.getScheduleDateString(it) === targetDateStr
       );
     });
@@ -3041,6 +3075,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           String(this.getScheduleValue(t)) === selectedVal ||
           String(t.schedule_id || t.id || t.scheduleId || t.exam_id) === selectedVal ||
           this.getTestTitle(t).toLowerCase() === selectedVal.toLowerCase()
+      ) || (this.allSchedules || []).find(
+        (s: any) =>
+          String(this.getScheduleValue(s)) === selectedVal ||
+          String(s.schedule_id || s.id || s.scheduleId || s.exam_id) === selectedVal ||
+          this.getTestTitle(s).toLowerCase() === selectedVal.toLowerCase()
       );
 
     const title = selectedTest ? this.getTestTitle(selectedTest) : selectedVal;
@@ -3209,11 +3248,32 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.activeReportType === 'paper') {
+      const ps = (this.paperSchedulesList || []).find(
+        (s: any) =>
+          String(s.schedule_id || s.test_id || s.id) === valStr ||
+          String(s.title || '').toLowerCase() === valStr.toLowerCase() ||
+          String(s.schedule_name || '').toLowerCase() === valStr.toLowerCase()
+      );
+      if (ps) {
+        this.selectedPaperSchedule = ps;
+        this.selectedPaperQuestionTitle = ps.title || ps.schedule_name || 'Paper Test';
+        this.selectedTestTitle = ps.title || ps.schedule_name || '';
+        this.userFilters.schedule_id = valStr;
+        return;
+      }
+    }
+
     const found = (this.allTests || []).find(
       (t: any) =>
         String(this.getScheduleValue(t)) === valStr ||
-        String(t.schedule_id || t.id || t.exam_id) === valStr ||
+        String(t.schedule_id || t.id || t.scheduleId || t.exam_id) === valStr ||
         this.getTestTitle(t).toLowerCase() === valStr.toLowerCase()
+    ) || (this.allSchedules || []).find(
+      (s: any) =>
+        String(this.getScheduleValue(s)) === valStr ||
+        String(s.schedule_id || s.id || s.scheduleId || s.exam_id) === valStr ||
+        this.getTestTitle(s).toLowerCase() === valStr.toLowerCase()
     );
 
     const title = found ? this.getTestTitle(found) : valStr;
