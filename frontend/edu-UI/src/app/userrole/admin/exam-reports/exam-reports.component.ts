@@ -2571,9 +2571,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.wrongDistribution = [];
   }
 
-  onReportTypeChange(type: 'online' | 'paper') {
+    onReportTypeChange(type: 'online' | 'paper') {
     if (this.activeReportType === type) return;
     this.activeReportType = type;
+
+    // Reset report results and analytics state
     this.selectedExam = null;
     this.reportsApplied = false;
     this.hasAppliedFilters = false;
@@ -2585,21 +2587,33 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.wrongDistribution = [];
     this.resetDescriptiveAiState();
 
+    // Reset shared and Online Test selection state
+    this.selectedTestTitle = '';
+    this.selectedDateRangeTestTitle = '';
+    this.selectedScheduleDate = null;
+    this.selectedScheduleId = '';
+    this.availableSchedulesOnDate = [];
+    this.highlightedDatesSet.clear();
+    this.scheduledTestsMessage = '';
+    this.userFilters.schedule_id = '';
+    try {
+      this.examCtrl.setValue(null);
+    } catch (e) {}
+
+    // Reset Paper Test selection state
+    this.selectedPaperSchedule = null;
+    this.selectedPaperQuestionTitle = '';
+    this.selectedPaperSubject = '';
+    this.paperSubjectName = '';
+    this.paperScheduleDateDisplay = '';
+    this.paperScheduleDisplayLabel = '';
+    this.paperTotalMarks = null;
+    this.paperTotalQuestions = null;
+
+    // Load test list for newly selected mode
     if (type === 'paper') {
-      this.selectedTestTitle = '';
-      this.selectedScheduleDate = null;
-      this.selectedScheduleId = '';
-      this.availableSchedulesOnDate = [];
-      this.userFilters.schedule_id = '';
       this.loadPaperScheduledTests();
     } else {
-      this.selectedPaperSchedule = null;
-      this.selectedPaperQuestionTitle = '';
-      this.paperSubjectName = '';
-      this.paperScheduleDateDisplay = '';
-      this.paperScheduleDisplayLabel = '';
-      this.paperTotalMarks = null;
-      this.paperTotalQuestions = null;
       this.loadScheduledTest();
     }
   }

@@ -6,7 +6,7 @@
         <mat-icon svgIcon="report" class="reports-header-icon"></mat-icon>
         <h2 class="reports-header-title">Test Reports</h2>
       </div>
-      <mat-radio-group [(ngModel)]="activeReportType" (change)="onReportTypeChange($event.value)" class="report-type-radio-group">
+      <mat-radio-group [ngModel]="activeReportType" (ngModelChange)="onReportTypeChange($event)" class="report-type-radio-group">
         <mat-radio-button value="online" class="report-type-radio" [checked]="activeReportType === 'online'">Online Test</mat-radio-button>
         <mat-radio-button value="paper" class="report-type-radio" [checked]="activeReportType === 'paper'">Paper Test</mat-radio-button>
       </mat-radio-group>
