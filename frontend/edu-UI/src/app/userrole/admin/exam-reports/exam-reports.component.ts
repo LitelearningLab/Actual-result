@@ -776,7 +776,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     event.stopPropagation();
   }
 
-  get displayTestName(): string {
+    get displayTestName(): string {
+    if (this.activeReportType === 'paper') {
+      return this.selectedPaperQuestionTitle || '';
+    }
     if (this.selectedExam) {
       return this.getTestTitle(this.selectedExam);
     }
@@ -2571,7 +2574,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.wrongDistribution = [];
   }
 
-    onReportTypeChange(type: 'online' | 'paper') {
+  onReportTypeChange(type: 'online' | 'paper') {
     if (this.activeReportType === type) return;
     this.activeReportType = type;
 
@@ -2585,9 +2588,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.questionSummary = [];
     this.filteredQuestionSummary = [];
     this.wrongDistribution = [];
+    this.testNameError = false;
     this.resetDescriptiveAiState();
 
     // Reset shared and Online Test selection state
+    this.selectionMode = 'schedule';
     this.selectedTestTitle = '';
     this.selectedDateRangeTestTitle = '';
     this.selectedScheduleDate = null;
@@ -2596,6 +2601,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.highlightedDatesSet.clear();
     this.scheduledTestsMessage = '';
     this.userFilters.schedule_id = '';
+    this.searchQueries.schedule = '';
     try {
       this.examCtrl.setValue(null);
     } catch (e) {}
@@ -2609,6 +2615,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.paperScheduleDisplayLabel = '';
     this.paperTotalMarks = null;
     this.paperTotalQuestions = null;
+    this.paperSearchQuery = '';
 
     // Load test list for newly selected mode
     if (type === 'paper') {

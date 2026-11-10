@@ -651,66 +651,77 @@
       </div>
     </div>
 
-  <!-- Paper Test Selection Display Boxes (Requirement 5 & 6: Clean display boxes, no new dropdowns) -->
-  <div class="test-schedule-selection-card paper-test-selection-card" *ngIf="activeReportType === 'paper'">
-    <div class="selection-card-header paper-selection-header">
+  
+    <!-- Test & Schedule Selection Card (Paper Test) -->
+  <div class="test-schedule-selection-card" *ngIf="activeReportType === 'paper'">
+    <div class="selection-card-header">
       <div class="header-mode-toggle-group">
         <h3 class="selection-card-title-main">Paper Test Information</h3>
       </div>
       <span class="selection-step-hint" *ngIf="!selectedPaperSchedule">
-        Open <strong>Filter Test Reports</strong> above to choose a paper test
+        Open <strong>Filter Test Reports</strong> above to select a paper test
       </span>
       <span class="selection-step-hint" *ngIf="selectedPaperSchedule">
         Showing finalized paper evaluation reports
       </span>
     </div>
 
-    <div class="paper-display-boxes-row">
-      <!-- Box 1: Paper Question -->
-      <div class="paper-display-box" [class.box-selected]="!!selectedPaperQuestionTitle">
-        <div class="box-label">
-          <mat-icon class="box-icon">description</mat-icon>
-          <span>Paper Question</span>
-        </div>
-        <div class="box-value-wrap">
-          <div class="box-main-text" [title]="selectedPaperQuestionTitle || 'None Selected'">
-            {{ selectedPaperQuestionTitle || 'None Selected' }}
-          </div>
-          <div class="box-tags" *ngIf="paperSubjectName || paperTotalQuestions">
-            <span class="box-tag subject-tag" *ngIf="paperSubjectName">{{ paperSubjectName }}</span>
-            <span class="box-tag count-tag" *ngIf="paperTotalQuestions">{{ paperTotalQuestions }} Questions</span>
-          </div>
-        </div>
-      </div>
+    <!-- Same 3-field outline form layout as Online Test -->
+    <div class="selection-fields-grid">
+      <!-- Step 1: Paper Question -->
+      <mat-form-field
+        appearance="outline"
+        class="selection-field readonly-test-field"
+        [class.test-selected]="!!selectedPaperQuestionTitle"
+      >
+        <mat-label>Paper Question <span class="required-mark">*</span></mat-label>
+        <input
+          matInput
+          type="text"
+          [value]="selectedPaperQuestionTitle || ''"
+          placeholder="Select Paper Test from Filter"
+          readonly
+          tabindex="-1"
+          style="cursor: default; user-select: none; caret-color: transparent;"
+        />
+        <mat-hint *ngIf="paperSubjectName">Subject: {{ paperSubjectName }}</mat-hint>
+      </mat-form-field>
 
-      <!-- Box 2: Schedule Date -->
-      <div class="paper-display-box" [class.box-selected]="!!paperScheduleDateDisplay && paperScheduleDateDisplay !== '—'">
-        <div class="box-label">
-          <mat-icon class="box-icon">event</mat-icon>
-          <span>Schedule Date</span>
-        </div>
-        <div class="box-value-wrap">
-          <div class="box-main-text">
-            {{ paperScheduleDateDisplay || '—' }}
-          </div>
-        </div>
-      </div>
+      <!-- Step 2: Schedule Date -->
+      <mat-form-field
+        appearance="outline"
+        class="selection-field"
+      >
+        <mat-label>Schedule Date <span class="required-mark">*</span></mat-label>
+        <input
+          matInput
+          type="text"
+          [value]="paperScheduleDateDisplay && paperScheduleDateDisplay !== '—' ? paperScheduleDateDisplay : ''"
+          placeholder="Schedule Date"
+          readonly
+          tabindex="-1"
+          style="cursor: default; user-select: none; caret-color: transparent;"
+        />
+        <mat-icon matSuffix style="color: #64748b;">event</mat-icon>
+      </mat-form-field>
 
-      <!-- Box 3: Paper Schedule -->
-      <div class="paper-display-box" [class.box-selected]="!!paperScheduleDisplayLabel && paperScheduleDisplayLabel !== '—'">
-        <div class="box-label">
-          <mat-icon class="box-icon">assignment</mat-icon>
-          <span>Paper Schedule</span>
-        </div>
-        <div class="box-value-wrap">
-          <div class="box-main-text" [title]="paperScheduleDisplayLabel || '—'">
-            {{ paperScheduleDisplayLabel || '—' }}
-          </div>
-          <div class="box-tags" *ngIf="paperTotalMarks != null">
-            <span class="box-tag marks-tag">Total Marks: {{ paperTotalMarks }}</span>
-          </div>
-        </div>
-      </div>
+      <!-- Step 3: Paper Schedule -->
+      <mat-form-field
+        appearance="outline"
+        class="selection-field"
+      >
+        <mat-label>Paper Schedule <span class="required-mark">*</span></mat-label>
+        <input
+          matInput
+          type="text"
+          [value]="paperScheduleDisplayLabel && paperScheduleDisplayLabel !== '—' ? paperScheduleDisplayLabel : ''"
+          placeholder="Paper Schedule"
+          readonly
+          tabindex="-1"
+          style="cursor: default; user-select: none; caret-color: transparent;"
+        />
+        <mat-hint *ngIf="paperTotalMarks != null">Total Marks: {{ paperTotalMarks }}</mat-hint>
+      </mat-form-field>
     </div>
   </div>
 
