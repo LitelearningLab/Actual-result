@@ -1655,9 +1655,26 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return isCompleted || (!!row.result && res !== '-');
   }
 
+  isPaperEvaluatedRow(row: any): boolean {
+    if (!row) return false;
+    const res = String(row.result || '').trim().toLowerCase();
+    const stat = String(row.status || '').trim().toLowerCase();
+    if (res === 'no attempt' || res === 'no_attempt' || res === 'unattempted') {
+      return false;
+    }
+    const isEvaluated = stat === 'evaluated' || stat === 'completed' || res === 'evaluated' || res === 'pass' || res === 'fail' || res === 'passed' || res === 'failed';
+    const hasScore = row.marks_obtained !== null && row.marks_obtained !== undefined && row.marks_obtained !== '';
+    return isEvaluated || hasScore;
+  }
+
   get displayedUserReportData(): any[] {
     if (!this.userReportData) return [];
-    let list = this.userReportData.filter(row => this.isAttemptedRow(row));
+    let list: any[];
+    if (this.activeReportType === 'paper') {
+      list = this.userReportData.filter(row => this.isPaperEvaluatedRow(row));
+    } else {
+      list = this.userReportData.filter(row => this.isAttemptedRow(row));
+    }
     if (this.userSortColumn) {
       list = [...list].sort((a: any, b: any) => {
         if (this.userSortColumn === 'student_name') {
