@@ -52,9 +52,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   activeReportType: 'online' | 'paper' = 'online';
 
   // Paper Test state
+  paperMasterExams: any[] = [];
+  filteredPaperMastersList: any[] = [];
   paperSchedulesList: any[] = [];
   filteredPaperSchedulesList: any[] = [];
   paperSearchQuery = '';
+  selectedPaperMaster: any = null;
+  selectedPaperExamId = '';
   selectedPaperSchedule: any = null;
   selectedPaperQuestionTitle = '';
   paperSubjectName = '';
@@ -1354,6 +1358,26 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   updateHighlightedDates() {
     this.highlightedDatesSet.clear();
+    if (this.activeReportType === 'paper') {
+      const selectedPaperId = String(
+        this.selectedPaperExamId ||
+        this.selectedPaperMaster?.exam_id ||
+        this.selectedPaperMaster?.id ||
+        ''
+      ).trim();
+      if (!selectedPaperId) return;
+      (this.paperSchedulesList || []).forEach((sched: any) => {
+        const schedExamId = String(sched.exam_id || sched.master_exam_id || '').trim();
+        if (schedExamId && schedExamId === selectedPaperId) {
+          const dateStr = this.getScheduleDateString(sched);
+          if (dateStr) {
+            this.highlightedDatesSet.add(dateStr);
+          }
+        }
+      });
+      return;
+    }
+
     const targetTitle = (this.selectedTestTitle || this.displayTestName || '').trim();
     if (!targetTitle) return;
     if (!this.selectedTestTitle) {
@@ -1384,6 +1408,43 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   updateAvailableSchedulesOnDate() {
+    if (this.activeReportType === 'paper') {
+      const selectedPaperId = String(
+        this.selectedPaperExamId ||
+        this.selectedPaperMaster?.exam_id ||
+        this.selectedPaperMaster?.id ||
+        ''
+      ).trim();
+      if (!selectedPaperId || !this.selectedScheduleDate) {
+        this.availableSchedulesOnDate = [];
+        this.selectedScheduleId = '';
+        return;
+      }
+      const targetDateStr = this.formatDateToYYYYMMDD(this.selectedScheduleDate);
+      this.availableSchedulesOnDate = (this.paperSchedulesList || []).filter((sched: any) => {
+        const schedExamId = String(sched.exam_id || sched.master_exam_id || '').trim();
+        return (
+          schedExamId === selectedPaperId &&
+          this.getScheduleDateString(sched) === targetDateStr
+        );
+      });
+
+      if (this.availableSchedulesOnDate.length > 0) {
+        const exists = this.availableSchedulesOnDate.find((s) => {
+          const sid = this.getScheduleId(s);
+          return sid === String(this.selectedPaperSchedule?.schedule_id || this.selectedScheduleId || '');
+        });
+        if (exists) {
+          this.selectedScheduleId = this.getScheduleId(exists);
+        } else {
+          this.selectedScheduleId = '';
+        }
+      } else {
+        this.selectedScheduleId = '';
+      }
+      return;
+    }
+
     const targetTitle = (this.selectedTestTitle || this.displayTestName || '').trim();
     if (!targetTitle || !this.selectedScheduleDate) {
       this.availableSchedulesOnDate = [];
@@ -1447,6 +1508,21 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.questionCurrentPage = 1;
     this.currentPage = 1;
     this.reportsApplied = true;
+
+    if (this.activeReportType === 'paper') {
+      this.selectedPaperSchedule = schedule;
+      this.paperScheduleDateDisplay = this.formatPaperScheduleDate(schedule.start_time || schedule.exam_date || schedule.created_date);
+      this.paperScheduleDisplayLabel = schedule.title || schedule.schedule_name || this.selectedScheduleId;
+      this.paperTotalMarks = schedule.total_marks || null;
+      this.paperTotalQuestions = schedule.total_questions || null;
+      if (this.activeMainTabIndex === 0) {
+        this.loadPaperAnalytics();
+      } else {
+        this.loadPaperUserReport(1);
+      }
+      return;
+    }
+
     if (this.activeMainTabIndex === 0) {
       this.loadAnalytics();
     } else {
@@ -2658,6 +2734,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     } catch (e) {}
 
     // Reset Paper Test selection state
+    this.selectedPaperMaster = null;
+    this.selectedPaperExamId = '';
     this.selectedPaperSchedule = null;
     this.selectedPaperQuestionTitle = '';
     this.selectedPaperSubject = '';
@@ -2679,8 +2757,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   loadPaperScheduledTests() {
     const instituteId = this.selectedInstituteId || this.userFilters.institute_id || this.getLoggedInInstituteId();
     if (!instituteId && this.isSuperAdmin) {
+      this.paperMasterExams = [];
+      this.filteredPaperMastersList = [];
       this.paperSchedulesList = [];
-      this.filteredPaperSchedulesList = [];
       this.paperSubjectsList = [];
       return;
     }
@@ -2705,20 +2784,43 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         const rawSched = Array.isArray(schedulesRes?.data) ? schedulesRes.data : (Array.isArray(schedulesRes) ? schedulesRes : []);
         const rawMasters = Array.isArray(mastersRes?.data) ? mastersRes.data : (Array.isArray(mastersRes) ? mastersRes : []);
 
-        const combinedList: any[] = [];
-        const seenKeys = new Set<string>();
+        // 1. Separate master question papers (Exams where test_mode = 'paper')
+        const masters: any[] = [];
+        const seenMasterIds = new Set<string>();
+        rawMasters.forEach((m: any) => {
+          const mid = String(m.exam_id || m.test_id || m.id || '').trim();
+          const mTitle = String(m.title || m.name || m.exam_name || '').trim();
+          if (mid && !seenMasterIds.has(mid)) {
+            seenMasterIds.add(mid);
+            masters.push({
+              ...m,
+              exam_id: mid,
+              id: mid,
+              title: mTitle || 'Paper Question',
+              name: mTitle || 'Paper Question',
+              subject_name: (m.subject_name || '').trim(),
+              total_marks: m.total_marks || null,
+              total_questions: m.total_questions || null,
+              created_date: m.created_date || null
+            });
+          }
+        });
+        this.paperMasterExams = masters;
 
-        // 1. Published schedules
+        // 2. Separate published schedules (PaperSchedules)
+        const schedules: any[] = [];
+        const seenSchedIds = new Set<string>();
         rawSched.forEach((s: any) => {
           const sid = String(s.schedule_id || s.test_id || s.id || '').trim();
           const title = String(s.title || s.paper_title || s.schedule_name || s.name || '').trim();
-          if (sid && !seenKeys.has(sid)) {
-            seenKeys.add(sid);
-            combinedList.push({
+          if (sid && !seenSchedIds.has(sid)) {
+            seenSchedIds.add(sid);
+            schedules.push({
               ...s,
               schedule_id: sid,
-              exam_id: s.exam_id || s.master_exam_id || sid,
-              title: title || 'Paper Test',
+              id: sid,
+              exam_id: String(s.exam_id || s.master_exam_id || '').trim(),
+              title: title || 'Paper Schedule',
               subject_name: (s.subject_name || '').trim(),
               total_marks: s.total_marks || null,
               total_questions: s.total_questions || null,
@@ -2726,32 +2828,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
             });
           }
         });
-
-        // 2. Master papers from Exams (test_mode = 'paper')
-        rawMasters.forEach((m: any) => {
-          const mid = String(m.exam_id || m.test_id || m.id || '').trim();
-          const mTitle = String(m.title || m.name || m.exam_name || '').trim();
-          const existingSched = combinedList.find((c: any) => String(c.exam_id) === mid);
-          if (!existingSched && mid && !seenKeys.has(mid)) {
-            seenKeys.add(mid);
-            combinedList.push({
-              ...m,
-              schedule_id: mid,
-              exam_id: mid,
-              title: mTitle || 'Paper Question',
-              subject_name: (m.subject_name || '').trim(),
-              total_marks: m.total_marks || null,
-              total_questions: m.total_questions || null,
-              start_time: m.created_date || null
-            });
-          }
-        });
-
-        this.paperSchedulesList = combinedList;
+        this.paperSchedulesList = schedules;
 
         // Build unique Subject list for dropdown
         const subjects = new Set<string>();
-        combinedList.forEach((item: any) => {
+        masters.forEach((item: any) => {
+          const sn = (item.subject_name || '').trim();
+          if (sn) subjects.add(sn);
+        });
+        schedules.forEach((item: any) => {
           const sn = (item.subject_name || '').trim();
           if (sn) subjects.add(sn);
         });
@@ -2761,8 +2846,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.loadingPaperSchedules = false;
+        this.paperMasterExams = [];
+        this.filteredPaperMastersList = [];
         this.paperSchedulesList = [];
-        this.filteredPaperSchedulesList = [];
         this.paperSubjectsList = [];
       }
     });
@@ -2773,13 +2859,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.selectedPaperSubject = subj;
     }
     if (this.selectedPaperSubject && this.userFilters.schedule_id) {
-      const curr = (this.paperSchedulesList || []).find(
-        (p: any) => String(p.schedule_id) === String(this.userFilters.schedule_id)
+      const curr = (this.paperMasterExams || []).find(
+        (p: any) => String(p.exam_id) === String(this.userFilters.schedule_id)
       );
       if (curr && curr.subject_name && curr.subject_name.toLowerCase() !== this.selectedPaperSubject.toLowerCase()) {
         this.userFilters.schedule_id = '';
-        this.selectedPaperSchedule = null;
+        this.selectedPaperMaster = null;
+        this.selectedPaperExamId = '';
         this.selectedPaperQuestionTitle = '';
+        this.selectedPaperSchedule = null;
       }
     }
     this.filterPaperSchedules(this.paperSearchQuery);
@@ -2790,15 +2878,15 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const q = (search || '').toLowerCase().trim();
     const subj = (this.selectedPaperSubject || '').toLowerCase().trim();
 
-    this.filteredPaperSchedulesList = (this.paperSchedulesList || []).filter(s => {
-      if (subj && (s.subject_name || '').toLowerCase().trim() !== subj) {
+    this.filteredPaperMastersList = (this.paperMasterExams || []).filter((m) => {
+      if (subj && (m.subject_name || '').toLowerCase().trim() !== subj) {
         return false;
       }
       if (!q) return true;
       return (
-        (s.title || '').toLowerCase().includes(q) ||
-        (s.subject_name || '').toLowerCase().includes(q) ||
-        (s.schedule_name || '').toLowerCase().includes(q)
+        (m.title || '').toLowerCase().includes(q) ||
+        (m.subject_name || '').toLowerCase().includes(q) ||
+        (m.name || '').toLowerCase().includes(q)
       );
     });
   }
@@ -2853,54 +2941,39 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
     this.testNameError = false;
 
-    const ps = (this.paperSchedulesList || []).find(
-      (s: any) =>
-        String(s.schedule_id || s.test_id || s.id) === selectedVal ||
-        String(s.title || '').toLowerCase() === selectedVal.toLowerCase() ||
-        String(s.schedule_name || '').toLowerCase() === selectedVal.toLowerCase()
+    const pm = (this.paperMasterExams || []).find(
+      (m: any) =>
+        String(m.exam_id || m.id) === selectedVal ||
+        String(m.title || '').toLowerCase() === selectedVal.toLowerCase()
     );
 
-    if (ps) {
-      this.selectedPaperSchedule = ps;
-      this.selectedPaperQuestionTitle = ps.title || ps.schedule_name || 'Paper Test';
-      this.paperSubjectName = ps.subject_name || '';
-      this.paperScheduleDateDisplay = this.formatPaperScheduleDate(ps.start_time || ps.exam_date || ps.created_date);
-      this.paperScheduleDisplayLabel = ps.title || ps.schedule_name || selectedVal;
-      this.paperTotalMarks = ps.total_marks || null;
-      this.paperTotalQuestions = ps.total_questions || null;
-      this.selectedExam = {
-        id: ps.schedule_id,
-        schedule_id: ps.schedule_id,
-        exam_id: ps.exam_id,
-        title: ps.title || ps.schedule_name,
-        subject_name: ps.subject_name,
-        test_mode: 'paper'
-      };
-      this.selectedTestTitle = ps.title || ps.schedule_name;
+    if (pm) {
+      this.selectedPaperMaster = pm;
+      this.selectedPaperExamId = String(pm.exam_id || pm.id);
+      this.selectedPaperQuestionTitle = pm.title || 'Paper Test';
+      this.selectedTestTitle = pm.title || '';
+      this.paperSubjectName = pm.subject_name || '';
+      this.paperTotalMarks = pm.total_marks || null;
+      this.paperTotalQuestions = pm.total_questions || null;
     } else {
       this.selectedPaperQuestionTitle = selectedVal;
-      this.paperScheduleDisplayLabel = selectedVal;
-      this.paperScheduleDateDisplay = '—';
-      this.paperSubjectName = '';
-      this.selectedExam = {
-        id: selectedVal,
-        schedule_id: selectedVal,
-        title: selectedVal,
-        test_mode: 'paper'
-      };
       this.selectedTestTitle = selectedVal;
+      this.selectedPaperExamId = selectedVal;
+      this.paperSubjectName = '';
     }
+
+    this.selectedExam = null;
+    this.selectedScheduleDate = null;
+    this.selectedScheduleId = '';
+    this.availableSchedulesOnDate = [];
+    this.selectedPaperSchedule = null;
+
+    this.updateHighlightedDates();
 
     this.questionCurrentPage = 1;
     this.currentPage = 1;
-    this.reportsApplied = true;
+    this.reportsApplied = false;
     this.hasAppliedFilters = true;
-
-    if (this.activeMainTabIndex === 0) {
-      this.loadPaperAnalytics();
-    } else {
-      this.loadPaperUserReport(1);
-    }
 
     this.closeFiltersOverlay();
   }
@@ -3249,17 +3322,26 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
 
     if (this.activeReportType === 'paper') {
-      const ps = (this.paperSchedulesList || []).find(
-        (s: any) =>
-          String(s.schedule_id || s.test_id || s.id) === valStr ||
-          String(s.title || '').toLowerCase() === valStr.toLowerCase() ||
-          String(s.schedule_name || '').toLowerCase() === valStr.toLowerCase()
+      const pm = (this.paperMasterExams || []).find(
+        (m: any) =>
+          String(m.exam_id || m.id) === valStr ||
+          String(m.title || '').toLowerCase() === valStr.toLowerCase()
       );
-      if (ps) {
-        this.selectedPaperSchedule = ps;
-        this.selectedPaperQuestionTitle = ps.title || ps.schedule_name || 'Paper Test';
-        this.selectedTestTitle = ps.title || ps.schedule_name || '';
-        this.userFilters.schedule_id = valStr;
+      if (pm) {
+        this.selectedPaperMaster = pm;
+        this.selectedPaperExamId = String(pm.exam_id || pm.id);
+        this.selectedPaperQuestionTitle = pm.title || 'Paper Test';
+        this.selectedTestTitle = pm.title || '';
+        this.paperSubjectName = pm.subject_name || '';
+        this.paperTotalMarks = pm.total_marks || null;
+        this.paperTotalQuestions = pm.total_questions || null;
+        this.selectedExam = null;
+        this.selectedScheduleDate = null;
+        this.selectedScheduleId = '';
+        this.availableSchedulesOnDate = [];
+        this.selectedPaperSchedule = null;
+        this.userFilters.schedule_id = this.selectedPaperExamId;
+        this.updateHighlightedDates();
         return;
       }
     }
