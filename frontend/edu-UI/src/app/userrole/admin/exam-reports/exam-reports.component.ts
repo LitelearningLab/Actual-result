@@ -3106,16 +3106,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     const queryParams: any = {
       exam_id: scheduleId,
-      user_id: userId
+      user_id: userId,
+      from_report: 'true'
     };
     if (row.attempt_id) {
       queryParams.attempt_id = String(row.attempt_id);
       sessionStorage.setItem('test_eval_attempt_id', String(row.attempt_id));
     }
 
-    this.router.navigate(['/test-evaluation'], {
-      queryParams
-    });
+    const urlTree = this.router.createUrlTree(['/test-evaluation'], { queryParams });
+    const fullUrl = window.location.origin + this.router.serializeUrl(urlTree);
+    window.open(fullUrl, '_blank');
   }
 
   applyFiltersPanel() {

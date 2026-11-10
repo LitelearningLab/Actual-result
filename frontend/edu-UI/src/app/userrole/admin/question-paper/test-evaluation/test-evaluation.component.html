@@ -1171,7 +1171,21 @@
     <div class="evaluate-view-wrapper">
       <!-- ─── Top Evaluation Header Bar ─── -->
       <div class="eval-header-top-card">
-        <div class="header-nav-row">
+        <!-- Header when opened from Test Reports in new tab (Exact Image 2 Style) -->
+        <div class="report-answer-sheet-header-row" *ngIf="isOpenedFromReport">
+          <div class="report-header-left-side">
+            <div class="sheet-blue-icon-box">
+              <mat-icon>assignment</mat-icon>
+            </div>
+            <h2 class="report-sheet-main-title">Answer Sheet - {{ evaluationDetails?.student_name || evaluatingStudent?.name || 'Student' }}</h2>
+          </div>
+          <button type="button" class="btn-close-sheet-header" (click)="closeStudentEvaluation()" title="Close">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+
+        <!-- Normal Navigation Header when opened from Paper Evaluation menu -->
+        <div class="header-nav-row" *ngIf="!isOpenedFromReport">
           <button type="button" class="btn-back-students" (click)="closeStudentEvaluation()">
             <mat-icon>arrow_back</mat-icon>
             <span>Back to Students</span>
@@ -1185,7 +1199,7 @@
 
         <div class="student-info-main-row">
           <div class="student-left-meta">
-            <h2 class="student-eval-name">{{ evaluationDetails?.student_name || evaluatingStudent?.name || 'Student
+            <h2 class="student-eval-name" *ngIf="!isOpenedFromReport">{{ evaluationDetails?.student_name || evaluatingStudent?.name || 'Student
               Evaluation' }}</h2>
             <div class="meta-pills-row">
               <span class="meta-pill" *ngIf="testDetails.class && testDetails.class !== '—'">{{ testDetails.class

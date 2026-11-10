@@ -1594,17 +1594,33 @@
               <ng-container matColumnDef="manual_review">
                 <th mat-header-cell *matHeaderCellDef>MANUAL REVIEW</th>
                 <td mat-cell *matCellDef="let row">
-                  <span
-                    *ngIf="row.manual_review === 'Manual Review' || row.manual_review === 'MANUAL REVIEW' || row.manual_review === 'manual_review' || row.has_manual_review"
-                    class="manual-review-chip"
-                  >
-                    MANUAL REVIEW
-                  </span>
-                  <span
-                    *ngIf="!row.manual_review && !row.has_manual_review"
-                    class="cell-muted"
-                  >-</span
-                  >
+                  <ng-container *ngIf="activeReportType === 'paper'">
+                    <span
+                      *ngIf="row.status === 'evaluated' || (row.result && row.result !== 'Pending Evaluation' && row.result !== 'No Attempt')"
+                      class="manual-review-chip clickable-chip"
+                      (click)="openPaperStudentEvaluation(row); $event.stopPropagation()"
+                      title="Review / correct student answer sheet in new tab"
+                      style="cursor: pointer;"
+                    >
+                      MANUAL REVIEW
+                    </span>
+                    <span
+                      *ngIf="row.status !== 'evaluated' && (!row.result || row.result === 'Pending Evaluation' || row.result === 'No Attempt')"
+                      class="cell-muted"
+                    >-</span>
+                  </ng-container>
+                  <ng-container *ngIf="activeReportType !== 'paper'">
+                    <span
+                      *ngIf="row.manual_review === 'Manual Review' || row.manual_review === 'MANUAL REVIEW' || row.manual_review === 'manual_review' || row.has_manual_review"
+                      class="manual-review-chip"
+                    >
+                      MANUAL REVIEW
+                    </span>
+                    <span
+                      *ngIf="!row.manual_review && !row.has_manual_review"
+                      class="cell-muted"
+                    >-</span>
+                  </ng-container>
                 </td>
               </ng-container>
 

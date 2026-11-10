@@ -313,6 +313,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   isLoadingEvaluation = false;
   activeSheetPageIndex = 0;
   zoomLevel = 100;
+  isOpenedFromReport = false;
 
   // ── PDF.js Canvas State ──
   @ViewChild('pdfCanvas') pdfCanvasRef?: ElementRef<HTMLCanvasElement>;
@@ -382,6 +383,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     // Check query params if navigated from exam-reports
     const qExamId = this.route?.snapshot?.queryParams?.['exam_id'] || this.route?.snapshot?.queryParams?.['schedule_id'];
     const qUserId = this.route?.snapshot?.queryParams?.['user_id'] || this.route?.snapshot?.queryParams?.['student_id'];
+    const qFromReport = this.route?.snapshot?.queryParams?.['from_report'];
+    if (qFromReport === 'true' || qFromReport === true) {
+      this.isOpenedFromReport = true;
+    }
     if (qExamId && qUserId) {
       sessionStorage.setItem('test_eval_exam_id', String(qExamId));
       sessionStorage.setItem('test_eval_user_id', String(qUserId));
@@ -1424,6 +1429,15 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   closeStudentEvaluation(): void {
+    if (this.isOpenedFromReport) {
+      window.close();
+      setTimeout(() => {
+        if (!window.closed) {
+          window.history.back();
+        }
+      }, 150);
+      return;
+    }
     sessionStorage.removeItem('test_eval_user_id');
     sessionStorage.removeItem('test_eval_student');
     sessionStorage.removeItem('test_eval_meta');

@@ -6,6 +6,126 @@ from others.llm import openai_client, analyze_wrong_answers_ai, generate_ai_subt
 
 
 
+
+def _resolve_paper_schedule_context(session, ps, institute_id=None):
+    found_sid = str(ps.schedule_id)
+    schedule_ids = [found_sid]
+
+    assigned_user_ids = set()
+    try:
+        mappings = session.query(PaperScheduleMapping).filter(
+            (PaperScheduleMapping.schedule_id == found_sid) |
+            (func.cast(PaperScheduleMapping.schedule_id, String) == found_sid)
+        ).all()
+
+        direct_uids = [str(m.user_id) for m in mappings if m.user_id]
+        mapped_depts = [str(m.department_id) for m in mappings if m.department_id]
+        mapped_teams = [str(m.team_id) for m in mappings if m.team_id]
+
+        for uid in direct_uids:
+            assigned_user_ids.add(uid)
+
+        dept_keys = set(mapped_depts)
+        if mapped_depts:
+            try:
+                dept_rows = session.query(InstituteDepartment).filter(
+                    or_(
+                        func.cast(InstituteDepartment.department_id, String).in_(mapped_depts),
+                        InstituteDepartment.name.in_(mapped_depts)
+                    )
+                ).all()
+                for dr in dept_rows:
+                    dept_keys.add(str(dr.department_id))
+                    dept_keys.add(str(dr.name))
+            except Exception:
+                pass
+
+        team_keys = set(mapped_teams)
+        if mapped_teams:
+            try:
+                team_rows = session.query(InstituteTeam).filter(
+                    or_(
+                        func.cast(InstituteTeam.team_id, String).in_(mapped_teams),
+                        InstituteTeam.name.in_(mapped_teams)
+                    )
+                ).all()
+                for tr in team_rows:
+                    team_keys.add(str(tr.team_id))
+                    team_keys.add(str(tr.name))
+            except Exception:
+                pass
+
+        q_inst = []
+        if institute_id:
+            q_inst.append((User.institute_id == institute_id) | (func.cast(User.institute_id, String) == str(institute_id)))
+        elif getattr(ps, 'institute_id', None):
+            q_inst.append((User.institute_id == ps.institute_id) | (func.cast(User.institute_id, String) == str(ps.institute_id)))
+
+        if dept_keys and team_keys:
+            group_users = session.query(User.user_id).filter(
+                or_(User.department_id.in_(list(dept_keys)), func.cast(User.department_id, String).in_(list(dept_keys))),
+                or_(User.team_id.in_(list(team_keys)), func.cast(User.team_id, String).in_(list(team_keys))),
+                or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0),
+                *q_inst
+            ).all()
+            for gu in group_users:
+                if gu[0]:
+                    assigned_user_ids.add(str(gu[0]))
+        elif dept_keys:
+            group_users = session.query(User.user_id).filter(
+                or_(User.department_id.in_(list(dept_keys)), func.cast(User.department_id, String).in_(list(dept_keys))),
+                or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0),
+                *q_inst
+            ).all()
+            for gu in group_users:
+                if gu[0]:
+                    assigned_user_ids.add(str(gu[0]))
+        elif team_keys:
+            group_users = session.query(User.user_id).filter(
+                or_(User.team_id.in_(list(team_keys)), func.cast(User.team_id, String).in_(list(team_keys))),
+                or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0),
+                *q_inst
+            ).all()
+            for gu in group_users:
+                if gu[0]:
+                    assigned_user_ids.add(str(gu[0]))
+    except Exception as ex:
+        print(f"[_resolve_paper_schedule_context] Error loading PaperScheduleMapping: {ex}")
+
+    sched_candidates = [found_sid]
+    if ps.exam_id:
+        sched_candidates.append(str(ps.exam_id))
+
+    q_attempts = session.query(Exam_Attempt).filter(
+        func.cast(Exam_Attempt.schedule_id, String).in_(sched_candidates)
+    )
+    all_eval_attempts = q_attempts.all()
+    for a in all_eval_attempts:
+        if a.user_id:
+            assigned_user_ids.add(str(a.user_id))
+
+    matching_attempts = [a for a in all_eval_attempts if getattr(a, 'status', None) == 'evaluated']
+    matching_attempt_ids = [a.attempt_id for a in matching_attempts]
+    all_user_ids = list(assigned_user_ids)
+
+    master_ex = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
+    pass_mark = ps.pass_mark if ps.pass_mark is not None else (master_ex.pass_mark if master_ex else None)
+
+    return {
+        'status': True,
+        'mode': 'schedule',
+        'schedules': [ps],
+        'schedule_ids': schedule_ids,
+        'attempt_ids': matching_attempt_ids,
+        'attempts': matching_attempts,
+        'user_ids': all_user_ids,
+        'assigned_user_ids': all_user_ids,
+        'exam_id': ps.exam_id,
+        'pass_mark': pass_mark,
+        'test_mode': 'paper'
+    }
+
+
 def resolve_report_context(session, args):
     start_date_str = args.get('start_date')
     end_date_str = args.get('end_date')
@@ -149,84 +269,7 @@ def resolve_report_context(session, args):
             if not ps:
                 return {'status': False, 'message': 'Paper schedule not found'}
 
-            found_sid = str(ps.schedule_id)
-            schedule_ids = [found_sid]
-
-            # Retrieve assigned students from PaperScheduleMapping using the selected schedule_id
-            assigned_user_ids = set()
-            try:
-                mappings = session.query(PaperScheduleMapping).filter(
-                    (PaperScheduleMapping.schedule_id == found_sid) |
-                    (func.cast(PaperScheduleMapping.schedule_id, String) == found_sid)
-                ).all()
-
-                direct_uids = [str(m.user_id) for m in mappings if m.user_id]
-                mapped_depts = [str(m.department_id) for m in mappings if m.department_id]
-                mapped_teams = [str(m.team_id) for m in mappings if m.team_id]
-
-                for uid in direct_uids:
-                    assigned_user_ids.add(uid)
-
-                # If published to Class and Section, get students belonging to both
-                if mapped_depts and mapped_teams:
-                    group_users = session.query(User.user_id).filter(
-                        User.department_id.in_(mapped_depts),
-                        User.team_id.in_(mapped_teams),
-                        or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0)
-                    ).all()
-                    for gu in group_users:
-                        if gu[0]:
-                            assigned_user_ids.add(str(gu[0]))
-                elif mapped_depts:
-                    group_users = session.query(User.user_id).filter(
-                        User.department_id.in_(mapped_depts),
-                        or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0)
-                    ).all()
-                    for gu in group_users:
-                        if gu[0]:
-                            assigned_user_ids.add(str(gu[0]))
-                elif mapped_teams:
-                    group_users = session.query(User.user_id).filter(
-                        User.team_id.in_(mapped_teams),
-                        or_(User.is_deleted == False, User.is_deleted == None, User.is_deleted == 0)
-                    ).all()
-                    for gu in group_users:
-                        if gu[0]:
-                            assigned_user_ids.add(str(gu[0]))
-            except Exception as ex:
-                print(f"[resolve_report_context] Error loading PaperScheduleMapping: {ex}")
-
-            # Match Exam_Attempt strictly using PaperSchedule.schedule_id and status == 'evaluated'
-            q_attempts = session.query(Exam_Attempt).filter(
-                func.cast(Exam_Attempt.schedule_id, String) == found_sid,
-                Exam_Attempt.status == 'evaluated'
-            )
-            all_eval_attempts = q_attempts.all()
-            if assigned_user_ids:
-                matching_attempts = [a for a in all_eval_attempts if str(a.user_id) in assigned_user_ids]
-            else:
-                matching_attempts = all_eval_attempts
-
-            matching_attempt_ids = [a.attempt_id for a in matching_attempts]
-            # Include all assigned students from published schedule + any evaluated attempts
-            all_user_ids = {str(a.user_id) for a in matching_attempts if a.user_id} | set(assigned_user_ids)
-
-            master_ex = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
-            pass_mark = ps.pass_mark if ps.pass_mark is not None else (master_ex.pass_mark if master_ex else None)
-
-            return {
-                'status': True,
-                'mode': 'schedule',
-                'schedules': [ps],
-                'schedule_ids': schedule_ids,
-                'attempt_ids': matching_attempt_ids,
-                'attempts': matching_attempts,
-                'user_ids': list(all_user_ids),
-                'assigned_user_ids': list(all_user_ids),
-                'exam_id': ps.exam_id,
-                'pass_mark': pass_mark,
-                'test_mode': 'paper'
-            }
+            return _resolve_paper_schedule_context(session, ps, institute_id=institute_id)
 
     # Date Range Mode is active if start_date and end_date are provided
     is_date_range = bool(start_date_str and end_date_str)
@@ -424,28 +467,7 @@ def resolve_report_context(session, args):
                 (func.cast(PaperSchedule.exam_id, String) == str_sid)
             ).first()
             if ps:
-                found_sid = str(ps.schedule_id)
-                q_attempts = session.query(Exam_Attempt).filter(
-                    func.cast(Exam_Attempt.schedule_id, String) == found_sid,
-                    Exam_Attempt.status == 'evaluated'
-                )
-                matching_attempts = q_attempts.all()
-                matching_attempt_ids = [a.attempt_id for a in matching_attempts]
-                user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
-                master_ex = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
-                pass_mark = ps.pass_mark if ps.pass_mark is not None else (master_ex.pass_mark if master_ex else None)
-                return {
-                    'status': True,
-                    'mode': 'schedule',
-                    'schedules': [ps],
-                    'schedule_ids': [found_sid],
-                    'attempt_ids': matching_attempt_ids,
-                    'attempts': matching_attempts,
-                    'user_ids': list(user_ids_set),
-                    'exam_id': ps.exam_id,
-                    'pass_mark': pass_mark,
-                    'test_mode': 'paper'
-                }
+                return _resolve_paper_schedule_context(session, ps, institute_id=institute_id)
             return {'status': False, 'message': 'Schedule not found'}
 
         found_sid = schedule.schedule_id
@@ -612,6 +634,19 @@ def get_user_wise_report(request):
         rows = []
         default_pass_mark = ctx.get('pass_mark')
 
+        # Pre-load department, team, campus lookups to support filter by Name OR ID
+        dept_records = session.query(InstituteDepartment).all()
+        dept_id_to_name = {str(d.department_id).strip().lower(): (d.name or '').strip().lower() for d in dept_records if d.department_id}
+        dept_name_to_id = {(d.name or '').strip().lower(): str(d.department_id).strip().lower() for d in dept_records if d.name}
+
+        team_records = session.query(InstituteTeam).all()
+        team_id_to_name = {str(t.team_id).strip().lower(): (t.name or '').strip().lower() for t in team_records if t.team_id}
+        team_name_to_id = {(t.name or '').strip().lower(): str(t.team_id).strip().lower() for t in team_records if t.name}
+
+        campus_records = session.query(InstituteCampus).all()
+        campus_id_to_name = {str(c.campus_id).strip().lower(): (c.name or '').strip().lower() for c in campus_records if c.campus_id}
+        campus_name_to_id = {(c.name or '').strip().lower(): str(c.campus_id).strip().lower() for c in campus_records if c.name}
+
         for uid, sid in user_sched_list:
             user = session.query(User).filter(
                 (User.user_id == uid) |
@@ -621,15 +656,44 @@ def get_user_wise_report(request):
                 continue
 
             if args.get('department_id'):
-                depts = [d.strip() for d in args.get('department_id').split(',') if d.strip()]
-                if user.department_id not in depts:
+                depts = [d.strip().lower() for d in args.get('department_id').split(',') if d.strip()]
+                valid_depts = set(depts)
+                for d in depts:
+                    if d in dept_name_to_id:
+                        valid_depts.add(dept_name_to_id[d])
+                    if d in dept_id_to_name:
+                        valid_depts.add(dept_id_to_name[d])
+                u_dept_id = str(user.department_id).strip().lower() if user.department_id else ''
+                u_dept_name = dept_id_to_name.get(u_dept_id, '')
+                if u_dept_id not in valid_depts and u_dept_name not in valid_depts:
                     continue
+
             if args.get('team_id'):
-                teams = [t.strip() for t in args.get('team_id').split(',') if t.strip()]
-                if user.team_id not in teams:
+                teams = [t.strip().lower() for t in args.get('team_id').split(',') if t.strip()]
+                valid_teams = set(teams)
+                for t in teams:
+                    if t in team_name_to_id:
+                        valid_teams.add(team_name_to_id[t])
+                    if t in team_id_to_name:
+                        valid_teams.add(team_id_to_name[t])
+                u_team_id = str(user.team_id).strip().lower() if user.team_id else ''
+                u_team_name = team_id_to_name.get(u_team_id, '')
+                if u_team_id not in valid_teams and u_team_name not in valid_teams:
                     continue
-            if args.get('campus_id') and user.campus_id != args.get('campus_id'):
-                continue
+
+            if args.get('campus_id'):
+                camps = [c.strip().lower() for c in args.get('campus_id').split(',') if c.strip()]
+                valid_camps = set(camps)
+                for c in camps:
+                    if c in campus_name_to_id:
+                        valid_camps.add(campus_name_to_id[c])
+                    if c in campus_id_to_name:
+                        valid_camps.add(campus_id_to_name[c])
+                u_camp_id = str(user.campus_id).strip().lower() if user.campus_id else ''
+                u_camp_name = campus_id_to_name.get(u_camp_id, '')
+                if u_camp_id not in valid_camps and u_camp_name not in valid_camps:
+                    continue
+
             if args.get('active_status'):
                 req_active = 1 if args.get('active_status').lower() == 'active' else 0
                 if user.active_status != req_active:
@@ -688,10 +752,18 @@ def get_user_wise_report(request):
                 if question_ids:
                     total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(question_ids)).scalar() or 0
 
+            sched_candidates = [sid, str(sid)]
+            if sched_obj and sched_obj.exam_id:
+                sched_candidates.append(sched_obj.exam_id)
+                sched_candidates.append(str(sched_obj.exam_id))
+
             if mode == 'daterange':
-                user_attempts = [a for a in ctx['attempts'] if a.user_id == uid and a.schedule_id == sid]
+                user_attempts = [a for a in ctx['attempts'] if (a.user_id == uid or str(a.user_id) == str(uid)) and (a.schedule_id in sched_candidates or str(a.schedule_id) in sched_candidates)]
             else:
-                user_attempts = session.query(Exam_Attempt).filter(Exam_Attempt.schedule_id == sid, Exam_Attempt.user_id == uid).all()
+                user_attempts = session.query(Exam_Attempt).filter(
+                    (Exam_Attempt.schedule_id.in_(sched_candidates)) | (func.cast(Exam_Attempt.schedule_id, String).in_([str(sc) for sc in sched_candidates])),
+                    (Exam_Attempt.user_id == uid) | (func.cast(Exam_Attempt.user_id, String) == str(uid))
+                ).all()
 
             marks = sum((a.marks_awarded or 0) for a in answers)
             if marks == 0 and user_attempts and getattr(user_attempts[0], 'score', None) is not None and user_attempts[0].score > 0:
@@ -706,12 +778,24 @@ def get_user_wise_report(request):
 
             best_percentage = None
             result = ''
-            if user_attempts and any(getattr(a, 'status', '') == 'evaluated' for a in user_attempts):
-                best_percentage = max((a.percentage or 0) for a in user_attempts)
-                if pass_mark is not None:
-                    result = 'Pass' if (best_percentage is not None and best_percentage >= pass_mark) else 'Fail'
-                else:
-                    result = 'Pass' if (best_percentage and best_percentage >= 50) else 'Fail'
+            if user_attempts:
+                eval_atts = [a for a in user_attempts if getattr(a, 'status', '') == 'evaluated']
+                if eval_atts:
+                    for ea in eval_atts:
+                        if ea.percentage is not None:
+                            if best_percentage is None or ea.percentage > best_percentage:
+                                best_percentage = ea.percentage
+                        elif getattr(ea, 'score', None) is not None and total_marks and total_marks > 0:
+                            calc_pct = round((float(ea.score) / float(total_marks)) * 100, 2)
+                            if best_percentage is None or calc_pct > best_percentage:
+                                best_percentage = calc_pct
+                    if best_percentage is not None:
+                        if pass_mark is not None:
+                            result = 'Pass' if best_percentage >= pass_mark else 'Fail'
+                        else:
+                            result = 'Pass' if best_percentage >= 50 else 'Fail'
+                    else:
+                        result = 'Evaluated'
             elif answers:
                 result = 'Evaluated' if any(a.is_validated for a in answers) else 'Submitted'
             else:
@@ -728,8 +812,8 @@ def get_user_wise_report(request):
                 attempt_date_str = sched_obj.start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
             all_user_sched_attempts = session.query(Exam_Attempt).filter(
-                Exam_Attempt.schedule_id == sid,
-                Exam_Attempt.user_id == uid
+                (Exam_Attempt.schedule_id.in_(sched_candidates)) | (func.cast(Exam_Attempt.schedule_id, String).in_([str(sc) for sc in sched_candidates])),
+                (Exam_Attempt.user_id == uid) | (func.cast(Exam_Attempt.user_id, String) == str(uid))
             ).order_by(Exam_Attempt.started_date.asc()).all()
 
             retest_attempts = [a for a in all_user_sched_attempts if (a.attempt_number and a.attempt_number > 1)]
