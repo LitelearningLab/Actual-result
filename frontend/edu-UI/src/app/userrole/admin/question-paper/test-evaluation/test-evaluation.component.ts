@@ -1142,9 +1142,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         rawStatus === 'Manual Reviewed' || rawStatus === 'Need to Check';
 
       let status: StudentEvaluation['status'] = 'Not Evaluated';
-      if (rawStatus === 'Manual Reviewed' || rawStatus === 'Manual Review' || rawStatus === 'manual_review') {
+      const normStatus = String(rawStatus || '').trim().toLowerCase();
+      if (normStatus === 'manual reviewed' || normStatus === 'manual review' || normStatus === 'manual_reviewed' || normStatus === 'manual_review') {
         status = 'Manual Reviewed';
-      } else if (rawStatus === 'Need to Check') {
+      } else if (normStatus === 'need to check' || normStatus === 'need_to_check') {
         status = 'Need to Check';
       } else if (isDbEvaluated) {
         status = 'AI Evaluated';

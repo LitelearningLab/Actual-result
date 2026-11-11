@@ -2606,28 +2606,19 @@ def get_exam_details(request):
                             if ans_ids:
                                 mh_count = (
                                     session.query(MarksHistory)
+                                    .filter(MarksHistory.answer_id.in_(ans_ids))
+                                    .count()
+                                )
+                                ans_with_edit_reason = (
+                                    session.query(Answer)
                                     .filter(
-                                        MarksHistory.answer_id.in_(ans_ids),
-                                        or_(
-                                            (
-                                                MarksHistory.edit_reason.isnot(None)
-                                                & (MarksHistory.edit_reason != "")
-                                            ),
-                                            (
-                                                MarksHistory.updated_by.isnot(None)
-                                                & (MarksHistory.updated_by != "")
-                                                & (MarksHistory.updated_by != "SYSTEM")
-                                                & (MarksHistory.updated_by != "System")
-                                                & (
-                                                    MarksHistory.updated_by
-                                                    != "cac37fab-4de6-4792-969b-96e57e3c910a"
-                                                )
-                                            ),
-                                        ),
+                                        Answer.answer_id.in_(ans_ids),
+                                        Answer.edit_reason.isnot(None),
+                                        Answer.edit_reason != "",
                                     )
                                     .count()
                                 )
-                                if mh_count > 0:
+                                if mh_count > 0 or ans_with_edit_reason > 0:
                                     has_manual_edits = True
 
                                 need_check_count = (
