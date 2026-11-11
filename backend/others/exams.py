@@ -4327,13 +4327,20 @@ def get_student_evaluation_details(request, current_user=None):
                 exam_id = str(sched.exam_id) if sched else str(attempt.schedule_id)
 
         if not attempt and exam_id and user_id:
-            sched_ids = [
+            from db.models import PaperSchedule
+            online_sched_ids = [
                 str(r[0])
                 for r in session.query(ExamSchedule.schedule_id)
                 .filter(ExamSchedule.exam_id == exam_id)
                 .all()
             ]
-            valid_sched_ids = list(set([str(exam_id)] + [s for s in sched_ids if s]))
+            paper_sched_ids = [
+                str(r[0])
+                for r in session.query(PaperSchedule.schedule_id)
+                .filter(PaperSchedule.exam_id == exam_id)
+                .all()
+            ]
+            valid_sched_ids = list(set([str(exam_id)] + [s for s in online_sched_ids if s] + [s for s in paper_sched_ids if s]))
 
             attempt = (
                 session.query(Exam_Attempt)
@@ -4999,7 +5006,7 @@ def finalize_student_evaluation(request, current_user=None):
 
 
 def process_single_student_answer_sheet(
-    exam_id, user_id, file_items, replace=True, current_user=None, on_progress=None
+    exam_id, user_id, file_items, replace=True, current_user=None, on_progress=None, schedule_id=None
 ):
     """
     Core function to process and AI-evaluate a single student's answer sheet.
@@ -5222,45 +5229,71 @@ def process_single_student_answer_sheet(
             }, 500
 
         try:
-            exam_obj = session.query(Exam).filter(Exam.exam_id == exam_id).first()
-            if not exam_obj and exam_id:
-                from db.models import PaperSchedule
+            from db.models import PaperSchedule, PaperScheduleMapping
+
+            # 1. Resolve master Exam and unique schedule_id
+            target_sched_id = str(schedule_id).strip() if schedule_id else None
+            exam_obj = None
+
+            # Check if target_sched_id or incoming exam_id is a PaperSchedule ID
+            ps = None
+            if target_sched_id:
+                ps = session.query(PaperSchedule).filter(PaperSchedule.schedule_id == target_sched_id).first()
+            if not ps and exam_id:
                 ps = session.query(PaperSchedule).filter(PaperSchedule.schedule_id == str(exam_id)).first()
                 if ps:
-                    exam_obj = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
+                    target_sched_id = str(ps.schedule_id)
+
+            if ps:
+                exam_obj = session.query(Exam).filter(Exam.exam_id == ps.exam_id).first()
+            else:
+                exam_obj = session.query(Exam).filter(Exam.exam_id == str(exam_id)).first()
+
+            # If still not resolved to a specific schedule, find the candidate's assigned paper schedule
+            if not target_sched_id and exam_obj and getattr(exam_obj, "test_mode", None) == "paper":
+                mapping_ps = (
+                    session.query(PaperSchedule)
+                    .join(PaperScheduleMapping, PaperScheduleMapping.schedule_id == PaperSchedule.schedule_id)
+                    .filter(
+                        PaperScheduleMapping.user_id == str(user_id),
+                        PaperSchedule.exam_id == str(exam_obj.exam_id)
+                    )
+                    .order_by(PaperSchedule.start_time.desc(), PaperSchedule.created_date.desc())
+                    .first()
+                )
+                if mapping_ps:
+                    target_sched_id = str(mapping_ps.schedule_id)
+                else:
+                    latest_ps = (
+                        session.query(PaperSchedule)
+                        .filter(PaperSchedule.exam_id == str(exam_obj.exam_id))
+                        .order_by(PaperSchedule.start_time.desc(), PaperSchedule.created_date.desc())
+                        .first()
+                    )
+                    target_sched_id = str(latest_ps.schedule_id) if latest_ps else str(exam_id)
+            elif not target_sched_id:
+                target_sched_id = str(exam_id)
+
             is_math_exam = _is_math_subject(
                 getattr(exam_obj, "subject_name", None),
                 getattr(exam_obj, "title", None),
             )
 
-            # Ensure or create Exam_Attempt for this user and paper exam
+            # 2. Query attempt strictly scoped to this specific schedule_id
             attempt = (
                 session.query(Exam_Attempt)
                 .filter(
-                    Exam_Attempt.user_id == user_id,
-                    or_(
-                        Exam_Attempt.schedule_id == exam_id,
-                        Exam_Attempt.schedule_id.in_(
-                            session.query(ExamSchedule.schedule_id).filter(
-                                ExamSchedule.exam_id == exam_id
-                            )
-                        ),
-                    ),
+                    Exam_Attempt.user_id == str(user_id),
+                    Exam_Attempt.schedule_id == target_sched_id,
                 )
                 .first()
             )
 
             if not attempt:
-                sched = (
-                    session.query(ExamSchedule)
-                    .filter(ExamSchedule.exam_id == exam_id)
-                    .first()
-                )
-                schedule_id = str(sched.schedule_id) if sched else str(exam_id)
                 attempt = Exam_Attempt(
                     attempt_id=str(uuid.uuid4()),
-                    user_id=user_id,
-                    schedule_id=schedule_id,
+                    user_id=str(user_id),
+                    schedule_id=target_sched_id,
                     status="in_progress",
                     started_date=datetime.utcnow(),
                 )
@@ -5269,19 +5302,12 @@ def process_single_student_answer_sheet(
 
             attempt_id = str(attempt.attempt_id)
 
-            # Clean up old duplicate answer sheet pages for all attempts of this student and exam
+            # 3. Clean up old duplicate answer sheet pages strictly for this attempt / schedule
             all_attempt_rows = (
                 session.query(Exam_Attempt.attempt_id)
                 .filter(
-                    Exam_Attempt.user_id == user_id,
-                    or_(
-                        Exam_Attempt.schedule_id == exam_id,
-                        Exam_Attempt.schedule_id.in_(
-                            session.query(ExamSchedule.schedule_id).filter(
-                                ExamSchedule.exam_id == exam_id
-                            )
-                        ),
-                    ),
+                    Exam_Attempt.user_id == str(user_id),
+                    Exam_Attempt.schedule_id == target_sched_id,
                 )
                 .all()
             )
@@ -6014,6 +6040,7 @@ def upload_answer_sheet(request, current_user=None):
     Delegates to process_single_student_answer_sheet for atomic evaluation.
     """
     exam_id = request.form.get("exam_id")
+    schedule_id = request.form.get("schedule_id") or exam_id
     user_id = request.form.get("user_id")
     replace = request.form.get("replace", "true").lower() in ("true", "1")
 
@@ -6037,6 +6064,7 @@ def upload_answer_sheet(request, current_user=None):
         file_items=file_items,
         replace=replace,
         current_user=current_user,
+        schedule_id=schedule_id,
     )
 
 

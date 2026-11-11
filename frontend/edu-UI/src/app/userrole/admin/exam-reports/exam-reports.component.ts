@@ -3656,7 +3656,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   private loadInstitutes() {
-    const url = `${API_BASE}/get-institutes`;
+    const url = this.isSuperAdmin ? `${API_BASE}/get-institutes` : `${API_BASE}/get-institute-list`;
     const params: any = {};
     if (this.selectedCountries && this.selectedCountries.length) {
       params.country = this.selectedCountries.join(',');
@@ -3818,8 +3818,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   loadCountries() {
+    const url = this.isSuperAdmin ? `${API_BASE}/get-institutes` : `${API_BASE}/get-institute-list`;
     this.countriesLoading = true;
-    this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
+    this.http.get<any>(url).subscribe({
       next: (instRes: any) => {
         try {
           const institutes = Array.isArray(instRes?.data)
@@ -3910,8 +3911,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       String(c).trim().toLowerCase()
     );
 
+    const url = this.isSuperAdmin ? `${API_BASE}/get-institutes` : `${API_BASE}/get-institute-list`;
     this.citiesLoading = true;
-    this.http.get<any>(`${API_BASE}/get-institutes`).subscribe({
+    this.http.get<any>(url).subscribe({
       next: (res: any) => {
         try {
           const institutes = Array.isArray(res?.data)

@@ -82,7 +82,7 @@ class BulkEvaluationManager:
         except Exception as e:
             logger.warning(f"[BulkEvalManager] Recovery check warning: {e}")
 
-    def create_job(self, exam_id: str, student_tasks: list, current_user=None) -> str:
+    def create_job(self, exam_id: str, student_tasks: list, current_user=None, schedule_id: str = None) -> str:
         """
         Initializes an evaluation batch job and queues student sheets to the bounded worker pool.
         Each item in student_tasks is:
@@ -93,6 +93,7 @@ class BulkEvaluationManager:
         }
         """
         job_id = str(uuid.uuid4())
+        resolved_schedule_id = str(schedule_id or exam_id)
         user_info = None
         if current_user:
             user_info = {
@@ -114,6 +115,11 @@ class BulkEvaluationManager:
                     .filter(or_(Exam.exam_id == str(exam_id), Exam.schedule_id == str(exam_id)))
                     .first()
                 )
+                if not exam_obj:
+                    from db.models import PaperSchedule
+                    ps_tmp = sess_temp.query(PaperSchedule).filter(PaperSchedule.schedule_id == str(resolved_schedule_id)).first()
+                    if ps_tmp:
+                        exam_obj = sess_temp.query(Exam).filter(Exam.exam_id == ps_tmp.exam_id).first()
                 target_exam_ids = list({str(exam_id), str(exam_obj.exam_id)}) if exam_obj else [str(exam_id)]
                 eqm_rows = (
                     sess_temp.query(ExamQuestionMapping.question_id, ExamQuestionMapping.order_number)
@@ -170,6 +176,7 @@ class BulkEvaluationManager:
             self.jobs[job_id] = {
                 "job_id": job_id,
                 "exam_id": str(exam_id),
+                "schedule_id": resolved_schedule_id,
                 "status": "in_progress",
                 "created_at": datetime.utcnow().isoformat(),
                 "total_students": len(student_tasks),
@@ -267,7 +274,8 @@ class BulkEvaluationManager:
                 file_items=file_items,
                 replace=True,
                 current_user=user_info,
-                on_progress=on_sheet_progress
+                on_progress=on_sheet_progress,
+                schedule_id=job.get("schedule_id") or job.get("exam_id")
             )
 
             # Check if cancelled while LLM / processing was executing
@@ -282,9 +290,10 @@ class BulkEvaluationManager:
                         db = SQLiteDB()
                         sess = db.connect()
                         if sess:
+                            eval_sched_id = str(job.get("schedule_id") or job.get("exam_id"))
                             att_rows = sess.query(Exam_Attempt.attempt_id).filter(
                                 Exam_Attempt.user_id == str(user_id),
-                                Exam_Attempt.schedule_id == str(job.get("exam_id"))
+                                Exam_Attempt.schedule_id == eval_sched_id
                             ).all()
                             att_ids = [str(r[0]) for r in att_rows if r[0]]
                             if att_ids:
@@ -368,7 +377,7 @@ class BulkEvaluationManager:
             if not job:
                 return {"status": False, "statusMessage": f"Job {job_id} not found."}
 
-            exam_id = job.get("exam_id")
+            exam_id = job.get("schedule_id") or job.get("exam_id")
 
             if user_id:
                 st = job["students"].get(str(user_id))

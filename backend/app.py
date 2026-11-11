@@ -636,7 +636,8 @@ def start_bulk_evaluation_route():
     from others.bulk_eval_manager import bulk_eval_manager
     current_user = get_current_user_from_request()
 
-    exam_id = request.form.get('exam_id')
+    exam_id = request.form.get('exam_id') or request.form.get('schedule_id')
+    schedule_id = request.form.get('schedule_id') or exam_id
     if not exam_id:
         return jsonify({"status": False, "statusMessage": "exam_id is required"}), 400
 
@@ -714,7 +715,8 @@ def start_bulk_evaluation_route():
     job_id = bulk_eval_manager.create_job(
         exam_id=exam_id,
         student_tasks=student_tasks,
-        current_user=current_user
+        current_user=current_user,
+        schedule_id=schedule_id
     )
 
     return jsonify({

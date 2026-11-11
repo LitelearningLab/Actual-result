@@ -1392,6 +1392,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       student.matchedFile = undefined;
       const formData = new FormData();
       formData.append('exam_id', this.selectedExamId);
+      formData.append('schedule_id', this.selectedExamId);
       formData.append('user_id', student.user_id);
       formData.append('replace', 'true');
       formData.append('file', student.rawFile);
@@ -2454,6 +2455,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     const formData = new FormData();
     formData.append('exam_id', examId);
+    formData.append('schedule_id', examId);
     formData.append('user_id', userId);
     formData.append('replace', this.attachMode === 'add' ? 'false' : 'true');
 
@@ -2870,6 +2872,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.isUploading = true;
     const formData = new FormData();
     formData.append('exam_id', examId);
+    formData.append('schedule_id', examId);
     formData.append('user_id', userId);
     formData.append('replace', 'true');
 
@@ -3022,6 +3025,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     formData.append('file', file);
     if (this.selectedExamId) {
       formData.append('exam_id', this.selectedExamId);
+      formData.append('schedule_id', this.selectedExamId);
     }
     const studentRoster = this.students.map((s) => ({
       user_id: s.user_id,
@@ -3462,6 +3466,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
       const formData = new FormData();
       formData.append('exam_id', this.selectedExamId);
+      formData.append('schedule_id', this.selectedExamId);
 
       const manifest = pendingUploads.map((s) => ({
         user_id: s.user_id,

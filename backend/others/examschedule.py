@@ -822,7 +822,7 @@ def get_exam_schedule_details(request):
             .all()
         )
         if schedules is None or len(schedules) == 0:
-            return {"statusMessage": "No schedules found", "status": False}, 404
+            return {"statusMessage": "No schedules found", "status": True, "schedules": [], "data": []}, 200
 
         exam_list = []
         for schedule in schedules:

@@ -92,14 +92,14 @@ def _resolve_paper_schedule_context(session, ps, institute_id=None):
     except Exception as ex:
         print(f"[_resolve_paper_schedule_context] Error loading PaperScheduleMapping: {ex}")
 
-    sched_candidates = [found_sid]
-    if ps.exam_id:
-        sched_candidates.append(str(ps.exam_id))
-
     q_attempts = session.query(Exam_Attempt).filter(
-        func.cast(Exam_Attempt.schedule_id, String).in_(sched_candidates)
+        func.cast(Exam_Attempt.schedule_id, String) == found_sid
     )
     all_eval_attempts = q_attempts.all()
+    if not all_eval_attempts and ps.exam_id:
+        all_eval_attempts = session.query(Exam_Attempt).filter(
+            func.cast(Exam_Attempt.schedule_id, String) == str(ps.exam_id)
+        ).all()
     for a in all_eval_attempts:
         if a.user_id:
             assigned_user_ids.add(str(a.user_id))
@@ -750,26 +750,58 @@ def get_user_wise_report(request):
             if args.get('city_id') and user.city_id != args.get('city_id'):
                 continue
 
+            sched_obj = next((s for s in ctx.get('schedules', []) if str(s.schedule_id) == str(sid)), None)
+            str_sid = str(sid)
+
             if mode == 'daterange':
-                att_ids_for_pair = [a.attempt_id for a in ctx['attempts'] if a.user_id == uid and a.schedule_id == sid]
+                # Strictly isolate attempts to this specific schedule session
+                user_attempts = [
+                    a for a in ctx.get('attempts', [])
+                    if (str(a.user_id) == str(uid)) and (str(a.schedule_id) == str_sid)
+                ]
+                # Fallback for historical attempts that used master exam_id
+                if not user_attempts and sched_obj and getattr(sched_obj, 'exam_id', None):
+                    legacy_eid = str(sched_obj.exam_id)
+                    user_attempts = [
+                        a for a in ctx.get('attempts', [])
+                        if (str(a.user_id) == str(uid)) and (str(a.schedule_id) == legacy_eid)
+                    ]
+            else:
+                user_attempts = session.query(Exam_Attempt).filter(
+                    (func.cast(Exam_Attempt.schedule_id, String) == str_sid),
+                    (func.cast(Exam_Attempt.user_id, String) == str(uid))
+                ).all()
+                if not user_attempts and sched_obj and getattr(sched_obj, 'exam_id', None):
+                    legacy_eid = str(sched_obj.exam_id)
+                    user_attempts = session.query(Exam_Attempt).filter(
+                        (func.cast(Exam_Attempt.schedule_id, String) == legacy_eid),
+                        (func.cast(Exam_Attempt.user_id, String) == str(uid))
+                    ).all()
+
+            if mode == 'daterange':
+                att_ids_for_pair = [a.attempt_id for a in user_attempts if a.attempt_id]
                 if att_ids_for_pair:
                     answers = session.query(Answer).filter(
-                        Answer.user_id == uid,
-                        Answer.schedule_id == sid,
-                        (Answer.attempt_id.in_(att_ids_for_pair)) | (
-                            (Answer.created_date >= ctx['start_date']) &
-                            (Answer.created_date <= ctx['end_date'])
-                        )
+                        func.cast(Answer.user_id, String) == str(uid),
+                        func.cast(Answer.attempt_id, String).in_([str(aid) for aid in att_ids_for_pair if aid])
                     ).all()
                 else:
                     answers = session.query(Answer).filter(
-                        Answer.user_id == uid,
-                        Answer.schedule_id == sid,
+                        func.cast(Answer.user_id, String) == str(uid),
+                        func.cast(Answer.schedule_id, String) == str_sid,
                         Answer.created_date >= ctx['start_date'],
                         Answer.created_date <= ctx['end_date']
                     ).all()
             else:
-                answers = session.query(Answer).filter(Answer.schedule_id == sid, Answer.user_id == uid).all()
+                answers = session.query(Answer).filter(
+                    func.cast(Answer.schedule_id, String) == str_sid,
+                    func.cast(Answer.user_id, String) == str(uid)
+                ).all()
+                if not answers and sched_obj and getattr(sched_obj, 'exam_id', None):
+                    answers = session.query(Answer).filter(
+                        func.cast(Answer.schedule_id, String) == str(sched_obj.exam_id),
+                        func.cast(Answer.user_id, String) == str(uid)
+                    ).all()
 
             grouped = {}
             for ans in answers:
@@ -782,7 +814,6 @@ def get_user_wise_report(request):
             correct = sum(1 for qid, is_corr in grouped.items() if is_corr == 1)
             wrong = questions_attempted - correct
 
-            sched_obj = next((s for s in ctx.get('schedules', []) if str(s.schedule_id) == str(sid)), None)
             total_marks = 0
             if sched_obj and sched_obj.exam_id:
                 eqm_qids = [qm.question_id for qm in session.query(ExamQuestionMapping.question_id).filter(ExamQuestionMapping.exam_id == sched_obj.exam_id).all()]
@@ -798,19 +829,6 @@ def get_user_wise_report(request):
                 question_ids = list(grouped.keys())
                 if question_ids:
                     total_marks = session.query(func.sum(Question.marks)).filter(Question.question_id.in_(question_ids)).scalar() or 0
-
-            sched_candidates = [sid, str(sid)]
-            if sched_obj and sched_obj.exam_id:
-                sched_candidates.append(sched_obj.exam_id)
-                sched_candidates.append(str(sched_obj.exam_id))
-
-            if mode == 'daterange':
-                user_attempts = [a for a in ctx['attempts'] if (a.user_id == uid or str(a.user_id) == str(uid)) and (a.schedule_id in sched_candidates or str(a.schedule_id) in sched_candidates)]
-            else:
-                user_attempts = session.query(Exam_Attempt).filter(
-                    (Exam_Attempt.schedule_id.in_(sched_candidates)) | (func.cast(Exam_Attempt.schedule_id, String).in_([str(sc) for sc in sched_candidates])),
-                    (Exam_Attempt.user_id == uid) | (func.cast(Exam_Attempt.user_id, String) == str(uid))
-                ).all()
 
             marks = sum((a.marks_awarded or 0) for a in answers)
             if marks == 0 and user_attempts and getattr(user_attempts[0], 'score', None) is not None and user_attempts[0].score > 0:
@@ -875,10 +893,7 @@ def get_user_wise_report(request):
             if not attempt_date_str and answers and answers[0].created_date:
                 attempt_date_str = answers[0].created_date.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-            all_user_sched_attempts = session.query(Exam_Attempt).filter(
-                (Exam_Attempt.schedule_id.in_(sched_candidates)) | (func.cast(Exam_Attempt.schedule_id, String).in_([str(sc) for sc in sched_candidates])),
-                (Exam_Attempt.user_id == uid) | (func.cast(Exam_Attempt.user_id, String) == str(uid))
-            ).order_by(Exam_Attempt.started_date.asc()).all()
+            all_user_sched_attempts = user_attempts
 
             retest_attempts = [a for a in all_user_sched_attempts if (a.attempt_number and a.attempt_number > 1)]
             retest_taken = "Yes" if retest_attempts else "No"
