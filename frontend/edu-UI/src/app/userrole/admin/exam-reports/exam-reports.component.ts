@@ -1783,6 +1783,22 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     return isEvaluated || hasScore;
   }
 
+  getUserReportDisplayedColumns(): string[] {
+    if (this.activeReportType === 'paper') {
+      return ['student_name', 'test_taken_date', 'percentage', 'result', 'manual_review'];
+    }
+    return [
+      'student_name',
+      'test_taken_date',
+      'percentage',
+      'result',
+      'retest_date',
+      'retest_percentage',
+      'retest_result',
+      'manual_review'
+    ];
+  }
+
   get displayedUserReportData(): any[] {
     if (!this.userReportData) return [];
     let list: any[];
@@ -4642,26 +4658,40 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   exportUserCSV() {
     if (!this.displayedUserReportData || !this.displayedUserReportData.length) return;
-    const headers = [
-      'Student Name',
-      'TEST DATE',
-      'PERCENTAGE',
-      'RESULT',
-      'RETEST DATE',
-      'RETEST %',
-      'RETEST RESULT',
-      'MANUAL REVIEW',
-    ];
-    const rows = this.displayedUserReportData.map((r: any) => [
-      r.student_name,
-      this.formatDateShort(r.test_taken_date),
-      r.percentage !== null && r.percentage !== undefined ? `${r.percentage}%` : '',
-      this.formatResult(r.result),
-      r.retest_date ? this.formatDateShort(r.retest_date) : '-',
-      r.retest_percentage !== null && r.retest_percentage !== undefined ? `${r.retest_percentage}%` : '-',
-      r.retest_result || '-',
-      r.manual_review || '-',
-    ]);
+    const isPaper = this.activeReportType === 'paper';
+    const headers = isPaper
+      ? ['Student Name', 'TEST DATE', 'PERCENTAGE', 'RESULT', 'MANUAL REVIEW']
+      : [
+          'Student Name',
+          'TEST DATE',
+          'PERCENTAGE',
+          'RESULT',
+          'RETEST DATE',
+          'RETEST %',
+          'RETEST RESULT',
+          'MANUAL REVIEW',
+        ];
+    const rows = this.displayedUserReportData.map((r: any) => {
+      if (isPaper) {
+        return [
+          r.student_name,
+          this.formatDateShort(r.test_taken_date),
+          r.percentage !== null && r.percentage !== undefined ? `${r.percentage}%` : '',
+          this.formatResult(r.result),
+          r.manual_review || '-',
+        ];
+      }
+      return [
+        r.student_name,
+        this.formatDateShort(r.test_taken_date),
+        r.percentage !== null && r.percentage !== undefined ? `${r.percentage}%` : '',
+        this.formatResult(r.result),
+        r.retest_date ? this.formatDateShort(r.retest_date) : '-',
+        r.retest_percentage !== null && r.retest_percentage !== undefined ? `${r.retest_percentage}%` : '-',
+        r.retest_result || '-',
+        r.manual_review || '-',
+      ];
+    });
     const csv = [
       headers.join(','),
       ...rows.map((r) => r.map((v: any) => `"${String(v || '').replace(/"/g, '""')}"`).join(',')),

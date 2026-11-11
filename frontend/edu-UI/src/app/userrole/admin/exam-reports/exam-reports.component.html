@@ -1595,63 +1595,31 @@
               <ng-container matColumnDef="manual_review">
                 <th mat-header-cell *matHeaderCellDef>MANUAL REVIEW</th>
                 <td mat-cell *matCellDef="let row">
-                  <ng-container *ngIf="activeReportType === 'paper'">
-                    <span
-                      *ngIf="row.status === 'evaluated' || (row.result && !(row.result || '').toLowerCase().includes('pending') && row.result !== 'No Attempt')"
-                      class="manual-review-chip clickable-chip"
-                      (click)="openPaperStudentEvaluation(row); $event.stopPropagation()"
-                      title="Review / correct student answer sheet in new tab"
-                      style="cursor: pointer;"
-                    >
-                      MANUAL REVIEW
-                    </span>
-                    <span
-                      *ngIf="row.status !== 'evaluated' && (!row.result || (row.result || '').toLowerCase().includes('pending') || row.result === 'No Attempt')"
-                      class="cell-muted"
-                    >-</span>
-                  </ng-container>
-                  <ng-container *ngIf="activeReportType !== 'paper'">
-                    <span
-                      *ngIf="row.manual_review === 'Manual Review' || row.manual_review === 'MANUAL REVIEW' || row.manual_review === 'manual_review' || row.has_manual_review"
-                      class="manual-review-chip"
-                    >
-                      MANUAL REVIEW
-                    </span>
-                    <span
-                      *ngIf="!row.manual_review && !row.has_manual_review"
-                      class="cell-muted"
-                    >-</span>
-                  </ng-container>
+                  <span
+                    *ngIf="row.manual_review === 'Manual Review' || row.manual_review === 'MANUAL REVIEW' || row.manual_review === 'manual_review' || row.has_manual_review"
+                    class="manual-review-chip"
+                    [class.clickable-chip]="activeReportType === 'paper'"
+                    (click)="activeReportType === 'paper' ? openPaperStudentEvaluation(row) : null; $event.stopPropagation()"
+                    [title]="activeReportType === 'paper' ? 'Review / correct student answer sheet in new tab' : ''"
+                  >
+                    MANUAL REVIEW
+                  </span>
+                  <span
+                    *ngIf="!row.manual_review && !row.has_manual_review"
+                    class="cell-muted"
+                  >-</span>
                 </td>
               </ng-container>
 
               <tr
                 mat-header-row
-                *matHeaderRowDef="[
-                  'student_name',
-                  'test_taken_date',
-                  'percentage',
-                  'result',
-                  'retest_date',
-                  'retest_percentage',
-                  'retest_result',
-                  'manual_review',
-                ]"
+                *matHeaderRowDef="getUserReportDisplayedColumns()"
               ></tr>
               <tr
                 mat-row
                 *matRowDef="
                   let row;
-                  columns: [
-                    'student_name',
-                    'test_taken_date',
-                    'percentage',
-                    'result',
-                    'retest_date',
-                    'retest_percentage',
-                    'retest_result',
-                    'manual_review',
-                  ]
+                  columns: getUserReportDisplayedColumns()
                 "
               ></tr>
             </table>
