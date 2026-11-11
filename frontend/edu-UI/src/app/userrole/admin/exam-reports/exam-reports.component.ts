@@ -2347,6 +2347,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
                 this.currentReviewRow.status = fetchedResult;
               }
             }
+            const fetchedPct = first.percentage ?? first.score_percentage;
+            if (fetchedPct !== undefined && fetchedPct !== null && this.currentReviewRow) {
+              const numPct = typeof fetchedPct === 'number' ? fetchedPct : parseFloat(fetchedPct);
+              if (!isNaN(numPct)) {
+                this.currentReviewRow.percentage = numPct;
+              }
+            }
             if (
               first.total_marks !== undefined ||
               first.totalMarks !== undefined ||
@@ -2563,9 +2570,34 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         q._marksEditReason = undefined;
         q._marksReasonTouched = undefined;
 
-        if (this.currentReviewRow) {
-          this.currentReviewRow.manual_review = 'Manual Review';
-          this.currentReviewRow.has_manual_review = true;
+        // O(1) instant local update on the corresponding report row
+        const diff = newMarks - oldMarks;
+        let targetRow = this.currentReviewRow;
+        if (!targetRow && Array.isArray(this.userReportData)) {
+          targetRow = this.userReportData.find((r: any) =>
+            (attemptId && r.attempt_id && String(r.attempt_id) === String(attemptId)) ||
+            (userId && r.user_id && String(r.user_id) === String(userId))
+          );
+        }
+
+        if (targetRow) {
+          targetRow.manual_review = 'Manual Review';
+          targetRow.has_manual_review = true;
+          const prevScore = Number(targetRow.marks_obtained ?? targetRow.score ?? this.selectedUserScore ?? 0);
+          const updatedScore = Math.max(0, prevScore + diff);
+          targetRow.marks_obtained = updatedScore;
+          targetRow.score = updatedScore;
+          targetRow.marks = updatedScore;
+
+          const totalM = Number(targetRow.total_marks || this.totalMarks || row?.total_marks || 0);
+          if (totalM > 0) {
+            const updatedPct = Math.round((updatedScore / totalM) * 10000) / 100;
+            targetRow.percentage = updatedPct;
+            const passThreshold = Number(this.selectedExam?.pass_mark ?? 50);
+            const updatedResult = updatedPct >= passThreshold ? 'Pass' : 'Fail';
+            targetRow.result = updatedResult;
+            targetRow.status = updatedResult;
+          }
         }
 
         if (this.selectedUserScore !== null && typeof this.selectedUserScore === 'number') {
@@ -2576,6 +2608,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
         if (this.currentReviewParams) {
           this.fetchUserReview(this.currentReviewParams, true);
+        }
+
+        // Silently reload report dataset in background to keep metrics in sync
+        if (this.activeReportType === 'paper') {
+          this.loadPaperUserReport(this.currentPage || 1);
+        } else {
+          this.loadUserReport(this.currentPage || 1, true);
         }
       },
       error: (err: any) => {

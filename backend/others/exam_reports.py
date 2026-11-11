@@ -885,7 +885,12 @@ def get_user_wise_report(request):
             best_percentage = None
             result = ''
             if user_attempts:
-                eval_atts = [a for a in user_attempts if getattr(a, 'status', '') == 'evaluated']
+                eval_atts = [
+                    a for a in user_attempts
+                    if getattr(a, 'status', '') == 'evaluated'
+                    or getattr(a, 'percentage', None) is not None
+                    or getattr(a, 'score', None) is not None
+                ]
                 if eval_atts:
                     for ea in eval_atts:
                         if ea.percentage is not None:
