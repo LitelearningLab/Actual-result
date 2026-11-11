@@ -1946,7 +1946,7 @@
             <div class="footer-left-progress">
               <span>All questions evaluated &amp; auto-saved</span>
             </div>
-            <button type="button" class="btn-footer-back" (click)="closeStudentEvaluation()">
+            <button *ngIf="!isOpenedFromReport" type="button" class="btn-footer-back" (click)="closeStudentEvaluation()">
               <mat-icon>arrow_back</mat-icon>
               <span>Back to Students List</span>
             </button>
