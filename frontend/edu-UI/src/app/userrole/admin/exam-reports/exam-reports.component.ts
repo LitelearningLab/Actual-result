@@ -2610,6 +2610,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
           this.fetchUserReview(this.currentReviewParams, true);
         }
 
+        // Notify other open tabs (e.g. main Test Reports table) to refresh
+        try {
+          localStorage.setItem('exam_report_marks_updated', String(Date.now()));
+        } catch (e) {}
+
         // Silently reload report dataset in background to keep metrics in sync
         if (this.activeReportType === 'paper') {
           this.loadPaperUserReport(this.currentPage || 1);
@@ -4337,6 +4342,24 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
               student_name: userName,
             };
             this.openUserReview(fakeRow);
+          }
+        }
+      });
+    } catch (e) {}
+
+    try {
+      // Listen for mark updates saved in other tabs (Answer Sheet tab)
+      window.addEventListener('storage', (ev: StorageEvent) => {
+        if (ev.key === 'exam_report_marks_updated' && !this.isStandaloneAnswerSheet) {
+          this.refreshUserReportTable();
+        }
+      });
+      window.addEventListener('focus', () => {
+        if (!this.isStandaloneAnswerSheet) {
+          const lastUpdated = Number(localStorage.getItem('exam_report_marks_updated') || 0);
+          if (lastUpdated > 0 && Date.now() - lastUpdated < 120000) {
+            localStorage.removeItem('exam_report_marks_updated');
+            this.refreshUserReportTable();
           }
         }
       });
