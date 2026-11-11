@@ -990,7 +990,7 @@
                     <mat-icon>download</mat-icon> Export CSV
                   </button>
                   <button
-                    *ngIf="innerAnalyticsTabIndex === 0"
+                    *ngIf="innerAnalyticsTabIndex === 0 && activeReportType !== 'paper'"
                     type="button"
                     class="attempt-breakdown-btn"
                     [class.active]="showAttemptBreakdown"

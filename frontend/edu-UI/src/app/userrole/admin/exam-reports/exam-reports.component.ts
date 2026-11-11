@@ -174,6 +174,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
 
   getCategoryDisplayedColumns(): string[] {
+    if (this.activeReportType === 'paper') {
+      return ['category', 'type', 'questions', 'users_attempted', 'total_attempts', 'mistakes', 'error_pct'];
+    }
     if (this.showAttemptBreakdown) {
       return ['category', 'type', 'questions', 'users_attempted', 'first_attempt', 'second_attempt', 'total_attempts', 'mistakes', 'error_pct'];
     }
@@ -2761,6 +2764,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   onReportTypeChange(type: 'online' | 'paper') {
     if (this.activeReportType === type) return;
     this.activeReportType = type;
+    this.showAttemptBreakdown = false;
 
     // Reset report results and analytics state
     this.selectedExam = null;
@@ -4790,28 +4794,51 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   exportAnalyticsCSV() {
     const dataToExport = this.filteredCategoryAnalytics;
     if (!dataToExport || !dataToExport.length) return;
-    const headers = [
-      'Question Bank',
-      'Type',
-      'Questions',
-      'Users Attempted',
-      'First Attempt',
-      'Second Attempt',
-      'Total Attempts',
-      'Mistakes',
-      'Error %'
-    ];
-    const rows = dataToExport.map((c: any) => [
-      c.category_name || c.name || '',
-      this.formatCategoryType(c.category_type || c.type),
-      c.total_questions || c.questions_count || 0,
-      c.no_of_students || c.users_attempted || 0,
-      c.first_attempt_count || 0,
-      c.second_attempt_count || 0,
-      c.total_attempts || 0,
-      c.wrong_answers || c.mistakes || c.wrong_count || 0,
-      `${c.error_percentage || c.error_pct || 0}%`
-    ]);
+    const isPaper = this.activeReportType === 'paper';
+    const headers = isPaper
+      ? [
+          'Question Bank',
+          'Type',
+          'Questions',
+          'Users Attempted',
+          'Total Attempts',
+          'Mistakes',
+          'Error %'
+        ]
+      : [
+          'Question Bank',
+          'Type',
+          'Questions',
+          'Users Attempted',
+          'First Attempt',
+          'Second Attempt',
+          'Total Attempts',
+          'Mistakes',
+          'Error %'
+        ];
+    const rows = dataToExport.map((c: any) =>
+      isPaper
+        ? [
+            c.category_name || c.name || '',
+            this.formatCategoryType(c.category_type || c.type),
+            c.total_questions || c.questions_count || 0,
+            c.no_of_students || c.users_attempted || 0,
+            c.total_attempts || 0,
+            c.wrong_answers || c.mistakes || c.wrong_count || 0,
+            `${c.error_percentage || c.error_pct || 0}%`
+          ]
+        : [
+            c.category_name || c.name || '',
+            this.formatCategoryType(c.category_type || c.type),
+            c.total_questions || c.questions_count || 0,
+            c.no_of_students || c.users_attempted || 0,
+            c.first_attempt_count || 0,
+            c.second_attempt_count || 0,
+            c.total_attempts || 0,
+            c.wrong_answers || c.mistakes || c.wrong_count || 0,
+            `${c.error_percentage || c.error_pct || 0}%`
+          ]
+    );
     const csv = [
       headers.join(','),
       ...rows.map((r) => r.map((v: any) => `"${String(v || '').replace(/"/g, '""')}"`).join(',')),
