@@ -4192,6 +4192,16 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
           font-size: 0.75rem;
         }
 
+        &.pill-manual-review {
+          background: #fff7ed;
+          color: #c2410c;
+          border: 1px solid #fed7aa;
+
+          .status-dot {
+            color: #ea580c;
+          }
+        }
+
         &.pill-completed {
           background: #ecfdf5;
           color: #059669;
