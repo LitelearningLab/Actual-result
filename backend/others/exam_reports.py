@@ -7,10 +7,8 @@ from others.llm import openai_client, analyze_wrong_answers_ai, generate_ai_subt
 
 
 
-def _resolve_paper_schedule_context(session, ps, institute_id=None):
+def _get_paper_schedule_assigned_users(session, ps, institute_id=None):
     found_sid = str(ps.schedule_id)
-    schedule_ids = [found_sid]
-
     assigned_user_ids = set()
     try:
         mappings = session.query(PaperScheduleMapping).filter(
@@ -90,7 +88,15 @@ def _resolve_paper_schedule_context(session, ps, institute_id=None):
                 if gu[0]:
                     assigned_user_ids.add(str(gu[0]))
     except Exception as ex:
-        print(f"[_resolve_paper_schedule_context] Error loading PaperScheduleMapping: {ex}")
+        print(f"[_get_paper_schedule_assigned_users] Error loading PaperScheduleMapping: {ex}")
+    return assigned_user_ids
+
+
+def _resolve_paper_schedule_context(session, ps, institute_id=None):
+    found_sid = str(ps.schedule_id)
+    schedule_ids = [found_sid]
+
+    assigned_user_ids = _get_paper_schedule_assigned_users(session, ps, institute_id=institute_id)
 
     q_attempts = session.query(Exam_Attempt).filter(
         func.cast(Exam_Attempt.schedule_id, String) == found_sid
@@ -181,43 +187,53 @@ def resolve_report_context(session, args):
                     (func.cast(PaperSchedule.exam_id, String) == str(exam_id))
                 )
 
-            all_test_schedules = q_sched.all()
+            sched_date_expr = func.coalesce(PaperSchedule.start_time, PaperSchedule.created_date)
+            all_test_schedules = q_sched.filter(
+                sched_date_expr >= start_date,
+                sched_date_expr <= end_date
+            ).all()
+
+            if not all_test_schedules:
+                attempt_date_expr = func.coalesce(Exam_Attempt.submitted_date, Exam_Attempt.started_date)
+                range_att_sids = [
+                    str(r[0]) for r in session.query(Exam_Attempt.schedule_id).filter(
+                        attempt_date_expr >= start_date,
+                        attempt_date_expr <= end_date
+                    ).distinct().all() if r[0]
+                ]
+                if range_att_sids:
+                    all_test_schedules = q_sched.filter(
+                        func.cast(PaperSchedule.schedule_id, String).in_(range_att_sids)
+                    ).all()
+                if not all_test_schedules:
+                    all_test_schedules = q_sched.all()
+
             all_schedule_ids = [str(s.schedule_id) for s in all_test_schedules if s and s.schedule_id]
 
-            attempt_date_expr = func.coalesce(Exam_Attempt.submitted_date, Exam_Attempt.started_date)
-            q_attempts = session.query(Exam_Attempt).filter(
-                attempt_date_expr >= start_date,
-                attempt_date_expr <= end_date
-            )
             valid_ids = list(set([str(sid) for sid in all_schedule_ids] + [str(eid) for eid in target_exam_ids if eid]))
             if valid_ids:
-                q_attempts = q_attempts.filter(
+                matching_attempts = session.query(Exam_Attempt).filter(
                     or_(
                         Exam_Attempt.schedule_id.in_(valid_ids),
                         func.cast(Exam_Attempt.schedule_id, String).in_(valid_ids)
                     )
-                )
+                ).all()
             else:
-                q_attempts = q_attempts.filter(Exam_Attempt.schedule_id == '__none__')
-            matching_attempts = q_attempts.all()
-            matching_attempt_ids = [a.attempt_id for a in matching_attempts]
-            user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
+                matching_attempts = []
 
-            assigned_uids = set(user_ids_set)
-            try:
-                if all_schedule_ids:
-                    str_sids = [str(sid) for sid in all_schedule_ids]
-                    pm_mappings = session.query(PaperScheduleMapping).filter(
-                        or_(
-                            PaperScheduleMapping.schedule_id.in_(all_schedule_ids),
-                            func.cast(PaperScheduleMapping.schedule_id, String).in_(str_sids)
-                        )
-                    ).all()
-                    for pm in pm_mappings:
-                        if pm.user_id:
-                            assigned_uids.add(str(pm.user_id))
-            except Exception:
-                pass
+            matching_attempt_ids = [a.attempt_id for a in matching_attempts]
+            user_ids_set = {str(a.user_id) for a in matching_attempts if a.user_id}
+
+            schedule_assigned_map = {}
+            all_assigned_uids = set(user_ids_set)
+            for s in all_test_schedules:
+                sid_str = str(s.schedule_id)
+                s_uids = _get_paper_schedule_assigned_users(session, s, institute_id=institute_id)
+                for a in matching_attempts:
+                    if str(a.schedule_id) == sid_str and a.user_id:
+                        s_uids.add(str(a.user_id))
+                schedule_assigned_map[sid_str] = s_uids
+                all_assigned_uids.update(s_uids)
 
             resolved_exam_id = target_exam_ids[0] if target_exam_ids else (all_test_schedules[0].exam_id if all_test_schedules else None)
             pass_mark = None
@@ -233,10 +249,11 @@ def resolve_report_context(session, args):
                 'mode': 'daterange',
                 'schedules': all_test_schedules,
                 'schedule_ids': all_schedule_ids,
+                'schedule_assigned_map': schedule_assigned_map,
                 'attempt_ids': matching_attempt_ids,
                 'attempts': matching_attempts,
-                'user_ids': list(user_ids_set | assigned_uids),
-                'assigned_user_ids': list(assigned_uids),
+                'user_ids': list(all_assigned_uids),
+                'assigned_user_ids': list(all_assigned_uids),
                 'exam_id': resolved_exam_id,
                 'pass_mark': pass_mark,
                 'start_date': start_date,
@@ -619,15 +636,28 @@ def get_user_wise_report(request):
         user_sched_pairs = set()
 
         if test_mode == 'paper':
-            # For paper tests, return all assigned students
-            assigned_uids = set(str(u) for u in (ctx.get('assigned_user_ids') or []))
-            primary_sid = schedule_ids[0] if schedule_ids else (ctx.get('exam_id') or None)
-            for att in ctx.get('attempts', []):
-                if att.user_id and att.schedule_id:
-                    user_sched_pairs.add((att.user_id, att.schedule_id))
-            if primary_sid:
-                for uid in assigned_uids:
-                    if not any(str(u) == str(uid) for u, _ in user_sched_pairs):
+            if mode == 'daterange':
+                sched_map = ctx.get('schedule_assigned_map', {})
+                if sched_map:
+                    for sid, uids in sched_map.items():
+                        for uid in uids:
+                            user_sched_pairs.add((uid, sid))
+                else:
+                    assigned_uids = set(str(u) for u in (ctx.get('assigned_user_ids') or []))
+                    for sid in schedule_ids:
+                        for uid in assigned_uids:
+                            user_sched_pairs.add((uid, sid))
+                for att in ctx.get('attempts', []):
+                    if att.user_id and att.schedule_id:
+                        user_sched_pairs.add((att.user_id, att.schedule_id))
+            else:
+                assigned_uids = set(str(u) for u in (ctx.get('assigned_user_ids') or []))
+                primary_sid = schedule_ids[0] if schedule_ids else (ctx.get('exam_id') or None)
+                for att in ctx.get('attempts', []):
+                    if att.user_id and att.schedule_id:
+                        user_sched_pairs.add((att.user_id, att.schedule_id))
+                if primary_sid:
+                    for uid in assigned_uids:
                         user_sched_pairs.add((uid, primary_sid))
         else:
             for att in ctx['attempts']:
@@ -696,7 +726,18 @@ def get_user_wise_report(request):
                         valid_depts.add(dept_id_to_name[d])
                 u_dept_id = str(user.department_id).strip().lower() if user.department_id else ''
                 u_dept_name = dept_id_to_name.get(u_dept_id, '')
-                if u_dept_id not in valid_depts and u_dept_name not in valid_depts:
+                is_dept_match = (u_dept_id in valid_depts) or (u_dept_name in valid_depts)
+                if not is_dept_match and test_mode == 'paper':
+                    sched_dept = session.query(PaperScheduleMapping.department_id).filter(
+                        func.cast(PaperScheduleMapping.schedule_id, String) == str(sid),
+                        PaperScheduleMapping.department_id.isnot(None)
+                    ).first()
+                    if sched_dept and sched_dept[0]:
+                        sd_id = str(sched_dept[0]).strip().lower()
+                        sd_name = dept_id_to_name.get(sd_id, '')
+                        if sd_id in valid_depts or sd_name in valid_depts:
+                            is_dept_match = True
+                if not is_dept_match:
                     continue
 
             if args.get('team_id'):
@@ -892,6 +933,10 @@ def get_user_wise_report(request):
                     attempt_date_str = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
             if not attempt_date_str and answers and answers[0].created_date:
                 attempt_date_str = answers[0].created_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+            if not attempt_date_str and sched_obj:
+                s_dt = getattr(sched_obj, 'start_time', None) or getattr(sched_obj, 'start_date', None) or getattr(sched_obj, 'created_date', None)
+                if s_dt and hasattr(s_dt, 'strftime'):
+                    attempt_date_str = s_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
             all_user_sched_attempts = user_attempts
 
