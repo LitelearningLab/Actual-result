@@ -657,8 +657,8 @@
   <div class="test-schedule-selection-card">
     <div class="selection-card-header">
       <div class="header-mode-toggle-group">
-        <h3 class="selection-card-title-main">{{ activeReportType === 'paper' ? 'Paper Test Selection:' : 'Test Selection Mode:' }}</h3>
-        <div class="mode-toggle-buttons" *ngIf="activeReportType === 'online'">
+        <h3 class="selection-card-title-main">{{ activeReportType === 'paper' ? 'Paper Test Selection Mode:' : 'Test Selection Mode:' }}</h3>
+        <div class="mode-toggle-buttons">
           <button
             type="button"
             class="mode-toggle-btn"
@@ -679,8 +679,11 @@
           </button>
         </div>
       </div>
-      <span class="selection-step-hint" *ngIf="activeReportType === 'paper'">
+      <span class="selection-step-hint" *ngIf="activeReportType === 'paper' && selectionMode === 'schedule'">
         Select Paper &rarr; Select Date &rarr; Select Schedule &rarr; View Report
+      </span>
+      <span class="selection-step-hint" *ngIf="activeReportType === 'paper' && selectionMode === 'daterange'">
+        Select Paper &rarr; Select Date range &rarr; View reports
       </span>
       <span class="selection-step-hint" *ngIf="activeReportType === 'online' && selectionMode === 'schedule'">
         Select Test &rarr; Select Date &rarr; Select Schedule &rarr; View Report
@@ -691,7 +694,7 @@
     </div>
 
     <!-- Mode 1: Select Schedule (Shared by Online Test & Paper Test) -->
-    <div class="selection-fields-grid" *ngIf="activeReportType === 'paper' || selectionMode === 'schedule'">
+    <div class="selection-fields-grid" *ngIf="selectionMode === 'schedule'">
       <!-- Step 1: Select Test / Paper -->
       <mat-form-field
         appearance="outline"
@@ -769,28 +772,34 @@
     </div>
 
     <!-- Mode 2: Select Date Range -->
-    <div class="selection-fields-grid date-range-mode-grid" *ngIf="activeReportType === 'online' && selectionMode === 'daterange'">
+    <div class="selection-fields-grid date-range-mode-grid" *ngIf="selectionMode === 'daterange'">
       <!-- Select Test Name -->
       <mat-form-field
         appearance="outline"
         class="selection-field readonly-test-field"
         [class.test-selected]="!!displayTestName"
       >
-        <mat-label>Test Name <span class="required-mark">*</span></mat-label>
+        <mat-label>{{ activeReportType === 'paper' ? 'Paper Question' : 'Test Name' }} <span class="required-mark">*</span></mat-label>
         <input
           matInput
           type="text"
           [value]="displayTestName"
-          placeholder="Select Test from Filter"
+          [placeholder]="activeReportType === 'paper' ? 'Select Paper Test from Filter' : 'Select Test from Filter'"
           readonly
           tabindex="-1"
           style="cursor: default; user-select: none; caret-color: transparent;"
         />
-        <mat-hint *ngIf="scheduledTestsLoading" style="color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
+        <mat-hint *ngIf="activeReportType === 'online' && scheduledTestsLoading" style="color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
           <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
           <span>Loading tests...</span>
         </mat-hint>
-        <mat-hint *ngIf="!scheduledTestsLoading && !uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
+        <mat-hint *ngIf="activeReportType === 'paper' && loadingPaperSchedules" style="color: #0284c7; display: inline-flex; align-items: center; gap: 4px;">
+          <mat-icon class="rotating-spinner" style="font-size: 12px; width: 12px; height: 12px;">sync</mat-icon>
+          <span>Loading paper tests...</span>
+        </mat-hint>
+        <mat-hint *ngIf="activeReportType === 'online' && !scheduledTestsLoading && !uniqueTestNames.length && selectedInstituteId">No tests found for this institute</mat-hint>
+        <mat-hint *ngIf="activeReportType === 'paper' && !loadingPaperSchedules && !filteredPaperMastersList.length && selectedInstituteId">No paper tests found for this institute</mat-hint>
+        <mat-hint *ngIf="activeReportType === 'paper' && paperSubjectName">Subject: {{ paperSubjectName }}</mat-hint>
       </mat-form-field>
 
       <!-- Created Date / Date Range -->

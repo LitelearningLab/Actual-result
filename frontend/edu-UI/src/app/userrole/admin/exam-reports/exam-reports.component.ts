@@ -629,19 +629,19 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     if (this.appliedFilterChips.length === 0) {
       this.hasAppliedFilters = false;
-    } else {
-      if (this.activeReportType === 'paper') {
-        if (this.activeMainTabIndex === 0) {
-          this.loadPaperAnalytics();
-        } else {
-          this.loadPaperUserReport(1);
-        }
+    }
+
+    if (this.activeReportType === 'paper') {
+      if (this.activeMainTabIndex === 0) {
+        this.loadPaperAnalytics();
       } else {
-        if (this.activeMainTabIndex === 0) {
-          this.loadAnalytics();
-        } else {
-          this.loadUserReport(1);
-        }
+        this.loadPaperUserReport(1);
+      }
+    } else {
+      if (this.activeMainTabIndex === 0) {
+        this.loadAnalytics();
+      } else {
+        this.loadUserReport(1);
       }
     }
   }
@@ -1547,6 +1547,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.resetDescriptiveAiState();
 
     const activeTitle =
+      (this.activeReportType === 'paper' ? this.selectedPaperQuestionTitle : null) ||
       this.selectedTestTitle ||
       this.selectedDateRangeTestTitle ||
       '';
@@ -1560,10 +1561,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.selectedScheduleId = '';
       this.selectedScheduleDate = null;
       this.availableSchedulesOnDate = [];
+      if (this.activeReportType === 'paper') {
+        this.selectedPaperSchedule = null;
+      }
     } else {
       this.dateRangeStart = null;
       this.dateRangeEnd = null;
-      if (this.selectedTestTitle) {
+      if (this.activeReportType === 'paper') {
+        if (this.selectedPaperQuestionTitle || this.selectedPaperExamId) {
+          this.updateHighlightedDates();
+          this.updateAvailableSchedulesOnDate();
+        }
+      } else if (this.selectedTestTitle) {
         this.updateHighlightedDates();
         this.updateAvailableSchedulesOnDate();
       }
@@ -1597,15 +1606,28 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       start_date: startStr,
       end_date: endStr,
     };
+    if (this.activeReportType === 'paper') {
+      this.selectedExam.exam_id = this.selectedPaperExamId;
+      this.selectedExam.test_mode = 'paper';
+      this.selectedPaperSchedule = null;
+    }
     this.resetDescriptiveAiState();
     this.questionCurrentPage = 1;
     this.currentPage = 1;
     this.reportsApplied = true;
     this.hasAppliedFilters = true;
-    if (this.activeMainTabIndex === 0) {
-      this.loadAnalytics();
+    if (this.activeReportType === 'paper') {
+      if (this.activeMainTabIndex === 0) {
+        this.loadPaperAnalytics();
+      } else {
+        this.loadPaperUserReport(1);
+      }
     } else {
-      this.loadUserReport(1);
+      if (this.activeMainTabIndex === 0) {
+        this.loadAnalytics();
+      } else {
+        this.loadUserReport(1);
+      }
     }
   }
 
@@ -3175,14 +3197,29 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   loadPaperAnalytics() {
     if (!this.selectedPaperSchedule && !this.selectedExam) return;
+    const isDateRange = this.selectionMode === 'daterange' || !!this.selectedExam?.isDateRange;
     const schedId = String(this.selectedPaperSchedule?.schedule_id || this.selectedExam?.schedule_id || '');
-    if (!schedId) return;
+    if (!isDateRange && !schedId) return;
 
     this.loadingAnalytics = true;
     const params: any = {
-      schedule_id: schedId,
       test_mode: 'paper'
     };
+    if (schedId) {
+      params.schedule_id = schedId;
+    }
+    if (isDateRange) {
+      const title = this.selectedExam?.title || this.selectedPaperQuestionTitle || this.selectedTestTitle || '';
+      if (title) params.test_title = title;
+      const exId = this.selectedPaperExamId || this.selectedExam?.exam_id;
+      if (exId) params.exam_id = exId;
+      if (this.selectedExam?.start_date || this.dateRangeStart) {
+        params.start_date = this.selectedExam?.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
+      }
+      if (this.selectedExam?.end_date || this.dateRangeEnd) {
+        params.end_date = this.selectedExam?.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
+      }
+    }
     const instId = this.selectedInstituteId || this.userFilters.institute_id;
     if (instId) params.institute_id = instId;
 
@@ -3209,18 +3246,33 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   loadPaperUserReport(page: number = 1) {
     if (!this.selectedPaperSchedule && !this.selectedExam) return;
+    const isDateRange = this.selectionMode === 'daterange' || !!this.selectedExam?.isDateRange;
     const schedId = String(this.selectedPaperSchedule?.schedule_id || this.selectedExam?.schedule_id || '');
-    if (!schedId) return;
+    if (!isDateRange && !schedId) return;
 
     this.currentPage = page || 1;
     this.loadingUserReport = true;
 
     const params: any = {
-      schedule_id: schedId,
       test_mode: 'paper',
       page: String(this.currentPage),
       page_size: String(this.pageSize)
     };
+    if (schedId) {
+      params.schedule_id = schedId;
+    }
+    if (isDateRange) {
+      const title = this.selectedExam?.title || this.selectedPaperQuestionTitle || this.selectedTestTitle || '';
+      if (title) params.test_title = title;
+      const exId = this.selectedPaperExamId || this.selectedExam?.exam_id;
+      if (exId) params.exam_id = exId;
+      if (this.selectedExam?.start_date || this.dateRangeStart) {
+        params.start_date = this.selectedExam?.start_date || this.formatDateToYYYYMMDD(this.dateRangeStart);
+      }
+      if (this.selectedExam?.end_date || this.dateRangeEnd) {
+        params.end_date = this.selectedExam?.end_date || this.formatDateToYYYYMMDD(this.dateRangeEnd);
+      }
+    }
     const instId = this.selectedInstituteId || this.userFilters.institute_id;
     if (instId) params.institute_id = instId;
     if (this.searchQuery) params.q = this.searchQuery;
