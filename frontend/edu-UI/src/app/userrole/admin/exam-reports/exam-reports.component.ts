@@ -682,6 +682,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   cities: any[] = [];
   campusList: any[] = [];
   departmentList: any[] = [];
+  departmentRawList: Array<{ id: string; name: string }> = [];
   teamList: any[] = [];
   industryList: string[] = ['School', 'College', 'BPO', 'Bank', 'IT'];
   private sectorMap: Record<string, string[]> = {
@@ -1750,6 +1751,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   onFilterSelectionChange() {
     // Draft filter state in panel; filters applied on click of Apply button
+    if (this.activeReportType === 'paper') {
+      this.filterPaperSchedules(this.paperSearchQuery);
+    }
   }
 
   // simple pagination controls without MatPaginator binding
@@ -2035,6 +2039,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       if (res) {
         this.userFilters.created_after = res.startDate;
         this.userFilters.created_before = res.endDate;
+        if (this.activeReportType === 'paper') {
+          this.filterPaperSchedules(this.paperSearchQuery);
+        }
       }
     });
   }
@@ -2921,10 +2928,129 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const q = (search || '').toLowerCase().trim();
     const subj = (this.selectedPaperSubject || '').toLowerCase().trim();
 
+    // 1. Prepare selected department/class keys (IDs and names)
+    const selDepts = (
+      Array.isArray(this.userFilters.department_id)
+        ? this.userFilters.department_id
+        : [this.userFilters.department_id]
+    )
+      .filter(Boolean)
+      .map((v: any) => String(v).toLowerCase().trim());
+
+    const hasDeptFilter = selDepts.length > 0 && !this.isAllDepartmentsSelected();
+    const matchingDeptKeys = new Set<string>();
+    if (hasDeptFilter) {
+      selDepts.forEach((val: string) => matchingDeptKeys.add(val));
+      (this.departmentRawList || []).forEach((d: { id: string; name: string }) => {
+        const dId = d.id.toLowerCase();
+        const dName = d.name.toLowerCase();
+        if (selDepts.includes(dId) || selDepts.includes(dName)) {
+          matchingDeptKeys.add(dId);
+          matchingDeptKeys.add(dName);
+        }
+      });
+      (this.teamList || []).forEach((t: any) => {
+        const dId = String(t.department_id || '').toLowerCase();
+        const dName = String(t.department_name || '').toLowerCase();
+        if (selDepts.includes(dId) || selDepts.includes(dName)) {
+          matchingDeptKeys.add(dId);
+          matchingDeptKeys.add(dName);
+        }
+      });
+    }
+
+    // 2. Prepare selected team/section keys (IDs and names)
+    const selTeams: string[] = (
+      Array.isArray(this.userFilters.teams_id)
+        ? this.userFilters.teams_id
+        : [this.userFilters.teams_id]
+    )
+      .filter(Boolean)
+      .map((v: any) => String(v).toLowerCase().trim());
+
+    const hasTeamFilter = selTeams.length > 0 && !this.isAllTeamsSelected();
+    const matchingTeamKeys = new Set<string>();
+    if (hasTeamFilter) {
+      selTeams.forEach((val: string) => matchingTeamKeys.add(val));
+      (this.teamList || []).forEach((t: any) => {
+        const tId = String(t.id || t.team_id || '').toLowerCase();
+        const tName = String(t.name || t.team_name || '').toLowerCase();
+        if (selTeams.includes(tId) || selTeams.includes(tName)) {
+          matchingTeamKeys.add(tId);
+          matchingTeamKeys.add(tName);
+        }
+      });
+    }
+
+    // 3. Prepare date boundaries
+    const createdAfterStr = this.userFilters.created_after ? String(this.userFilters.created_after).slice(0, 10) : '';
+    const createdBeforeStr = this.userFilters.created_before ? String(this.userFilters.created_before).slice(0, 10) : '';
+
     this.filteredPaperMastersList = (this.paperMasterExams || []).filter((m) => {
+      // Subject check
       if (subj && (m.subject_name || '').toLowerCase().trim() !== subj) {
         return false;
       }
+
+      const schedulesForExam = (this.paperSchedulesList || []).filter(
+        (s: any) => String(s.exam_id) === String(m.exam_id)
+      );
+
+      // Class / Department check
+      if (hasDeptFilter) {
+        const examDepts = Array.isArray(m.departments) ? m.departments.map((d: any) => String(d).toLowerCase().trim()) : [];
+        if (m.department_id) examDepts.push(String(m.department_id).toLowerCase().trim());
+        const masterMatchesDept = examDepts.some((d: string) => matchingDeptKeys.has(d));
+
+        const schedMatchesDept = schedulesForExam.some((s: any) => {
+          const sDepts = Array.isArray(s.departments) ? s.departments.map((d: any) => String(d).toLowerCase().trim()) : [];
+          if (s.department_id) sDepts.push(String(s.department_id).toLowerCase().trim());
+          return sDepts.some((d: string) => matchingDeptKeys.has(d));
+        });
+
+        if (!masterMatchesDept && !schedMatchesDept) {
+          return false;
+        }
+      }
+
+      // Section / Team check
+      if (hasTeamFilter) {
+        const examTeams = Array.isArray(m.teams) ? m.teams.map((t: any) => String(t).toLowerCase().trim()) : [];
+        if (m.team_id) examTeams.push(String(m.team_id).toLowerCase().trim());
+        const masterMatchesTeam = examTeams.some((t: string) => matchingTeamKeys.has(t));
+
+        const schedMatchesTeam = schedulesForExam.some((s: any) => {
+          const sTeams = Array.isArray(s.teams) ? s.teams.map((t: any) => String(t).toLowerCase().trim()) : [];
+          if (s.team_id) sTeams.push(String(s.team_id).toLowerCase().trim());
+          return sTeams.some((t: string) => matchingTeamKeys.has(t));
+        });
+
+        if (!masterMatchesTeam && !schedMatchesTeam) {
+          return false;
+        }
+      }
+
+      // Date check
+      if (createdAfterStr || createdBeforeStr) {
+        const mDate = m.created_date ? String(m.created_date).slice(0, 10) : '';
+        let dateMatches = true;
+        if (createdAfterStr && mDate && mDate < createdAfterStr) dateMatches = false;
+        if (createdBeforeStr && mDate && mDate > createdBeforeStr) dateMatches = false;
+
+        const schedMatchesDate = schedulesForExam.some((s: any) => {
+          const sDate = (s.start_time || s.exam_date || s.created_date || '').slice(0, 10);
+          if (!sDate) return false;
+          if (createdAfterStr && sDate < createdAfterStr) return false;
+          if (createdBeforeStr && sDate > createdBeforeStr) return false;
+          return true;
+        });
+
+        if (!dateMatches && !schedMatchesDate) {
+          return false;
+        }
+      }
+
+      // Search text check
       if (!q) return true;
       return (
         (m.title || '').toLowerCase().includes(q) ||
@@ -2932,6 +3058,16 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         (m.name || '').toLowerCase().includes(q)
       );
     });
+
+    // If currently selected test is excluded by the new filters, clear it
+    if (this.userFilters.schedule_id) {
+      const isStillPresent = this.filteredPaperMastersList.some(
+        (pm: any) => String(pm.exam_id) === String(this.userFilters.schedule_id)
+      );
+      if (!isStillPresent) {
+        this.userFilters.schedule_id = '';
+      }
+    }
   }
 
   formatPaperScheduleDate(dateStr: any): string {
@@ -3837,6 +3973,10 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       next: (res: any) => {
         this.departmentsLoading = false;
         const arr = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        this.departmentRawList = arr.map((d: any) => ({
+          id: String(d.department_id || d.id || d.name || '').trim(),
+          name: String(d.name || d.department_name || d.department || '').trim()
+        }));
         this.departmentList = arr
           .map((d: any) => (d.name || d.department_name || d.department || d).toString())
           .filter((s: any) => !!s);
@@ -3845,6 +3985,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.departmentsLoading = false;
         console.warn('Failed to load department list', err);
         this.departmentList = [];
+        this.departmentRawList = [];
       },
     });
   }
