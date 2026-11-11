@@ -483,6 +483,7 @@
                   <mat-label>{{ activeReportType === 'paper' ? 'Paper Test' : 'Test Name' }} <span class="required-mark">*</span></mat-label>
                   <mat-select
                     [(ngModel)]="userFilters.schedule_id"
+                    [compareWith]="compareExamIds"
                     name="filterTestName"
                     (openedChange)="onSelectOpened($event, 'schedule')"
                     (selectionChange)="testNameError = false; onTestFilterSelected($event.value)"
