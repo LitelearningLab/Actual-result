@@ -8,60 +8,34 @@
       <div class="brand-grid-overlay"></div>
     </div>
 
-    <div class="brand-panel-content">
-      <div class="brand-logo" routerLink="/" role="button" tabindex="0" aria-label="Go to homepage">
-        <img src="assets/images/profluent-lab.png" alt="Profluent Lab logo" loading="lazy" />
-      </div>
+    <div class="brand-logo" routerLink="/" role="button" tabindex="0" aria-label="Go to homepage">
+      <img src="assets/images/profluent-lab.png" alt="Profluent Lab logo" loading="lazy" />
+    </div>
 
-      <header>
-        <h1 class="brand-headline">Smarter Assessments,<br />Better Outcomes.</h1>
+    <div class="brand-panel-content">
+      <header class="brand-header">
+        <h1 class="brand-headline">
+          Smarter<br />
+          Assessments,<br />
+          <span class="brand-headline-accent">Better Outcomes.</span>
+        </h1>
+        <div class="brand-accent-bar" aria-hidden="true"></div>
         <p class="brand-sub">Trusted by many institutions to deliver secure, scalable online tests with real-time analytics.</p>
       </header>
 
-      <!-- Stat counters -->
-      <div class="brand-stats">
-        <div class="stat-card">
-          <span class="stat-number">500+</span>
-          <span class="stat-label">Institutions</span>
+      <div class="brand-pillars" role="list" aria-label="Platform highlights">
+        <div class="pillar-item" role="listitem">
+          <mat-icon fontSet="material-icons-outlined">verified_user</mat-icon>
+          <span>Secure &amp; Reliable</span>
         </div>
-        <div class="stat-card">
-          <span class="stat-number">1M+</span>
-          <span class="stat-label">Tests Delivered</span>
+        <div class="pillar-item" role="listitem">
+          <mat-icon fontSet="material-icons-outlined">bolt</mat-icon>
+          <span>Real-Time Analytics</span>
         </div>
-        <div class="stat-card">
-          <span class="stat-number">99.9%</span>
-          <span class="stat-label">Uptime SLA</span>
+        <div class="pillar-item" role="listitem">
+          <mat-icon fontSet="material-icons-outlined">bar_chart</mat-icon>
+          <span>Trusted Platform</span>
         </div>
-      </div>
-
-      <!-- Product preview -->
-      <div class="brand-preview-card">
-        <div class="preview-header">
-          <div class="preview-dots" aria-hidden="true">
-            <span></span><span></span><span></span>
-          </div>
-          <span class="preview-title">Dashboard Preview</span>
-        </div>
-        <div class="preview-body">
-          <div class="preview-row">
-            <div class="preview-bar preview-bar--85"></div>
-            <span class="preview-value">85%</span>
-          </div>
-          <div class="preview-row">
-            <div class="preview-bar preview-bar--72"></div>
-            <span class="preview-value">72%</span>
-          </div>
-          <div class="preview-row">
-            <div class="preview-bar preview-bar--94"></div>
-            <span class="preview-value">94%</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Trust badges -->
-      <div class="brand-trust">
-        <mat-icon fontSet="material-icons-outlined">verified_user</mat-icon>
-        <span>SOC 2 Certified · GDPR Compliant · 256-bit Encryption</span>
       </div>
     </div>
 
@@ -70,11 +44,25 @@
 
   <!-- ─── Right: Login Form ─── -->
   <main class="login-form-panel">
+    <div class="form-panel-bg" aria-hidden="true">
+      <div class="form-bg-dots"></div>
+      <div class="form-bg-halo"></div>
+    </div>
+
     <article class="login-card">
+      <div class="login-card-bg" aria-hidden="true">
+        <div class="card-corner-tint"></div>
+        <div class="card-wave-bottom">
+          <span class="wave-layer wave-layer--1"></span>
+          <span class="wave-layer wave-layer--2"></span>
+        </div>
+      </div>
 
       <header class="login-header">
-        <div class="login-icon-badge" aria-hidden="true">
-          <mat-icon fontSet="material-icons-outlined">lock_open</mat-icon>
+        <div class="actual-result-brand">
+          <img src="assets/images/logo.png" alt="Actual Result logo" loading="lazy" />
+          <span class="actual-result-title">Actual Result</span>
+          <span class="actual-result-underline" aria-hidden="true"></span>
         </div>
         <h2 class="login-heading">Welcome back</h2>
         <p class="login-sub">Sign in to your account to continue</p>
@@ -82,10 +70,9 @@
 
       <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form" autocomplete="on">
         <div class="field-group">
-          <label class="field-label" for="login-email">Email</label>
           <mat-form-field appearance="outline" class="form-field">
             <mat-icon matPrefix fontSet="material-icons-outlined">email</mat-icon>
-            <input matInput type="email" formControlName="email" id="login-email" placeholder="Enter your email" aria-describedby="email-error" autocomplete="email" />
+            <input matInput type="email" formControlName="email" id="login-email" aria-label="Email Address" placeholder="Enter your email address" aria-describedby="email-error" autocomplete="email" />
             <mat-error id="email-error" *ngIf="loginForm.get('email')?.hasError('required') && (loginForm.get('email')?.dirty || loginForm.get('email')?.touched)">
               Email is required
             </mat-error>
@@ -96,10 +83,9 @@
         </div>
 
         <div class="field-group">
-          <label class="field-label" for="login-password">Password</label>
           <mat-form-field appearance="outline" class="form-field">
             <mat-icon matPrefix fontSet="material-icons-outlined">lock</mat-icon>
-            <input matInput [type]="hide ? 'password' : 'text'" formControlName="password" id="login-password" placeholder="Enter your password" aria-describedby="password-error" autocomplete="current-password" />
+            <input matInput [type]="hide ? 'password' : 'text'" formControlName="password" id="login-password" aria-label="Password" placeholder="Enter your password" aria-describedby="password-error" autocomplete="current-password" />
             <button mat-icon-button matSuffix type="button" [attr.aria-label]="hide ? 'Show password' : 'Hide password'" (click)="hide = !hide" tabindex="-1">
               <mat-icon fontSet="material-icons-outlined">{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
@@ -115,16 +101,10 @@
         </div>
 
         <button mat-flat-button color="primary" class="submit-btn" type="submit" [disabled]="loginForm.invalid">
-          <span>Sign in</span>
-          <mat-icon fontSet="material-icons-outlined">arrow_forward</mat-icon>
+          <mat-icon fontSet="material-icons-outlined">login</mat-icon>
+          <span>Sign In</span>
         </button>
       </form>
-
-      <nav class="login-alt-actions" aria-label="Additional sign-in options">
-        <a routerLink="/register" class="alt-link">
-          Don't have an account? <strong>Request a demo</strong>
-        </a>
-      </nav>
 
       <footer class="login-footer">
         <a routerLink="/" class="back-home-link">
