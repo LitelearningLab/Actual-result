@@ -385,7 +385,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const qExamId = this.route?.snapshot?.queryParams?.['exam_id'] || this.route?.snapshot?.queryParams?.['schedule_id'];
     const qUserId = this.route?.snapshot?.queryParams?.['user_id'] || this.route?.snapshot?.queryParams?.['student_id'];
     const qFromReport = this.route?.snapshot?.queryParams?.['from_report'];
-    if (qFromReport === 'true' || qFromReport === true) {
+    const qOpenSheet = this.route?.snapshot?.queryParams?.['open_sheet'];
+    if (qFromReport === 'true' || qFromReport === true || qOpenSheet === 'true' || qOpenSheet === true) {
       this.isOpenedFromReport = true;
     }
     if (qExamId && qUserId) {

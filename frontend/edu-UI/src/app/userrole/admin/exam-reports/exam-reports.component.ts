@@ -3401,7 +3401,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const queryParams: any = {
       exam_id: scheduleId,
       user_id: userId,
-      from_report: 'true'
+      from_report: 'true',
+      open_sheet: 'true'
     };
     if (row.attempt_id) {
       queryParams.attempt_id = String(row.attempt_id);

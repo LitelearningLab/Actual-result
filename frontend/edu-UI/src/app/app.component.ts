@@ -53,7 +53,10 @@ export class AppComponent implements OnDestroy {
   private checkIsAuthRoute(url: string): void {
     const urlString = url || '';
     const cleanUrl = urlString.split('?')[0].split('#')[0];
-    const isOpenSheetRoute = urlString.includes('open_sheet=true') || urlString.includes('answer_sheet=true');
+    const isOpenSheetRoute =
+      urlString.includes('open_sheet=true') ||
+      urlString.includes('answer_sheet=true') ||
+      (cleanUrl === '/test-evaluation' && (urlString.includes('from_report=true') || urlString.includes('open_sheet=true')));
     this.isAuthRoute = cleanUrl === '/' || cleanUrl.endsWith('/login') || cleanUrl === '/login' || cleanUrl === '/home/login' || cleanUrl === '/register';
     this.isExamRunningRoute = cleanUrl === '/user/exam/run' || cleanUrl === '/user-exam' || cleanUrl.startsWith('/user/exam/run') || isOpenSheetRoute;
   }
