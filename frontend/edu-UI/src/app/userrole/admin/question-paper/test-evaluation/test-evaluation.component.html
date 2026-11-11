@@ -1118,6 +1118,11 @@
                   }">
                       {{ s.isRemoving ? 'Removing...' : s.marks }}
                     </span>
+                    <span *ngIf="s.result && s.marks !== 'Not marked' && !s.isRemoving"
+                      class="mini-result-badge"
+                      [ngClass]="s.result.toLowerCase() === 'pass' ? 'badge-pass' : 'badge-fail'">
+                      {{ s.result.toUpperCase() }}
+                    </span>
                   </td>
                   <td class="col-icon text-center">
                     <button type="button" class="icon-btn-square" matTooltip="Scan answer sheet"
@@ -1230,6 +1235,15 @@
                 <span class="score-pct">({{ evaluationDetails?.summary?.percentage || 0 }}%)</span>
               </ng-container>
             </div>
+
+            <!-- Pass / Fail Badge -->
+            <span *ngIf="!isStudentNotEvaluated && evaluationDetails?.summary?.percentage !== undefined"
+              class="result-badge-pill"
+              [ngClass]="isStudentPassed ? 'result-badge-pill--pass' : 'result-badge-pill--fail'"
+              [matTooltip]="'Required to pass: ≥ ' + effectivePassMark + '%'">
+              <mat-icon class="badge-icon">{{ isStudentPassed ? 'check_circle' : 'cancel' }}</mat-icon>
+              <span>{{ isStudentPassed ? 'PASS' : 'FAIL' }}</span>
+            </span>
 
             <span class="status-pill" [ngClass]="{
                 'pill-manual-review': (evaluationDetails?.summary?.status || evaluatingStudent?.status) === 'Manual Reviewed',

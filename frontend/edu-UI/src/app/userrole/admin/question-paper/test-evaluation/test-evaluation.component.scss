@@ -1362,6 +1362,28 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
               color: #94a3b8;
               font-style: italic;
             }
+
+            .mini-result-badge {
+              display: inline-block;
+              margin-left: 6px;
+              padding: 2px 6px;
+              font-size: 10px;
+              font-weight: 700;
+              border-radius: 4px;
+              letter-spacing: 0.03em;
+
+              &.badge-pass {
+                background: #ecfdf5;
+                color: #059669;
+                border: 1px solid #a7f3d0;
+              }
+
+              &.badge-fail {
+                background: #fef2f2;
+                color: #dc2626;
+                border: 1px solid #fecaca;
+              }
+            }
           }
 
           &.col-icon {
@@ -4124,6 +4146,36 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         .score-pct {
           color: #3b82f6;
           font-weight: 600;
+        }
+      }
+
+      .result-badge-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.85rem;
+        border-radius: 9999px;
+        font-size: 0.8125rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+
+        .badge-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+        }
+
+        &--pass {
+          background: #ecfdf5;
+          color: #065f46;
+          border: 1px solid #6ee7b7;
+        }
+
+        &--fail {
+          background: #fef2f2;
+          color: #991b1b;
+          border: 1px solid #fca5a5;
         }
       }
 

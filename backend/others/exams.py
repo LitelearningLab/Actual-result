@@ -4810,6 +4810,18 @@ def get_student_evaluation_details(request, current_user=None):
         else:
             display_status = "AI Evaluated"
 
+        # Determine effective pass percentage
+        from db.models import PaperSchedule
+        ps_rec = None
+        if exam_id:
+            ps_rec = session.query(PaperSchedule).filter(PaperSchedule.schedule_id == str(exam_id)).first()
+        effective_pass_mark = (
+            ps_rec.pass_mark if (ps_rec and ps_rec.pass_mark is not None)
+            else (exam.pass_mark if (exam and exam.pass_mark is not None) else 50)
+        )
+        is_passed = bool(percentage >= effective_pass_mark) if has_evaluated_content else None
+        result_label = ("Pass" if is_passed else "Fail") if has_evaluated_content else None
+
         payload = {
             "status": True,
             "ai_confidence_threshold": conf_threshold,
@@ -4834,6 +4846,9 @@ def get_student_evaluation_details(request, current_user=None):
                 "total_marks": total_exam_marks,
                 "marks_awarded": current_score,
                 "percentage": percentage,
+                "pass_mark": effective_pass_mark,
+                "is_passed": is_passed,
+                "result": result_label,
                 "total_questions": len(questions_data),
                 "evaluated_questions": sum(
                     1
@@ -4943,8 +4958,10 @@ def finalize_student_evaluation(request, current_user=None):
             if total_possible > 0
             else 0.0
         )
-        pass_mark = float(exam.pass_mark or 40.0) if exam else 40.0
-        feedback_str = "Pass" if percentage >= pass_mark else "Failed"
+        pass_mark = float(
+            (ps.pass_mark if ps and ps.pass_mark is not None else (exam.pass_mark if exam and exam.pass_mark is not None else 50.0))
+        )
+        feedback_str = "Pass" if percentage >= pass_mark else "Fail"
         final_attempt_id = str(attempt.attempt_id)
 
         attempt.score = total_score

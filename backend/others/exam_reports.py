@@ -797,7 +797,13 @@ def get_user_wise_report(request):
                     else:
                         result = 'Evaluated'
             elif answers:
-                result = 'Evaluated' if any(a.is_validated for a in answers) else 'Submitted'
+                total_awarded = sum(float(a.marks_awarded or 0.0) for a in answers)
+                if total_marks and total_marks > 0:
+                    best_percentage = round((total_awarded / float(total_marks)) * 100, 2)
+                    eff_pm = pass_mark if pass_mark is not None else 50
+                    result = 'Pass' if best_percentage >= eff_pm else 'Fail'
+                else:
+                    result = 'Evaluated' if any(a.is_validated for a in answers) else 'Submitted'
             else:
                 result = 'Pending Evaluation' if test_mode == 'paper' else 'No Attempt'
 

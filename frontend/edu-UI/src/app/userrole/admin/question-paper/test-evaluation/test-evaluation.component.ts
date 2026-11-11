@@ -46,6 +46,7 @@ export interface StudentEvaluation {
   missingPagesWarning?: string;
   status: 'Manual Reviewed' | 'Need to Check' | 'AI Evaluated' | 'Not Evaluated' | 'Completed' | 'evaluated' | 'Evaluating...' | 'Failed';
   marks: string;
+  result?: 'Pass' | 'Fail' | null;
   actionText: string;
   actionClass: string;
   scannedPagesData?: ScannedPageItem[];
@@ -1125,8 +1126,14 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       const scoreVal = user.marks_awarded != null ? user.marks_awarded : (user.score != null ? user.score : null);
 
       let marksDisplay = 'Not marked';
+      const passMarkVal = exam.pass_mark != null ? Number(exam.pass_mark) : 50;
+      let resultVal: 'Pass' | 'Fail' | null = null;
       if (scoreVal !== null) {
         marksDisplay = `${scoreVal} / ${totalMarksVal}`;
+        if (totalMarksVal > 0) {
+          const studentPct = (Number(scoreVal) / Number(totalMarksVal)) * 100;
+          resultVal = studentPct >= passMarkVal ? 'Pass' : 'Fail';
+        }
       }
 
       const isDbEvaluated = (scoreVal !== null && scoreVal !== undefined) ||
@@ -1171,6 +1178,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         pagesInfo: pagesInfo,
         status: status,
         marks: marksDisplay,
+        result: resultVal,
         actionText: isEvaluated ? 'Review' : 'Evaluate',
         actionClass: 'btn-solid-blue',
         rawFile: rawFile,
@@ -1819,6 +1827,23 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const status = this.evaluationDetails?.summary?.status || this.evaluatingStudent?.status;
     const pagesCount = (this.evaluationDetails?.pages || []).length;
     return status === 'Not Evaluated' || pagesCount === 0;
+  }
+
+  get effectivePassMark(): number {
+    if (this.evaluationDetails?.summary?.pass_mark != null) {
+      return Number(this.evaluationDetails.summary.pass_mark);
+    }
+    const exam = (this.allPublishedExams || []).find((e) => String(e.exam_id) === String(this.selectedExamId));
+    if (exam && exam.pass_mark != null) {
+      return Number(exam.pass_mark);
+    }
+    return 50;
+  }
+
+  get isStudentPassed(): boolean {
+    if (this.isStudentNotEvaluated) return false;
+    const pct = Number(this.evaluationDetails?.summary?.percentage || 0);
+    return pct >= this.effectivePassMark;
   }
 
   isQuestionNeedsAttention(q: any): boolean {
