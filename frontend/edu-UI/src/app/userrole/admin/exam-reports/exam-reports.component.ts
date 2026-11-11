@@ -1609,6 +1609,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.activeReportType === 'paper') {
       this.selectedExam.exam_id = this.selectedPaperExamId;
       this.selectedExam.test_mode = 'paper';
+      this.selectedExam.total_marks = this.paperTotalMarks;
+      this.selectedExam.total_questions = this.paperTotalQuestions;
+      this.selectedExam.subject_name = this.paperSubjectName;
       this.selectedPaperSchedule = null;
     }
     this.resetDescriptiveAiState();
@@ -3169,12 +3172,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       this.selectedPaperExamId = String(pm.exam_id || pm.id);
       this.selectedPaperQuestionTitle = pm.title || 'Paper Test';
       this.selectedTestTitle = pm.title || '';
+      this.selectedDateRangeTestTitle = pm.title || '';
       this.paperSubjectName = pm.subject_name || '';
       this.paperTotalMarks = pm.total_marks || null;
       this.paperTotalQuestions = pm.total_questions || null;
     } else {
       this.selectedPaperQuestionTitle = selectedVal;
       this.selectedTestTitle = selectedVal;
+      this.selectedDateRangeTestTitle = selectedVal;
       this.selectedPaperExamId = selectedVal;
       this.paperSubjectName = '';
     }
@@ -3205,10 +3210,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const params: any = {
       test_mode: 'paper'
     };
-    if (schedId) {
+    if (!isDateRange && schedId) {
       params.schedule_id = schedId;
     }
     if (isDateRange) {
+      delete params.schedule_id;
       const title = this.selectedExam?.title || this.selectedPaperQuestionTitle || this.selectedTestTitle || '';
       if (title) params.test_title = title;
       const exId = this.selectedPaperExamId || this.selectedExam?.exam_id;
@@ -3258,10 +3264,11 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       page: String(this.currentPage),
       page_size: String(this.pageSize)
     };
-    if (schedId) {
+    if (!isDateRange && schedId) {
       params.schedule_id = schedId;
     }
     if (isDateRange) {
+      delete params.schedule_id;
       const title = this.selectedExam?.title || this.selectedPaperQuestionTitle || this.selectedTestTitle || '';
       if (title) params.test_title = title;
       const exId = this.selectedPaperExamId || this.selectedExam?.exam_id;
@@ -3597,6 +3604,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.selectedPaperExamId = String(pm.exam_id || pm.id);
         this.selectedPaperQuestionTitle = pm.title || 'Paper Test';
         this.selectedTestTitle = pm.title || '';
+        this.selectedDateRangeTestTitle = pm.title || '';
         this.paperSubjectName = pm.subject_name || '';
         this.paperTotalMarks = pm.total_marks || null;
         this.paperTotalQuestions = pm.total_questions || null;

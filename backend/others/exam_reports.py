@@ -173,29 +173,32 @@ def resolve_report_context(session, args):
                 if target_exam_ids:
                     conds.append(PaperSchedule.exam_id.in_(target_exam_ids))
                 q_sched = q_sched.filter(or_(*conds))
-            elif exam_id:
+            if exam_id and exam_id not in target_exam_ids:
+                target_exam_ids.append(exam_id)
+            if not test_title and exam_id:
                 q_sched = q_sched.filter(
                     (PaperSchedule.exam_id == exam_id) |
                     (func.cast(PaperSchedule.exam_id, String) == str(exam_id))
                 )
-                target_exam_ids = [exam_id]
 
             all_test_schedules = q_sched.all()
             all_schedule_ids = [str(s.schedule_id) for s in all_test_schedules if s and s.schedule_id]
 
-            attempt_date_expr = func.coalesce(Exam_Attempt.submitted_date, Exam_Attempt.started_date, Exam_Attempt.created_date)
+            attempt_date_expr = func.coalesce(Exam_Attempt.submitted_date, Exam_Attempt.started_date)
             q_attempts = session.query(Exam_Attempt).filter(
                 attempt_date_expr >= start_date,
                 attempt_date_expr <= end_date
             )
-            if all_schedule_ids:
-                str_sids = [str(sid) for sid in all_schedule_ids]
+            valid_ids = list(set([str(sid) for sid in all_schedule_ids] + [str(eid) for eid in target_exam_ids if eid]))
+            if valid_ids:
                 q_attempts = q_attempts.filter(
                     or_(
-                        Exam_Attempt.schedule_id.in_(all_schedule_ids),
-                        func.cast(Exam_Attempt.schedule_id, String).in_(str_sids)
+                        Exam_Attempt.schedule_id.in_(valid_ids),
+                        func.cast(Exam_Attempt.schedule_id, String).in_(valid_ids)
                     )
                 )
+            else:
+                q_attempts = q_attempts.filter(Exam_Attempt.schedule_id == '__none__')
             matching_attempts = q_attempts.all()
             matching_attempt_ids = [a.attempt_id for a in matching_attempts]
             user_ids_set = {a.user_id for a in matching_attempts if a.user_id}
@@ -618,7 +621,7 @@ def get_user_wise_report(request):
         if test_mode == 'paper':
             # For paper tests, return all assigned students
             assigned_uids = set(str(u) for u in (ctx.get('assigned_user_ids') or []))
-            primary_sid = schedule_ids[0] if schedule_ids else None
+            primary_sid = schedule_ids[0] if schedule_ids else (ctx.get('exam_id') or None)
             for att in ctx.get('attempts', []):
                 if att.user_id and att.schedule_id:
                     user_sched_pairs.add((att.user_id, att.schedule_id))
