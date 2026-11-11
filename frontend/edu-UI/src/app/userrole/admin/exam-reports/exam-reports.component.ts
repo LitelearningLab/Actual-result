@@ -69,6 +69,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   loadingPaperSchedules = false;
   selectedPaperSubject = '';
   paperSubjectsList: string[] = [];
+  private lastLoadedPaperSubjectInstId: string | null = null;
 
   onStudentSearchInput() {
     if (this.searchDebounceTimer) {
@@ -2762,6 +2763,50 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     }
   }
 
+  loadPaperSubjects(instituteId?: string, forceReload: boolean = false): void {
+    const instId = String(
+      instituteId || this.selectedInstituteId || this.userFilters.institute_id || this.getLoggedInInstituteId() || ''
+    ).trim();
+    if (!instId && this.isSuperAdmin) {
+      this.paperSubjectsList = [];
+      this.lastLoadedPaperSubjectInstId = null;
+      return;
+    }
+    if (!forceReload && this.lastLoadedPaperSubjectInstId === instId && this.paperSubjectsList && this.paperSubjectsList.length > 0) {
+      return;
+    }
+
+    const params: any = { active_only: 'true' };
+    if (instId) {
+      params.institute_id = instId;
+    }
+
+    this.http
+      .get<any>(`${API_BASE}/get-subject-list`, { params })
+      .pipe(catchError(() => of({ data: [] })))
+      .subscribe({
+        next: (res: any) => {
+          const data = res?.data || res || [];
+          const seen = new Set<string>();
+          const uniqueSubjects: string[] = [];
+          (Array.isArray(data) ? data : []).forEach((s: any) => {
+            const name = String(s.subject_name || s.name || '').trim();
+            const lower = name.toLowerCase();
+            if (name && !seen.has(lower)) {
+              seen.add(lower);
+              uniqueSubjects.push(name);
+            }
+          });
+          this.paperSubjectsList = uniqueSubjects.sort((a, b) => a.localeCompare(b));
+          this.lastLoadedPaperSubjectInstId = instId;
+        },
+        error: () => {
+          this.paperSubjectsList = [];
+          this.lastLoadedPaperSubjectInstId = null;
+        },
+      });
+  }
+
   loadPaperScheduledTests() {
     const instituteId = this.selectedInstituteId || this.userFilters.institute_id || this.getLoggedInInstituteId();
     if (!instituteId && this.isSuperAdmin) {
@@ -2772,6 +2817,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       return;
     }
     this.loadingPaperSchedules = true;
+
+    // Load active subjects directly from Subject Master API (GET /get-subject-list)
+    this.loadPaperSubjects(instituteId);
 
     const paperSchedParams: any = { summary_only: 'true' };
     if (instituteId) paperSchedParams.institute_id = instituteId;
@@ -2838,18 +2886,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         });
         this.paperSchedulesList = schedules;
 
-        // Build unique Subject list for dropdown
-        const subjects = new Set<string>();
-        masters.forEach((item: any) => {
-          const sn = (item.subject_name || '').trim();
-          if (sn) subjects.add(sn);
-        });
-        schedules.forEach((item: any) => {
-          const sn = (item.subject_name || '').trim();
-          if (sn) subjects.add(sn);
-        });
-        this.paperSubjectsList = Array.from(subjects).sort((a, b) => a.localeCompare(b));
-
         this.filterPaperSchedules(this.paperSearchQuery);
       },
       error: () => {
@@ -2857,7 +2893,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
         this.paperMasterExams = [];
         this.filteredPaperMastersList = [];
         this.paperSchedulesList = [];
-        this.paperSubjectsList = [];
       }
     });
   }
@@ -3296,6 +3331,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     // Reset paper reports state
     this.selectedPaperSchedule = null;
     this.selectedPaperQuestionTitle = '';
+    this.selectedPaperSubject = '';
+    this.lastLoadedPaperSubjectInstId = null;
     this.paperSubjectName = '';
     this.paperScheduleDateDisplay = '';
     this.paperScheduleDisplayLabel = '';
@@ -4104,6 +4141,9 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (this.activeReportType === 'paper') {
       if (!this.paperSchedulesList || !this.paperSchedulesList.length) {
         this.loadPaperScheduledTests();
+      }
+      if (!this.paperSubjectsList || !this.paperSubjectsList.length) {
+        this.loadPaperSubjects();
       }
       if (this.selectedPaperSchedule) {
         this.userFilters.schedule_id = String(
