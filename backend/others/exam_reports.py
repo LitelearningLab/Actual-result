@@ -104,7 +104,7 @@ def _resolve_paper_schedule_context(session, ps, institute_id=None):
         if a.user_id:
             assigned_user_ids.add(str(a.user_id))
 
-    matching_attempts = [a for a in all_eval_attempts if getattr(a, 'status', None) == 'evaluated']
+    matching_attempts = all_eval_attempts
     matching_attempt_ids = [a.attempt_id for a in matching_attempts]
     all_user_ids = list(assigned_user_ids)
 
@@ -594,7 +594,7 @@ def get_user_wise_report(request):
         user_sched_pairs = set()
 
         if test_mode == 'paper':
-            # For paper tests, include all assigned students mapped in published tab
+            # For paper tests, return all assigned students
             assigned_uids = set(str(u) for u in (ctx.get('assigned_user_ids') or []))
             primary_sid = schedule_ids[0] if schedule_ids else None
             for att in ctx.get('attempts', []):
@@ -602,7 +602,8 @@ def get_user_wise_report(request):
                     user_sched_pairs.add((att.user_id, att.schedule_id))
             if primary_sid:
                 for uid in assigned_uids:
-                    user_sched_pairs.add((uid, primary_sid))
+                    if not any(str(u) == str(uid) for u, _ in user_sched_pairs):
+                        user_sched_pairs.add((uid, primary_sid))
         else:
             for att in ctx['attempts']:
                 if att.user_id and att.schedule_id:
@@ -796,6 +797,16 @@ def get_user_wise_report(request):
                             result = 'Pass' if best_percentage >= 50 else 'Fail'
                     else:
                         result = 'Evaluated'
+                elif answers:
+                    total_awarded = sum(float(a.marks_awarded or 0.0) for a in answers)
+                    if total_marks and total_marks > 0:
+                        best_percentage = round((total_awarded / float(total_marks)) * 100, 2)
+                        eff_pm = pass_mark if pass_mark is not None else 50
+                        result = 'Pass' if best_percentage >= eff_pm else 'Fail'
+                    else:
+                        result = 'Pending' if test_mode == 'paper' else 'Submitted'
+                else:
+                    result = 'Pending' if test_mode == 'paper' else (getattr(user_attempts[0], 'status', None) or 'In Progress')
             elif answers:
                 total_awarded = sum(float(a.marks_awarded or 0.0) for a in answers)
                 if total_marks and total_marks > 0:
@@ -803,9 +814,12 @@ def get_user_wise_report(request):
                     eff_pm = pass_mark if pass_mark is not None else 50
                     result = 'Pass' if best_percentage >= eff_pm else 'Fail'
                 else:
-                    result = 'Evaluated' if any(a.is_validated for a in answers) else 'Submitted'
+                    result = 'Pending' if test_mode == 'paper' else ('Evaluated' if any(a.is_validated for a in answers) else 'Submitted')
             else:
-                result = 'Pending Evaluation' if test_mode == 'paper' else 'No Attempt'
+                result = 'Pending' if test_mode == 'paper' else 'No Attempt'
+
+            if test_mode == 'paper' and not result:
+                result = 'Pending'
 
             attempt_date_str = None
             if user_attempts:
@@ -814,8 +828,6 @@ def get_user_wise_report(request):
                     attempt_date_str = dt.strftime('%Y-%m-%dT%H:%M:%SZ')
             if not attempt_date_str and answers and answers[0].created_date:
                 attempt_date_str = answers[0].created_date.strftime('%Y-%m-%dT%H:%M:%SZ')
-            if not attempt_date_str and test_mode == 'paper' and sched_obj and sched_obj.start_time:
-                attempt_date_str = sched_obj.start_time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
             all_user_sched_attempts = session.query(Exam_Attempt).filter(
                 (Exam_Attempt.schedule_id.in_(sched_candidates)) | (func.cast(Exam_Attempt.schedule_id, String).in_([str(sc) for sc in sched_candidates])),

@@ -1597,7 +1597,7 @@
                 <td mat-cell *matCellDef="let row">
                   <ng-container *ngIf="activeReportType === 'paper'">
                     <span
-                      *ngIf="row.status === 'evaluated' || (row.result && row.result !== 'Pending Evaluation' && row.result !== 'No Attempt')"
+                      *ngIf="row.status === 'evaluated' || (row.result && !(row.result || '').toLowerCase().includes('pending') && row.result !== 'No Attempt')"
                       class="manual-review-chip clickable-chip"
                       (click)="openPaperStudentEvaluation(row); $event.stopPropagation()"
                       title="Review / correct student answer sheet in new tab"
@@ -1606,7 +1606,7 @@
                       MANUAL REVIEW
                     </span>
                     <span
-                      *ngIf="row.status !== 'evaluated' && (!row.result || row.result === 'Pending Evaluation' || row.result === 'No Attempt')"
+                      *ngIf="row.status !== 'evaluated' && (!row.result || (row.result || '').toLowerCase().includes('pending') || row.result === 'No Attempt')"
                       class="cell-muted"
                     >-</span>
                   </ng-container>

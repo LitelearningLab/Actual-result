@@ -826,6 +826,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const str = String(val).trim().toLowerCase();
     if (str === 'failed' || str === 'fail') return 'FAIL';
     if (str === 'passed' || str === 'pass') return 'PASS';
+    if (str.includes('pending')) return 'PENDING';
     return String(val).toUpperCase();
   }
 
@@ -1786,7 +1787,6 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     if (!this.userReportData) return [];
     let list: any[];
     if (this.activeReportType === 'paper') {
-      // Show all assigned students (both evaluated and pending evaluation)
       list = [...this.userReportData];
     } else {
       list = this.userReportData.filter(row => this.isAttemptedRow(row));
@@ -4656,7 +4656,7 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       r.student_name,
       this.formatDateShort(r.test_taken_date),
       r.percentage !== null && r.percentage !== undefined ? `${r.percentage}%` : '',
-      r.result || '-',
+      this.formatResult(r.result),
       r.retest_date ? this.formatDateShort(r.retest_date) : '-',
       r.retest_percentage !== null && r.retest_percentage !== undefined ? `${r.retest_percentage}%` : '-',
       r.retest_result || '-',
