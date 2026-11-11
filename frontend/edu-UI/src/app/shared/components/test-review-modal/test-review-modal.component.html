@@ -1,0 +1,485 @@
+<!-- Read-Only Test Review Modal (reused from Online Test Review) -->
+<div class="review-backdrop" *ngIf="reviewOpen">
+  <div class="review-panel">
+    <div class="review-header">
+      <div class="review-header-content">
+        <div class="review-small-label">
+          <span class="label-icon">📊</span>
+          <span>TEST REVIEW</span>
+        </div>
+        <h1 class="review-exam-title">
+          {{ selectedReviewTitle }}<span *ngIf="selectedReviewDate"> - {{ selectedReviewDate }}</span>
+        </h1>
+      </div>
+      <button type="button" mat-icon-button class="review-close-btn" aria-label="Close test review" title="Close"
+        (click)="closeReview()">
+        <mat-icon aria-hidden="true">close</mat-icon>
+      </button>
+    </div>
+
+    <div *ngIf="reviewLoading" class="professional-loader-container review-loader-container">
+      <div class="loader-spinner-ring"></div>
+      <div class="loader-text-group">
+        <h5 class="loader-main-text">Loading Test Review</h5>
+        <p class="loader-sub-text">Fetching questions and evaluated responses...</p>
+      </div>
+    </div>
+
+    <mat-tab-group *ngIf="!reviewLoading && reviewAttempts.length" [(selectedIndex)]="reviewSelectedAttempt">
+      <mat-tab *ngFor="let a of reviewAttempts; let i = index" [label]="'Attempt ' + a.attempt_number">
+        <div class="review-list">
+          <!-- Desktop Attempt Meta -->
+          <div class="attempt-meta attempt-meta-desktop">
+            <div class="meta-row primary-row">
+              <div class="meta-item score-item">
+                <strong>Score</strong>
+                <span class="value">{{ a.score ?? 0 }} / {{ a.total_marks ?? 0 }}</span>
+              </div>
+              <div class="meta-item passmark-item" *ngIf="a.percentage != null">
+                <strong>Percentage</strong>
+                <span class="value">{{ (a.percentage || 0) | number:'1.2-2' }} %</span>
+              </div>
+              <div class="meta-item status-item">
+                <strong>Status</strong>
+                <span class="value status-badge"
+                  [ngClass]="{'status-pass': a.status === 'evaluated', 'status-fail': a.status === 'failed'}">{{
+                  (a.status || 'N/A') | titlecase }}</span>
+              </div>
+              <div class="meta-item result-item" *ngIf="a.result">
+                <strong>Result</strong>
+                <span class="value result-badge"
+                  [ngClass]="{'result-pass': (a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass', 'result-fail': (a.result | lowercase) === 'failed' || (a.result | lowercase) === 'fail'}">{{
+                  ((a.result | lowercase) === 'failed' || (a.result | lowercase) === 'fail') ? 'FAIL' : (((a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass') ? 'PASS' : (a.result | titlecase)) }}</span>
+              </div>
+            </div>
+            <div class="meta-row secondary-row" *ngIf="a.time_taken || a.started_date || a.submitted_date">
+              <div class="meta-item" *ngIf="a.time_taken">
+                <strong>Time Taken</strong>
+                <span class="value">{{ a.time_taken.split('.')[0] }}</span>
+              </div>
+              <div class="meta-item" *ngIf="a.started_date">
+                <strong>Started</strong>
+                <span class="value">{{ a.started_date | date:'EEE, dd MMM yyyy HH:mm' }}</span>
+              </div>
+              <div class="meta-item" *ngIf="a.submitted_date">
+                <strong>Submitted</strong>
+                <span class="value">{{ a.submitted_date | date:'EEE, dd MMM yyyy HH:mm' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mobile / Tablet Compact Meta Grid -->
+          <div class="attempt-meta-grid attempt-meta-mobile">
+            <div class="compact-meta-card status-card">
+              <span class="card-label">Status</span>
+              <span class="card-value status-pill" [ngClass]="{
+                  'status-evaluated': (a.status | lowercase) === 'evaluated',
+                  'status-in-progress': (a.status | lowercase) === 'in_progress' || (a.status | lowercase) === 'in progress',
+                  'status-failed': (a.status | lowercase) === 'failed'
+                }">
+                <span class="status-dot">●</span>
+                {{ (a.status || 'N/A') | uppercase }}
+              </span>
+            </div>
+
+            <div class="compact-meta-card result-card" *ngIf="a.result">
+              <span class="card-label">Result</span>
+              <span class="card-value result-pill" [ngClass]="{
+                  'result-pass': (a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass',
+                  'result-fail': (a.result | lowercase) === 'failed' || (a.result | lowercase) === 'fail'
+                }">
+                <span class="result-dot">●</span>
+                {{ ((a.result | lowercase) === 'failed' || (a.result | lowercase) === 'fail') ? 'FAIL' : (((a.result | lowercase) === 'passed' || (a.result | lowercase) === 'pass') ? 'PASS' : (a.result | uppercase)) }}
+              </span>
+            </div>
+
+            <div class="compact-meta-card time-card" *ngIf="a.time_taken">
+              <span class="card-label">Time Taken</span>
+              <span class="card-value font-mono">{{ (a.time_taken || '').split('.')[0] }}</span>
+            </div>
+
+            <div class="compact-meta-card score-card" *ngIf="a.score != null || a.total_marks != null">
+              <span class="card-label">Score</span>
+              <span class="card-value score-text">
+                {{ a.score ?? 0 }} <span class="total-sep">/ {{ a.total_marks ?? 0 }}</span>
+              </span>
+            </div>
+
+            <div class="compact-meta-card date-card" *ngIf="a.started_date">
+              <span class="card-label">Started</span>
+              <span class="card-value date-text">{{ a.started_date | date:'EEE, dd MMM yyyy • HH:mm' }}</span>
+            </div>
+
+            <div class="compact-meta-card date-card" *ngIf="a.submitted_date">
+              <span class="card-label">Submitted</span>
+              <span class="card-value date-text">{{ a.submitted_date | date:'EEE, dd MMM yyyy • HH:mm' }}</span>
+            </div>
+          </div>
+
+          <!-- Evaluated Paper Answer Sheet Pages (Read-Only Gallery when present) -->
+          <div class="hw-gallery-container sheet-pages-strip" *ngIf="a.answer_sheet_pages && a.answer_sheet_pages.length">
+            <div class="hw-gallery-header">
+              <span class="hw-gallery-title">
+                <mat-icon class="hw-icon">description</mat-icon>
+                Submitted Answer Sheet Pages ({{ a.answer_sheet_pages.length }})
+              </span>
+              <span class="hw-gallery-hint">Click any page to zoom</span>
+            </div>
+            <div class="hw-gallery-grid">
+              <div *ngFor="let pg of a.answer_sheet_pages; let pIdx = index"
+                class="hw-thumb-card"
+                (click)="openImageModal(pg.image_url, 'Answer Sheet Page ' + (pg.page_number || (pIdx + 1)))">
+                <div class="hw-thumb-badge">
+                  <span>Page {{ pg.page_number || (pIdx + 1) }}</span>
+                </div>
+                <div class="hw-thumb-img-wrapper" *ngIf="!pg._loadError">
+                  <img [src]="resolveMediaUrl(pg.image_url)"
+                    [alt]="'Answer Sheet Page ' + (pg.page_number || (pIdx + 1))"
+                    class="hw-thumb-img"
+                    (error)="onAnswerImageError($event, pg)"
+                    loading="lazy" />
+                  <div class="hw-zoom-overlay">
+                    <mat-icon>zoom_in</mat-icon>
+                    <span>Enlarge</span>
+                  </div>
+                </div>
+                <div class="hw-thumb-error" *ngIf="pg._loadError">
+                  <mat-icon>broken_image</mat-icon>
+                  <span>Unable to load page image</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Questions Breakdown -->
+          <div class="questions-list">
+            <div *ngIf="!a.items || !a.items.length" class="no-items-notice" style="text-align: center; padding: 2.5rem 1rem; color: #64748b;">
+              <mat-icon style="font-size: 2rem; width: 2rem; height: 2rem; vertical-align: middle; margin-bottom: 0.5rem; color: #94a3b8;">info</mat-icon>
+              <p style="font-size: 0.9375rem; font-weight: 500; margin: 0;">No evaluated question details found for this attempt.</p>
+            </div>
+
+            <div *ngFor="let q of (a.items || []); let qi = index" class="question-review-card">
+              <div class="q-head-row">
+                <div class="q-left">
+                  <div class="q-index">{{ qi + 1 }}</div>
+                  <div class="q-badge">{{ (q.question_type || '').toUpperCase() }}</div>
+                </div>
+                <div class="q-right">
+                  <div class="score-chip" [ngClass]="{
+                      'score-full': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) >= (q.question_marks || 0),
+                      'score-partial': (q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) < (q.question_marks || 0),
+                      'score-zero': (q.marks_awarded || 0) === 0
+                    }">
+                    <span class="score-label">SCORE</span>
+                    <span class="score-awarded">{{ q.marks_awarded != null ? q.marks_awarded : '-' }}</span>
+                    <span class="score-sep">/</span>
+                    <span class="score-total">{{ q.question_marks || 0 }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="q-text">
+                <strong>{{ q.question_text || q.question || 'Question' }}</strong>
+              </div>
+
+              <!-- Question Media -->
+              <div class="review-q-media" *ngIf="q.media && q.media.length">
+                <div class="review-q-media-item" *ngFor="let m of q.media">
+                  <img *ngIf="m.media_type === 'image'" [src]="resolveMediaUrl(m.file_url || m.url)"
+                    [alt]="m.original_filename || 'Question Image'" class="review-media-img" />
+
+                  <div class="review-media-audio-wrap" *ngIf="m.media_type === 'audio'">
+                    <audio controls [src]="resolveMediaUrl(m.file_url || m.url)" class="review-media-audio"></audio>
+                  </div>
+
+                  <div *ngIf="m.media_type === 'document' && isExcelFile(m)" class="excel-viewer-card">
+                    <div class="excel-toolbar">
+                      <div class="excel-file-info">
+                        <mat-icon class="excel-icon">table_chart</mat-icon>
+                        <span class="excel-filename">{{ m.original_filename || 'Spreadsheet.xlsx' }}</span>
+                      </div>
+                      <div class="excel-actions">
+                        <div class="excel-sheet-tabs" *ngIf="$any(m)._sheets && $any(m)._sheets.length > 1">
+                          <button *ngFor="let s of $any(m)._sheets" type="button" class="excel-tab-btn"
+                            [class.active]="$any(m)._activeSheet === s" (click)="switchExcelSheet(m, s)">
+                            {{ s }}
+                          </button>
+                        </div>
+                        <button type="button" class="excel-action-btn preview-btn" (click)="loadExcelData(m)"
+                          *ngIf="!$any(m)._excelData && !$any(m)._loadingExcel">
+                          <mat-icon>visibility</mat-icon>
+                          <span>Show Sheet</span>
+                        </button>
+                        <a [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank" download class="excel-action-btn dl-btn" matTooltip="Download Excel file">
+                          <mat-icon>download</mat-icon>
+                          <span>Download</span>
+                        </a>
+                      </div>
+                    </div>
+                    <div *ngIf="$any(m)._loadingExcel" class="excel-loading-state">
+                      <mat-icon class="rotating-spinner">sync</mat-icon>
+                      <span>Loading spreadsheet...</span>
+                    </div>
+                    <div *ngIf="$any(m)._excelError" class="excel-error-state">
+                      <mat-icon>error_outline</mat-icon>
+                      <span>{{ $any(m)._excelError }}</span>
+                    </div>
+                    <div class="excel-grid-container" *ngIf="$any(m)._excelData && $any(m)._excelData.length">
+                      <table class="excel-data-table">
+                        <thead>
+                          <tr>
+                            <th class="excel-corner-header">#</th>
+                            <th *ngFor="let col of $any(m)._excelData[0]; let ci = index" class="excel-col-header">{{ getColLetter(ci) }}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr *ngFor="let row of $any(m)._excelData; let ri = index">
+                            <td class="excel-row-header">{{ ri + 1 }}</td>
+                            <td *ngFor="let cell of row" class="excel-data-cell">{{ cell }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div *ngIf="m.media_type === 'document' && isWordFile(m)" class="docx-viewer-card">
+                    <div class="docx-toolbar">
+                      <div class="docx-file-info">
+                        <mat-icon class="docx-icon">description</mat-icon>
+                        <span class="docx-filename">{{ m.original_filename || 'Document.docx' }}</span>
+                      </div>
+                      <div class="docx-actions">
+                        <button type="button" class="docx-action-btn preview-btn" (click)="toggleWordDoc(m, 'docx-review-shared-' + (m.media_id || qi))">
+                          <mat-icon>{{ $any(m)._showDoc ? 'visibility_off' : 'visibility' }}</mat-icon>
+                          <span>{{ $any(m)._showDoc ? 'Hide Document' : 'Show Document' }}</span>
+                        </button>
+                        <a [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank" download class="docx-action-btn dl-btn" matTooltip="Download Word file">
+                          <mat-icon>download</mat-icon>
+                          <span>Download</span>
+                        </a>
+                      </div>
+                    </div>
+                    <div *ngIf="$any(m)._loadingDoc" class="docx-loading-state">
+                      <mat-icon class="rotating-spinner">sync</mat-icon>
+                      <span>Loading document preview...</span>
+                    </div>
+                    <div *ngIf="$any(m)._docError" class="docx-error-state">
+                      <mat-icon>error_outline</mat-icon>
+                      <span>{{ $any(m)._docError }}</span>
+                    </div>
+                    <div [id]="'docx-review-shared-' + (m.media_id || qi)" class="docx-container-box" [style.display]="$any(m)._showDoc ? 'block' : 'none'"></div>
+                  </div>
+
+                  <div *ngIf="m.media_type === 'document' && !isExcelFile(m) && !isWordFile(m)" class="review-doc-attachment"
+                    style="display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.65rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.375rem;">
+                    <mat-icon style="color: #475569;">description</mat-icon>
+                    <a [href]="resolveMediaUrl(m.file_url || m.url)" target="_blank" download style="color: #2563eb; font-weight: 600; text-decoration: none;" matTooltip="Download attachment">{{ m.original_filename || 'Download Document' }}</a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Fill in the blank -->
+              <div *ngIf="(q.question_type || '') === 'fill'" class="q-fill">
+                <div class="fill-row">
+                  <div class="fill-option" [class.selected]="(q.selected_option || []).length" [class.correct]="q.is_correct">
+                    Your Answer: {{ (q.selected_option || []).join(', ') || '-' }}
+                  </div>
+                  <div class="fill-correct" *ngIf="q.marks_awarded === 0">
+                    Correct Answer: {{ q.options && q.options[0] ? (q.options[0].option_text || q.options[0]) : '-' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Descriptive feedback -->
+              <div *ngIf="(q.question_type || '') === 'descriptive' || (q.question_type || '') === 'paragraph'" class="q-descriptive">
+                <div class="q-feedback" *ngIf="q.feedback">
+                  <strong>High-level Feedback</strong>
+                  <div class="feedback-text">{{ q.feedback }}</div>
+                </div>
+              </div>
+
+              <!-- Review comments (Points Missed / Incorrect / Incomplete) -->
+              <div class="q-review-comments"
+                *ngIf="(q.question_type || '') === 'descriptive' || (q.question_type || '') === 'paragraph' || (q.review_comment && q.review_comment.comments && q.review_comment.comments.length)">
+                <div class="review-columns" *ngIf="getNonEmptyCategoryCount(q) > 0" [ngClass]="'cols-' + getNonEmptyCategoryCount(q)">
+                  <div class="col missed" *ngIf="hasComments(q, 'missing')">
+                    <div class="col-header"><span class="dot red"></span><h4>Points Missed</h4></div>
+                    <div *ngFor="let rc of reviewComments(q, 'missing'); let rci = index">
+                      <div class="review-item">
+                        <div class="ri-body">
+                          <div class="review-text-missed" [class.deleted]="rc.is_deleted == 1">
+                            <div class="ri-left"><span class="ri-icon missed">{{ rci + 1 }}</span></div>
+                            <div class="review-point-content" [class.deleted]="rc.is_deleted == 1">
+                              <div class="point-issue">
+                                <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
+                                <span>{{ rc.issue || rc.comment_text }}</span>
+                              </div>
+                              <div class="point-solution" *ngIf="rc.statement">
+                                {{ rc.label || 'Needed' }} : <span>{{ rc.statement }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col incorrect" *ngIf="hasComments(q, ['incorrct','incorrect','incor'])">
+                    <div class="col-header"><span class="dot orange"></span><h4>Points Incorrect</h4></div>
+                    <div *ngFor="let rc of reviewComments(q, ['incorrct','incorrect','incor']); let rci = index">
+                      <div class="review-item">
+                        <div class="ri-body">
+                          <div class="review-text-incorrect" [class.deleted]="rc.is_deleted == 1">
+                            <div class="ri-left"><span class="ri-icon incorrect">{{ rci + 1 }}</span></div>
+                            <div class="review-point-content" [class.deleted]="rc.is_deleted == 1">
+                              <div class="point-issue">
+                                <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
+                                <span>{{ rc.issue || rc.comment_text }}</span>
+                              </div>
+                              <div class="point-solution" *ngIf="rc.statement">
+                                {{ rc.label || 'Correct' }} : <span>{{ rc.statement }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col incomplete" *ngIf="hasComments(q, 'incomplete')">
+                    <div class="col-header"><span class="dot yellow"></span><h4>Points Incomplete</h4></div>
+                    <div *ngFor="let rc of reviewComments(q, 'incomplete'); let rci = index">
+                      <div class="review-item">
+                        <div class="ri-body">
+                          <div class="review-text-incomplete" [class.deleted]="rc.is_deleted == 1">
+                            <div class="ri-left"><span class="ri-icon incomplete">{{ rci + 1 }}</span></div>
+                            <div class="review-point-content" [class.deleted]="rc.is_deleted == 1">
+                              <div class="point-issue">
+                                <strong *ngIf="rc.topic">{{ rc.topic }}: </strong>
+                                <span>{{ rc.issue || rc.comment_text }}</span>
+                              </div>
+                              <div class="point-solution" *ngIf="rc.statement">
+                                {{ rc.label || 'Complete' }} : <span>{{ rc.statement }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="empty-category-chips" *ngIf="getNonEmptyCategoryCount(q) < 3">
+                  <div class="choice-chip missed" *ngIf="!hasComments(q, 'missing')">
+                    <span class="dot red"></span><span class="chip-label">No missed points</span>
+                  </div>
+                  <div class="choice-chip incorrect" *ngIf="!hasComments(q, ['incorrct','incorrect','incor'])">
+                    <span class="dot orange"></span><span class="chip-label">No incorrect points</span>
+                  </div>
+                  <div class="choice-chip incomplete" *ngIf="!hasComments(q, 'incomplete')">
+                    <span class="dot yellow"></span><span class="chip-label">No incomplete points</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Student Descriptive Answer & Handwritten Pages -->
+              <div *ngIf="(q.question_type || '') === 'descriptive' || (q.question_type || '') === 'paragraph'"
+                class="desc-student"
+                [class.desc-student--full]="(q.marks_awarded || 0) > 0 && (q.marks_awarded || 0) >= (q.question_marks || 0)">
+                <div class="student-label">Student's Answer</div>
+                <div class="answer-text" *ngIf="q.student_text">{{ q.student_text }}</div>
+                <div class="answer-text" *ngIf="!q.student_text && (!q.answer_images || q.answer_images.length === 0)">
+                  {{ (q.selected_option || []).join(' ') || '-' }}
+                </div>
+
+                <div class="hw-gallery-container" *ngIf="q.answer_images && q.answer_images.length > 0">
+                  <div class="hw-gallery-header">
+                    <span class="hw-gallery-title">
+                      <mat-icon class="hw-icon">draw</mat-icon>
+                      Handwritten Pages ({{ q.answer_images.length }})
+                    </span>
+                    <span class="hw-gallery-hint">Click an image to zoom and inspect handwriting</span>
+                  </div>
+                  <div class="hw-gallery-grid">
+                    <div *ngFor="let img of q.answer_images; let imgIdx = index"
+                      class="hw-thumb-card"
+                      (click)="openImageModal(img.signed_url || img.url || img.file_url || img.gcs_path, 'Page ' + (img.order || (imgIdx + 1)) + (img.filename ? ' - ' + img.filename : ''))">
+                      <div class="hw-thumb-badge"><span>Page {{ img.order || (imgIdx + 1) }}</span></div>
+                      <div class="hw-thumb-img-wrapper" *ngIf="!img._loadError">
+                        <img [src]="resolveMediaUrl(img.signed_url || img.url || img.file_url || img.gcs_path)"
+                          [alt]="'Handwritten Answer Page ' + (img.order || (imgIdx + 1))"
+                          class="hw-thumb-img" (error)="onAnswerImageError($event, img)" loading="lazy" />
+                        <div class="hw-zoom-overlay"><mat-icon>zoom_in</mat-icon><span>Enlarge</span></div>
+                      </div>
+                      <div class="hw-thumb-error" *ngIf="img._loadError">
+                        <mat-icon>broken_image</mat-icon>
+                        <span>Unable to load image</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- MCQ Options -->
+              <div *ngIf="(q.question_type || '') === 'choose' || (q.question_type || '') === 'multi'" class="q-options two-col">
+                <div *ngFor="let opt of (q.options || []); let oi = index" class="q-option"
+                  [class.correct]="isOptionCorrect(opt)" [class.selected]="isOptionSelected(q, opt)"
+                  [class.missed]="isOptionCorrect(opt) && !isOptionSelected(q, opt)">
+                  <div class="opt-left"><span class="opt-mark">{{ getOptionLetter(oi) }}</span></div>
+                  <div class="opt-body">
+                    <div class="opt-text" *ngIf="getOptText(opt)">{{ getOptText(opt) }}</div>
+                    <img *ngIf="opt?.image_url" [src]="resolveMediaUrl(opt.image_url)" class="opt-review-img" alt="Option Image" />
+                  </div>
+                  <div class="opt-badge" *ngIf="isOptionSelected(q, opt) || isOptionCorrect(opt)">
+                    <span *ngIf="isOptionSelected(q, opt)" class="badge"
+                      [ngClass]="isOptionCorrect(opt) ? 'correct' : 'your-answer'">Your Answer</span>
+                    <span *ngIf="isOptionCorrect(opt)" class="badge correct">Correct Answer</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+
+    <div *ngIf="!reviewLoading && !reviewAttempts.length" class="muted" style="padding: 2rem; text-align: center;">
+      No review data available.
+    </div>
+  </div>
+</div>
+
+<!-- Image Lightbox Preview Modal -->
+<div *ngIf="previewModalImage" class="img-preview-backdrop" (click)="closeImageModal()" role="dialog" aria-modal="true">
+  <div class="img-preview-dialog" (click)="$event.stopPropagation()">
+    <div class="img-preview-header">
+      <div class="img-preview-title-group">
+        <mat-icon class="title-icon">image</mat-icon>
+        <span class="img-preview-title" [title]="previewModalImage.title">{{ previewModalImage.title }}</span>
+      </div>
+      <div class="img-preview-actions">
+        <button type="button" mat-icon-button (click)="zoomOut()" [disabled]="imageZoom <= 0.5" matTooltip="Zoom out">
+          <mat-icon>zoom_out</mat-icon>
+        </button>
+        <button type="button" class="zoom-reset-btn" (click)="resetZoom()" [disabled]="imageZoom === 1" matTooltip="Reset zoom">
+          {{ (imageZoom * 100) | number:'1.0-0' }}%
+        </button>
+        <button type="button" mat-icon-button (click)="zoomIn()" [disabled]="imageZoom >= 3" matTooltip="Zoom in">
+          <mat-icon>zoom_in</mat-icon>
+        </button>
+        <a [href]="previewModalImage.url" target="_blank" rel="noopener noreferrer" mat-icon-button matTooltip="Open original in new tab">
+          <mat-icon>open_in_new</mat-icon>
+        </a>
+        <button type="button" mat-icon-button class="close-btn" (click)="closeImageModal()" matTooltip="Close (Esc)">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+    <div class="img-preview-body">
+      <div class="img-preview-viewport">
+        <img [src]="previewModalImage.url" [alt]="previewModalImage.title" [style.transform]="'scale(' + imageZoom + ')'" />
+      </div>
+    </div>
+  </div>
+</div>
+

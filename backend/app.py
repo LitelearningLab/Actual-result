@@ -596,11 +596,23 @@ def update_paper_schedule_route():
     response_data, status_code = update_paper_schedule(request, current_user)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/get-user-paper-results', methods=['GET'])
+@jwt_required
+def get_user_paper_results_route():
+    from others.paper_schedules import get_user_paper_results
+    current_user = get_current_user_from_request()
+    if not current_user:
+        return jsonify({"status": False, "statusMessage": "Authenticated user not found"}), 401
+    response_data, status_code = get_user_paper_results(request, current_user)
+    return jsonify(response_data), status_code
+
 @edu_blueprint.route('/test-evaluation/student-evaluation-details', methods=['GET'])
-@admin_required
+@jwt_required
 def get_student_evaluation_details_route():
     from others.exams import get_student_evaluation_details
     current_user = get_current_user_from_request()
+    if not current_user:
+        return jsonify({"status": False, "statusMessage": "Authenticated user not found"}), 401
     response_data, status_code = get_student_evaluation_details(request, current_user)
     return jsonify(response_data), status_code
 

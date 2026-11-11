@@ -22,6 +22,7 @@ import { ViewQuestionsComponent } from '../userrole/admin/questions/view-questio
 import { CategoryComponent } from '../userrole/admin/category/category.component';
 import { CategoryCreateComponent } from '../userrole/admin/category/create/category-create.component';
 import { UserExamComponent } from '../userrole/user/exam/exam.component';
+import { PaperTestResultsComponent } from '../userrole/user/paper-test-results/paper-test-results.component';
 import { UserExamRunnerComponent } from '../userrole/user/user-exam/user-exam.component';
 import { UnauthorizedComponent } from '../shared/components/unauthorized/unauthorized.component';
 import { PermissionGuard } from '../shared/guards/permission.guard';
@@ -60,6 +61,8 @@ const routes: Routes = [
   , { path: 'admin-dashboard', component: AdminResultsComponent, canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'admin/settings', component: AdminSettingsComponent, canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'user/exam', component: UserExamComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'user/paper-test-results', component: PaperTestResultsComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','candidate','student','learner','admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'user/paper-review', component: TestEvaluationComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','candidate','student','learner','admin','super_admin','superadmin','super-admin'], studentReadOnly: true } }
   , { path: 'user-dashboard', component: UserDashboardComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','super-admin'] } }
   , { path: 'user/exam/run', component: UserExamRunnerComponent, canActivate: [PermissionGuard], canDeactivate: [userExamExitGuard], data: { requiredRole: ['user','admin','super_admin','super-admin'] } }
   , { path: 'user-exam', redirectTo: 'user/exam/run', pathMatch: 'full' }

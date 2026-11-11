@@ -86,6 +86,14 @@ export interface PaperPage {
 
 import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
 import { MathService } from 'src/app/shared/services/math.service';
+import {
+  PaperReviewAccessFormComponent,
+  PaperReviewSettings,
+  createDefaultPaperReviewSettings,
+  extractPaperReviewSettings,
+  validatePaperReviewSettings,
+  buildPaperReviewPayload,
+} from './paper-review-access-dialog.component';
 
 @Component({
   selector: 'app-create-question-paper',
@@ -110,6 +118,7 @@ import { MathService } from 'src/app/shared/services/math.service';
     OverlayModule,
     PortalModule,
     MathRenderComponent,
+    PaperReviewAccessFormComponent,
   ],
   templateUrl: './create-question-paper.component.html',
   styleUrls: ['./create-question-paper.component.scss'],
@@ -242,6 +251,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   initialSelectedPaperUsers: string[] = [];
   initialExamDate: string = '';
   initialPublishedScheduleName: string = '';
+  paperReviewSettings: PaperReviewSettings = createDefaultPaperReviewSettings();
+  initialPaperReviewSignature: string = JSON.stringify(buildPaperReviewPayload(createDefaultPaperReviewSettings()));
 
   get hasScheduleDetailsChanged(): boolean {
     if (!this.editingScheduleId) {
@@ -250,7 +261,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     const usersChanged = this.hasAssignedUsersChanged;
     const dateChanged = (this.examDate || '').trim() !== (this.initialExamDate || '').trim();
     const nameChanged = (this.publishedScheduleName || '').trim() !== (this.initialPublishedScheduleName || '').trim();
-    return usersChanged || dateChanged || nameChanged;
+    const reviewChanged = JSON.stringify(buildPaperReviewPayload(this.paperReviewSettings)) !== this.initialPaperReviewSignature;
+    return usersChanged || dateChanged || nameChanged || reviewChanged;
   }
 
   get hasAssignedUsersChanged(): boolean {
@@ -1112,6 +1124,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               if (!this.initialSelectedPaperUsers.length && this.selectedPaperUsers.length) {
                 this.initialSelectedPaperUsers = [...this.selectedPaperUsers].sort();
               }
+              this.paperReviewSettings = extractPaperReviewSettings(item);
+              this.initialPaperReviewSignature = JSON.stringify(buildPaperReviewPayload(this.paperReviewSettings));
               this.cdr.detectChanges();
             }
           },
@@ -1181,6 +1195,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       if (this.formMode === 'publish') {
         const isEvaluated = (e.evaluation_status || '').toLowerCase() === 'evaluated' || Number(e.evaluated_count || 0) > 0;
         this.readOnly = isEvaluated;
+        this.paperReviewSettings = extractPaperReviewSettings(e);
+        this.initialPaperReviewSignature = JSON.stringify(buildPaperReviewPayload(this.paperReviewSettings));
       }
       this.title = e.title || e.name || '';
       this.publishedScheduleName = e.title || e.schedulerName || e.name || '';
@@ -5686,6 +5702,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       notify('Please select at least one user to assign this question paper.', 'error');
       return;
     }
+    if (this.formMode === 'publish') {
+      const rvErr = validatePaperReviewSettings(this.paperReviewSettings);
+      if (rvErr) {
+        notify(rvErr, 'error');
+        return;
+      }
+    }
 
     this.syncModelCategoriesFromSections();
 
@@ -5795,6 +5818,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
     // In publish mode, register a fresh published instance in PaperSchedules or update existing
     if (this.formMode === 'publish') {
+      Object.assign(payload, buildPaperReviewPayload(this.paperReviewSettings));
       const isEditing = !!this.editingScheduleId;
       const url = isEditing
         ? `${API_BASE}/update-paper-schedule`

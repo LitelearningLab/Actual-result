@@ -51,6 +51,7 @@ import {
 
 import { MathRenderComponent } from 'src/app/shared/components/math-render/math-render.component';
 import { MathService } from 'src/app/shared/services/math.service';
+import { PaperReviewAccessDialogComponent } from './paper-review-access-dialog.component';
 
 @Component({
   selector: 'app-question-paper',
@@ -604,7 +605,67 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   updateDisplayedColumns(): void {
     this.displayedColumns = this.activeTab === 'drafts'
       ? ['sno', 'title', 'sections', 'questions', 'marks', 'duration', 'actions']
-      : ['sno', 'title', 'questions', 'duration', 'evaluation', 'actions'];
+      : ['sno', 'title', 'questions', 'duration', 'evaluation', 'manual_review', 'actions'];
+  }
+
+  isManualReview(s: any): boolean {
+    const mode = (s?.review_mode || '').toString().toLowerCase();
+    return mode === 'manual';
+  }
+
+  getReviewSummaryLabel(s: any): string {
+    const mode = (s?.review_mode || '').toString().toLowerCase();
+    const multi = Boolean(s?.multiple_review) ? 'Multiple' : 'Single';
+    if (mode === 'instant' || s?.instant_review) return `Instant (${multi})`;
+    if (mode === 'scheduled') return `Scheduled (${multi})`;
+    if (mode === 'manual') return `${s?.manual_review_enabled ? 'Open' : 'Closed'} (${multi})`;
+    return `Manual Closed (${multi})`;
+  }
+
+  toggleManualReview(row: any): void {
+    if (!this.isManualReview(row)) return;
+    const scheduleId = row.schedule_id || row.test_id || row.id;
+    if (!scheduleId) return;
+
+    const newState = !row.manual_review_enabled;
+    const prev = row.manual_review_enabled;
+    row.manual_review_enabled = newState;
+
+    this.http
+      .post<any>(`${API_BASE}/update-paper-schedule`, {
+        schedule_id: scheduleId,
+        review_only: true,
+        manual_review_enabled: newState,
+      })
+      .subscribe({
+        next: (res) => {
+          try {
+            notify(res?.statusMessage || 'Manual review status updated', 'success');
+          } catch (_) {}
+        },
+        error: (err) => {
+          row.manual_review_enabled = prev;
+          const msg = err?.error?.statusMessage || 'Failed to update manual review status';
+          try {
+            notify(msg, 'error');
+          } catch (_) {}
+        },
+      });
+  }
+
+  openReviewAccessDialog(row: any): void {
+    const ref = this.dialog.open(PaperReviewAccessDialogComponent, {
+      width: '36rem',
+      maxWidth: 'calc(100vw - 2rem)',
+      data: { row },
+      autoFocus: false,
+    });
+
+    ref.afterClosed().subscribe((updated: any) => {
+      if (updated) {
+        Object.assign(row, updated);
+      }
+    });
   }
 
   formatScheduleTitle(title: string): string {

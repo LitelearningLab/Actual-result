@@ -1,0 +1,114 @@
+<div class="page paper-test-results">
+  <div class="sticky-header-container">
+    <div class="toolbar">
+      <div class="search">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-icon matPrefix aria-hidden="false" aria-label="Search icon">search</mat-icon>
+          <input matInput placeholder="Search test" [(ngModel)]="search" (ngModelChange)="applyFilter()"
+            aria-label="Search paper test results" />
+          <button mat-icon-button matSuffix *ngIf="search" (click)="search = ''; applyFilter()" aria-label="Clear search">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-form-field>
+      </div>
+
+      <div class="controls">
+        <button mat-flat-button color="primary" type="button" (click)="loadResults(true)" class="button-one"
+          title="Refresh results" aria-label="Refresh paper test results">
+          <mat-icon>refresh</mat-icon>
+          <span>Refresh</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Single Tab Header matching Test Inbox segmented tab style -->
+    <div class="segmented-tabs-container">
+      <button type="button" class="segment-tab-btn active">
+        <span>Attended Tests</span>
+        <span class="tab-badge">{{ dataSource.filteredData.length }}</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="list-card">
+    <!-- Desktop Table (Single Table: S.No, Test Name, Review Button only) -->
+    <div class="list-wrapper">
+      <div class="table-responsive" *ngIf="!loading">
+        <table mat-table [dataSource]="dataSource" class="mat-elevation-z1 compact premium-table" matSort>
+          <ng-container matColumnDef="sno">
+            <th mat-header-cell *matHeaderCellDef class="col-sno">S.No</th>
+            <td mat-cell *matCellDef="let row; let i = index" class="col-sno cell-center">
+              {{ getSNo(i) }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="title">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Test Name</th>
+            <td mat-cell *matCellDef="let row" class="cell-primary">
+              <span class="exam-name">{{ row.title }}</span>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef class="col-actions text-center">Action</th>
+            <td mat-cell *matCellDef="let row" class="col-actions cell-center">
+              <span [matTooltip]="getReviewTooltip(row)">
+                <button mat-flat-button class="review-btn" [disabled]="!canReview(row)"
+                  (click)="openReview(row, $event)">
+                  <mat-icon>rule</mat-icon>
+                  <span>Review</span>
+                </button>
+              </span>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns" class="exam-main-row"></tr>
+
+          <tr class="mat-row empty-data-row" *matNoDataRow>
+            <td class="mat-cell empty-data-cell" [attr.colspan]="displayedColumns.length">
+              <div class="no-tests-table-empty">
+                <mat-icon class="empty-icon">find_in_page</mat-icon>
+                <p>No attended paper test results available.</p>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <mat-paginator *ngIf="!loading" [pageSizeOptions]="[25, 50, 100]" showFirstLastButtons class="custom-paginator"></mat-paginator>
+    </div>
+
+    <!-- Mobile Card List (S.No, Test Name, Review Button only) -->
+    <div class="exam-cards" *ngIf="!loading">
+      <div *ngFor="let row of mobileRows; let i = index" class="mobile-exam-card">
+        <div class="card-top">
+          <span class="sno-pill">#{{ getSNo(i) }}</span>
+          <h3 class="exam-title-text">{{ row.title }}</h3>
+        </div>
+        <div class="card-cta-row">
+          <button mat-flat-button class="btn-mobile-review" [disabled]="!canReview(row)"
+            (click)="openReview(row, $event)">
+            <mat-icon>rule</mat-icon>
+            <span>Review</span>
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="!mobileRows.length" class="no-tests-mobile">
+        <mat-icon class="empty-icon">find_in_page</mat-icon>
+        <p>No attended paper test results available.</p>
+      </div>
+    </div>
+
+    <div *ngIf="loading" class="professional-loader-container">
+      <div class="loader-spinner-ring"></div>
+      <div class="loader-text-group">
+        <h5 class="loader-main-text">Loading Paper Test Results</h5>
+        <p class="loader-sub-text">Fetching your attended tests...</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+

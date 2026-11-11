@@ -1071,7 +1071,18 @@
   <!-- ─── EVALUATE ANSWER SHEET SPLIT-VIEW (Vision AI Mode) ─── -->
   <!-- ========================================================= -->
   <ng-container *ngIf="currentView === 'evaluate'">
-    <div class="evaluate-view-wrapper">
+    <div *ngIf="isStudentReadOnly && studentReviewError" class="student-review-error-card"
+      style="margin: 2rem auto; max-width: 520px; padding: 1.75rem; background: #fff; border: 1px solid #fecaca; border-radius: 0.75rem; text-align: center; box-shadow: 0 4px 16px rgba(15,23,42,0.06);">
+      <mat-icon style="font-size: 2.5rem; width: 2.5rem; height: 2.5rem; color: #dc2626; margin-bottom: 0.5rem;">lock</mat-icon>
+      <h3 style="margin: 0 0 0.5rem; color: #0f172a; font-weight: 700;">Result Review Unavailable</h3>
+      <p style="margin: 0 0 1.25rem; color: #475569;">{{ studentReviewError }}</p>
+      <button type="button" class="btn-footer-back" (click)="closeStudentEvaluation()">
+        <mat-icon>close</mat-icon>
+        <span>Close</span>
+      </button>
+    </div>
+
+    <div class="evaluate-view-wrapper" *ngIf="!(isStudentReadOnly && studentReviewError)">
       <!-- ─── Top Evaluation Header Bar ─── -->
       <div class="eval-header-top-card">
         <!-- Header when opened from Test Reports in new tab (Exact Image 2 Style) -->
@@ -1109,9 +1120,9 @@
                 }}</span>
               <span class="meta-pill" *ngIf="testDetails.section && testDetails.section !== '—'">{{ testDetails.section
                 }}</span>
-              <span class="meta-pill" *ngIf="testDetails.subject && testDetails.subject !== '—'">{{ testDetails.subject
+              <span class="meta-pill" *ngIf="(testDetails.subject && testDetails.subject !== '—') || evaluationDetails?.subject_name">{{ (testDetails.subject && testDetails.subject !== '—') ? testDetails.subject : evaluationDetails?.subject_name
                 }}</span>
-              <span class="meta-pill" *ngIf="selectedExamTitle && selectedExamTitle !== '—'">{{ selectedExamTitle
+              <span class="meta-pill" *ngIf="(selectedExamTitle && selectedExamTitle !== '—') || evaluationDetails?.exam_title">{{ (selectedExamTitle && selectedExamTitle !== '—') ? selectedExamTitle : evaluationDetails?.exam_title
                 }}</span>
               <span class="meta-pill" *ngIf="evaluationDetails?.roll_no || evaluatingStudent?.rollNo">
                 Roll no. {{ evaluationDetails?.roll_no || evaluatingStudent?.rollNo }}
@@ -1165,7 +1176,7 @@
             <strong>{{ evaluatingStudent?.missingPagesWarning }}</strong>
             <p>Please check the uploaded answer sheet to finish the evaluation.</p>
           </div>
-          <div class="alert-actions">
+          <div class="alert-actions" *ngIf="!isStudentReadOnly">
             <button type="button" class="btn-alert-scan" (click)="openScanModal(evaluatingStudent!)">
               <mat-icon>photo_camera</mat-icon>
               <span>Scan Page</span>
@@ -1204,7 +1215,7 @@
           </div>
         </div>
 
-        <div class="split-toolbar-right">
+        <div class="split-toolbar-right" *ngIf="!isStudentReadOnly">
           <button type="button" class="btn-attach-quick" (click)="openAttachModal(evaluatingStudent!)"
             title="Attach/Replace Answer Sheet PDF">
             <mat-icon>attach_file</mat-icon>
@@ -1293,9 +1304,8 @@
                 <mat-icon>description</mat-icon>
               </div>
               <h4 class="empty-title">No Answer Sheet Pages Found</h4>
-              <p class="empty-sub">Upload the student's answer sheet PDF or scan camera pages to view visual
-                handwriting.</p>
-              <div class="empty-actions">
+              <p class="empty-sub">{{ isStudentReadOnly ? 'No uploaded answer sheet pages were attached for this attempt.' : "Upload the student's answer sheet PDF or scan camera pages to view visual handwriting." }}</p>
+              <div class="empty-actions" *ngIf="!isStudentReadOnly">
                 <button type="button" class="btn-empty-scan" (click)="openScanModal(evaluatingStudent!)">
                   <mat-icon>photo_camera</mat-icon>
                   <span>Scan Pages</span>
@@ -1407,7 +1417,7 @@
                       <span class="mark-sep">/</span>
                       <span class="mark-total">{{ q.max_marks }}</span>
                     </span>
-                    <button type="button" class="edit-marks-btn" (click)="startEditMarks(q)"
+                    <button type="button" class="edit-marks-btn" *ngIf="!isStudentReadOnly" (click)="startEditMarks(q)"
                       [disabled]="evaluationPages.length === 0"
                       [title]="evaluationPages.length === 0 ? 'Upload answer sheet to edit marks' : 'Edit marks'">
                       <mat-icon>edit</mat-icon>
@@ -1487,7 +1497,7 @@
               </div>
 
               <!-- Inline Teacher Mark Edit Form (Visible on Edit) -->
-              <div class="marks-edit-panel" *ngIf="q._editingMarks">
+              <div class="marks-edit-panel" *ngIf="!isStudentReadOnly && q._editingMarks">
                 <div class="marks-edit-row">
                   <label class="edit-field-lbl">Awarded Marks:</label>
                   <div class="input-max-wrap">
@@ -1602,7 +1612,7 @@
                           <div class="comment-edit-form" *ngIf="rc._editing">
                             <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>
                           </div>
-                          <div class="comment-actions-links">
+                          <div class="comment-actions-links" *ngIf="!isStudentReadOnly">
                             <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing"
                               (click)="startEditComment(rc)">
                               <mat-icon>edit</mat-icon> Edit
@@ -1661,7 +1671,7 @@
                           <div class="comment-edit-form" *ngIf="rc._editing">
                             <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>
                           </div>
-                          <div class="comment-actions-links">
+                          <div class="comment-actions-links" *ngIf="!isStudentReadOnly">
                             <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing"
                               (click)="startEditComment(rc)">
                               <mat-icon>edit</mat-icon> Edit
@@ -1720,7 +1730,7 @@
                           <div class="comment-edit-form" *ngIf="rc._editing">
                             <textarea [(ngModel)]="rc._editedText" rows="2" class="edit-comment-input"></textarea>
                           </div>
-                          <div class="comment-actions-links">
+                          <div class="comment-actions-links" *ngIf="!isStudentReadOnly">
                             <a href="javascript:void(0)" class="link-edit" *ngIf="!rc._editing"
                               (click)="startEditComment(rc)">
                               <mat-icon>edit</mat-icon> Edit

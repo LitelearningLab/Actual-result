@@ -4288,9 +4288,18 @@ def get_student_evaluation_details(request, current_user=None):
 
     try:
         args = request.args or {}
-        exam_id = args.get("exam_id")
+        exam_id = args.get("exam_id") or args.get("schedule_id")
         user_id = args.get("user_id")
         attempt_id = args.get("attempt_id")
+
+        current_role = str(getattr(current_user, "user_role", "") or "").lower() if current_user else ""
+        is_student_request = current_role in ("user", "student", "learner", "candidate")
+        if is_student_request:
+            if not current_user or not getattr(current_user, "user_id", None):
+                session.close()
+                return {"statusMessage": "Authentication required", "status": False}, 401
+            # Never allow a student to view another student's evaluation sheet
+            user_id = str(current_user.user_id)
 
         if not exam_id and not attempt_id:
             session.close()
@@ -4307,14 +4316,24 @@ def get_student_evaluation_details(request, current_user=None):
                 .filter(Exam_Attempt.attempt_id == attempt_id)
                 .first()
             )
+            if attempt and is_student_request and str(attempt.user_id) != user_id:
+                session.close()
+                return {"statusMessage": "Access denied for this attempt", "status": False}, 403
             if attempt and not user_id:
                 user_id = str(attempt.user_id)
             if attempt and not exam_id:
+                from db.models import PaperSchedule
                 sched = (
                     session.query(ExamSchedule)
                     .filter(ExamSchedule.schedule_id == attempt.schedule_id)
                     .first()
                 )
+                if not sched:
+                    sched = (
+                        session.query(PaperSchedule)
+                        .filter(PaperSchedule.schedule_id == str(attempt.schedule_id))
+                        .first()
+                    )
                 exam_id = str(sched.exam_id) if sched else str(attempt.schedule_id)
 
         if not attempt and exam_id and user_id:
@@ -4344,6 +4363,63 @@ def get_student_evaluation_details(request, current_user=None):
                 )
                 .first()
             )
+
+        # Enforce student review access gate (Instant / Scheduled / Manual & Single vs Multiple Review)
+        if is_student_request:
+            from db.models import PaperSchedule
+            if not attempt or str(getattr(attempt, "status", "")).lower() != "evaluated":
+                session.close()
+                return {"statusMessage": "Evaluated test result not found", "status": False}, 403
+
+            ps_gate = (
+                session.query(PaperSchedule)
+                .filter(
+                    PaperSchedule.schedule_id == str(attempt.schedule_id),
+                    PaperSchedule.published == 1,
+                    or_(PaperSchedule.is_deleted == False, PaperSchedule.is_deleted.is_(None), PaperSchedule.is_deleted == 0),
+                )
+                .first()
+            )
+            if not ps_gate and exam_id:
+                ps_gate = (
+                    session.query(PaperSchedule)
+                    .filter(
+                        PaperSchedule.schedule_id == str(exam_id),
+                        PaperSchedule.published == 1,
+                        or_(PaperSchedule.is_deleted == False, PaperSchedule.is_deleted.is_(None), PaperSchedule.is_deleted == 0),
+                    )
+                    .first()
+                )
+            if not ps_gate:
+                session.close()
+                return {"statusMessage": "Published paper schedule not found", "status": False}, 403
+
+            now_utc = datetime.utcnow()
+            r_mode = getattr(ps_gate, "review_mode", None) or ("instant" if getattr(ps_gate, "user_review", 0) == 1 else "no_review")
+            is_multi_rev = bool(getattr(ps_gate, "multiple_review", False))
+            r_at = getattr(ps_gate, "review_at", None)
+            r_end_at = getattr(ps_gate, "review_end_at", None)
+
+            allowed_by_mode = False
+            if r_mode == "instant":
+                allowed_by_mode = True
+            elif r_mode == "scheduled":
+                allowed_by_mode = bool(r_at and now_utc >= r_at and (not r_end_at or now_utc <= r_end_at))
+            elif r_mode in ("manual", "no_review"):
+                allowed_by_mode = bool(getattr(ps_gate, "manual_review_enabled", False))
+
+            already_consumed = (not is_multi_rev) and bool(getattr(attempt, "review_opened_at", None))
+            if not allowed_by_mode or already_consumed:
+                session.close()
+                return {"statusMessage": "Review is not available for this test", "status": False}, 403
+
+            if not getattr(attempt, "review_opened_at", None):
+                try:
+                    attempt.review_opened_at = now_utc
+                    session.add(attempt)
+                    session.commit()
+                except Exception:
+                    session.rollback()
 
         # Resolve Exam (supports Exam table and dedicated PaperSchedules table)
         exam = session.query(Exam).filter(Exam.exam_id == exam_id).first()
@@ -4400,15 +4476,21 @@ def get_student_evaluation_details(request, current_user=None):
         # Only check GCS if submission has a PDF file; skip remote blob.exists network latency for JPG/PNG sheets
         pdf_signed_url = None
         has_pdf_pages = any((p.image_path or "").lower().endswith(".pdf") for p in pages) if (attempt and att_id_str and 'pages' in locals()) else False
-        if has_pdf_pages and gcs_storage.is_gcs_active() and user_id and exam_id:
+        if has_pdf_pages and gcs_storage.is_gcs_active() and user_id:
             try:
-                pdf_object_path = f"student_answers/test_evaluation/{user_id}/test_id_{exam_id}/answersheet.pdf"
-                blob = gcs_storage.bucket.blob(pdf_object_path)
-                if blob.exists():
-                    pdf_signed_url = gcs_storage.generate_signed_url(
-                        pdf_object_path,
-                        expiration_minutes=60,
-                    )
+                candidate_ids = []
+                for cid in (exam_id, getattr(exam, "exam_id", None), getattr(attempt, "schedule_id", None) if attempt else None):
+                    if cid and str(cid) not in candidate_ids:
+                        candidate_ids.append(str(cid))
+                for cid in candidate_ids:
+                    pdf_object_path = f"student_answers/test_evaluation/{user_id}/test_id_{cid}/answersheet.pdf"
+                    blob = gcs_storage.bucket.blob(pdf_object_path)
+                    if blob.exists():
+                        pdf_signed_url = gcs_storage.generate_signed_url(
+                            pdf_object_path,
+                            expiration_minutes=60,
+                        )
+                        break
             except Exception:
                 pdf_signed_url = None
 
@@ -4824,7 +4906,7 @@ def get_student_evaluation_details(request, current_user=None):
             "status": True,
             "ai_confidence_threshold": conf_threshold,
             "exam_id": str(exam.exam_id),
-            "exam_title": exam.title,
+            "exam_title": (ps_rec.title if (ps_rec and ps_rec.title) else exam.title),
             "subject_name": exam.subject_name or "",
             "user_id": str(student.user_id) if student else (user_id or ""),
             "student_name": (

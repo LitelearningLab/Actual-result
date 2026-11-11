@@ -55,7 +55,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
 
     this.userSubscription = this.authService.user$.subscribe(u => {
       if (u) {
-        this.userRole = u.role || this.userRole;
+        this.userRole = u.role || u.user_role || this.userRole;
         this.userName = u.name || this.userName;
         this.userInstitute = u.institute_name || u.institute || this.userInstitute || '';
       } else {
@@ -95,6 +95,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/institute-register': 'Institutes',
     '/admin/exam-reports': 'Test Reports',
     '/user/exam/run': 'Test Inbox',
+    '/user/paper-test-results': 'Paper Test Results',
     '/question-papers': 'Paper Question',
     '/create-question-paper': 'Paper Question',
     '/test-evaluation': 'Paper Evaluation',
@@ -233,10 +234,11 @@ export class SideNavComponent implements OnInit, OnDestroy {
       this.menus.push({ label: 'Test Reports', path: '/admin/exam-reports', icon: 'report' });
     }
 
-    if (role === 'user' || role === 'candidate' || role === 'admin' || role === 'super_admin' || role === 'super-admin') {
+    if (role === 'user' || role === 'candidate' || role === 'student' || role === 'learner' || role === 'admin' || role === 'super_admin' || role === 'superadmin' || role === 'super-admin') {
       // Admins retain their management menus and also receive the candidate entry points.
       // this.menus.push({ label: 'User Dashboard', path: '/user-dashboard', icon: 'user' });
       this.menus.push({ label: 'Test Inbox', path: '/user/exam', icon: 'assignment' });
+      this.menus.push({ label: 'Paper Test Results', path: '/user/paper-test-results', icon: 'report' });
     }
 
     if (role === 'admin' || role === 'super_admin' || role === 'super-admin') {

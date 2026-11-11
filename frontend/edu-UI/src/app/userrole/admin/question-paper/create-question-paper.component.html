@@ -602,6 +602,23 @@
                 </div>
             </div>
 
+            <!-- ── Review Behavior & Student Result Access (Publish mode) ── -->
+            <div class="qp-card" id="paper-review-access-card" *ngIf="formMode === 'publish'">
+                <div class="qp-card-header">
+                    <div class="qp-card-title">
+                        <h2>Review Behavior &amp; Access</h2>
+                        <p>Control how students can view their evaluated test results (single-time, multiple, date-wise, or manual review).</p>
+                    </div>
+                </div>
+                <div class="qp-card-body">
+                    <app-paper-review-access-form
+                        [settings]="paperReviewSettings"
+                        [disabled]="readOnly"
+                        (settingsChange)="paperReviewSettings = $event; markDirty()">
+                    </app-paper-review-access-form>
+                </div>
+            </div>
+
             <!-- ── Sections and Questions Card (Create mode only) ── -->
             <div class="qp-card" id="sections-card" *ngIf="formMode === 'create' && !isPublished">
                 <div class="qp-card-header">

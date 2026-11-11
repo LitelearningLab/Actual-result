@@ -7,7 +7,7 @@ import threading
 import re
 from sqlalchemy import func, String, or_
 from db.db import SQLiteDB
-from db.models import User, Exam, ExamSchedule, Question, QuestionMedia, Option, Answer, Exam_Attempt, ExamScheduleMapping, ExamReviewComments, ExamReviewCommentsHistory, MarksHistory, ExamMapping, ExamQuestionMapping, QuestionMapping
+from db.models import User, Exam, ExamSchedule, PaperSchedule, Question, QuestionMedia, Option, Answer, Exam_Attempt, ExamScheduleMapping, ExamReviewComments, ExamReviewCommentsHistory, MarksHistory, ExamMapping, ExamQuestionMapping, QuestionMapping, AnswerSheetPage
 from others.settings import get_ai_confidence_threshold
 from others.llm import descriptive_evaluation, vision_evaluate_question_images, openai_client
 from others.gcs_service import gcs_storage
@@ -46,6 +46,8 @@ def get_exam_question_ids(session, exam_id=None, schedule_id=None, attempt_id=No
             schedule_id = att.schedule_id
     if schedule_id and not exam_id:
         exam_schedule = session.query(ExamSchedule).filter(ExamSchedule.schedule_id == schedule_id).first()
+        if not exam_schedule:
+            exam_schedule = session.query(PaperSchedule).filter(PaperSchedule.schedule_id == schedule_id).first()
         if exam_schedule and exam_schedule.exam_id:
             exam_id = exam_schedule.exam_id
     if exam_id:
@@ -206,6 +208,17 @@ def review_user_exam(request, current_user=None):
         if is_student_request:
             q_sched = q_sched.filter(ExamSchedule.published == 1)
         exam_schedule = q_sched.first()
+        is_paper_schedule = False
+
+        if not exam_schedule:
+            q_ps = session.query(PaperSchedule).filter(
+                PaperSchedule.schedule_id == schedule_id,
+                or_(PaperSchedule.is_deleted == False, PaperSchedule.is_deleted.is_(None), PaperSchedule.is_deleted == 0),
+            )
+            if is_student_request:
+                q_ps = q_ps.filter(PaperSchedule.published == 1)
+            exam_schedule = q_ps.first()
+            is_paper_schedule = bool(exam_schedule)
 
         if not exam_schedule:
             return {"statusMessage": "Schedule not found", "status": False}, 404
@@ -218,13 +231,16 @@ def review_user_exam(request, current_user=None):
                 session.close()
                 return {"statusMessage": "Access denied for this institute", "status": False}, 403
 
-        finalized_ids = finalize_expired_attempts(session, exam_schedule, attempts)
-        for finalized_id in finalized_ids:
-            try:
-                validate_answers(finalized_id)
-            except Exception as eval_err:
-                print(f"AI evaluation warning during review for attempt {finalized_id}: {eval_err}")
+        if not is_paper_schedule:
+            finalized_ids = finalize_expired_attempts(session, exam_schedule, attempts)
+            for finalized_id in finalized_ids:
+                try:
+                    validate_answers(finalized_id)
+                except Exception as eval_err:
+                    print(f"AI evaluation warning during review for attempt {finalized_id}: {eval_err}")
         completed_attempts = [attempt for attempt in attempts if is_review_eligible_attempt(attempt)]
+        if is_paper_schedule and is_student_request:
+            completed_attempts = [attempt for attempt in completed_attempts if attempt.status == 'evaluated']
         completed_attempts.sort(key=lambda attempt: attempt.attempt_number or 0)
         review_mode = exam_schedule.review_mode or ('instant' if exam_schedule.user_review == 1 else 'no_review')
 
@@ -242,7 +258,7 @@ def review_user_exam(request, current_user=None):
             # Older student clients do not send attempt_id. Select one eligible
             # attempt so another attempt in the schedule remains independent.
             eligible_attempts = completed_attempts
-            if review_mode in ('manual', 'no_review'):
+            if review_mode in ('manual', 'no_review') or is_paper_schedule:
                 eligible_attempts = [attempt for attempt in completed_attempts if attempt.status == 'evaluated']
             unreviewed_attempts = [
                 attempt for attempt in eligible_attempts
@@ -257,12 +273,28 @@ def review_user_exam(request, current_user=None):
 
         review_attempts = [requested_attempt] if requested_attempt else completed_attempts
         now = datetime.datetime.utcnow()
-        review_available = bool(review_attempts) and (
+        already_consumed_single = (
+            is_paper_schedule
+            and is_student_request
+            and not bool(getattr(exam_schedule, 'multiple_review', False))
+            and requested_attempt is not None
+            and bool(getattr(requested_attempt, 'review_opened_at', None))
+        )
+        review_available = bool(review_attempts) and not already_consumed_single and (
             not is_student_request
-            or review_mode == 'instant'
+            or (
+                review_mode == 'instant'
+                and (not is_paper_schedule or any(attempt.status == 'evaluated' for attempt in review_attempts))
+            )
             or (review_mode == 'after_schedule_ends' and exam_schedule.end_time and now >= exam_schedule.end_time)
             or (review_mode == 'after_everyone_finishes' and is_after_everyone_finished_available(session, exam_schedule, now))
-            or (review_mode == 'scheduled' and exam_schedule.review_at and now >= exam_schedule.review_at and (not exam_schedule.review_end_at or now <= exam_schedule.review_end_at))
+            or (
+                review_mode == 'scheduled'
+                and exam_schedule.review_at
+                and now >= exam_schedule.review_at
+                and (not exam_schedule.review_end_at or now <= exam_schedule.review_end_at)
+                and (not is_paper_schedule or any(attempt.status == 'evaluated' for attempt in review_attempts))
+            )
             or (
                 review_mode in ('manual', 'no_review')
                 and bool(exam_schedule.manual_review_enabled)
@@ -289,10 +321,10 @@ def review_user_exam(request, current_user=None):
         total_questions = exam.total_questions if exam else 0
 
         # Admins viewing test reports must see all report data regardless of schedule settings
-        show_score = True if not is_student_request else bool(exam_schedule.show_score)
-        show_explanations = True if not is_student_request else bool(exam_schedule.show_explanations)
-        show_student_answers = True if not is_student_request else bool(exam_schedule.show_student_answers)
-        show_correct_answers = True if not is_student_request else bool(exam_schedule.show_correct_answers)
+        show_score = True if not is_student_request else bool(getattr(exam_schedule, 'show_score', True) if getattr(exam_schedule, 'show_score', None) is not None else True)
+        show_explanations = True if not is_student_request else bool(getattr(exam_schedule, 'show_explanations', True) if getattr(exam_schedule, 'show_explanations', None) is not None else True)
+        show_student_answers = True if not is_student_request else bool(getattr(exam_schedule, 'show_student_answers', True) if getattr(exam_schedule, 'show_student_answers', None) is not None else True)
+        show_correct_answers = True if not is_student_request else bool(getattr(exam_schedule, 'show_correct_answers', True) if getattr(exam_schedule, 'show_correct_answers', None) is not None else True)
 
         attempt_reviews = []
         for attempt in review_attempts:
@@ -358,7 +390,7 @@ def review_user_exam(request, current_user=None):
             # If all_qids is empty (fallback), use whatever is in latest_answers_by_qid
             display_qids = [str(q) for q in (all_qids if all_qids else list(latest_answers_by_qid.keys())) if q]
 
-            rng = random.Random(str(attempt.attempt_id)) if attempt and getattr(attempt, 'attempt_id', None) else None
+            rng = random.Random(str(attempt.attempt_id)) if (not is_paper_schedule and attempt and getattr(attempt, 'attempt_id', None)) else None
             questions_for_attempt = session.query(Question).filter(Question.question_id.in_(display_qids)).all() if display_qids else []
             fetched_qids = {str(q.question_id) for q in questions_for_attempt if getattr(q, 'question_id', None)}
             all_questions_ordered = list(questions_for_attempt)
@@ -406,7 +438,7 @@ def review_user_exam(request, current_user=None):
                             pass
 
                         if isinstance(parsed_w_meta, dict):
-                            student_typed_text = parsed_w_meta.get("text") or parsed_w_meta.get("textAnswer") or ""
+                            student_typed_text = parsed_w_meta.get("text") or parsed_w_meta.get("textAnswer") or parsed_w_meta.get("student_answer") or ""
                             raw_img_list = parsed_w_meta.get("images") or parsed_w_meta.get("answerImages") or parsed_w_meta.get("answer_images") or []
                             if isinstance(raw_img_list, list):
                                 def _img_ord(it, def_i):
@@ -682,6 +714,33 @@ def review_user_exam(request, current_user=None):
 
             if rng and review_data["review"]:
                 rng.shuffle(review_data["review"])
+
+            if is_paper_schedule and show_student_answers:
+                sheet_pages = (
+                    session.query(AnswerSheetPage)
+                    .filter(func.cast(AnswerSheetPage.attempt_id, String) == str(attempt.attempt_id))
+                    .order_by(AnswerSheetPage.page_number.asc(), AnswerSheetPage.created_date.desc())
+                    .all()
+                )
+                seen_pnums = set()
+                pages_out = []
+                for sp in sheet_pages:
+                    if sp.page_number not in seen_pnums:
+                        seen_pnums.add(sp.page_number)
+                        img_path = sp.image_path or ""
+                        if img_path.startswith("http"):
+                            img_url = img_path
+                        elif gcs_storage.is_gcs_active():
+                            img_url = gcs_storage.generate_signed_url(img_path)
+                        else:
+                            img_url = f"/edu/api/uploads/answer_sheets/{img_path}"
+                        pages_out.append({
+                            "page_id": str(sp.page_id),
+                            "page_number": sp.page_number,
+                            "image_url": img_url,
+                        })
+                pages_out.sort(key=lambda x: x["page_number"] or 0)
+                review_data["answer_sheet_pages"] = pages_out
 
             review_data["items"] = review_data["review"]
             attempt_reviews.append(review_data)

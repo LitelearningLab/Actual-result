@@ -19,7 +19,35 @@ from db.db import SQLiteDB
 import sys
 import uuid
 import datetime
+from others.examschedule import (
+    _as_bool,
+    _format_utc_iso,
+    _review_settings,
+)
 from sqlalchemy import func, or_, String, text
+
+
+def _extract_paper_review_payload(data, defaults=None):
+    """Reuse ExamSchedule review normalization for PaperSchedule."""
+    defaults = defaults or {}
+    settings = _review_settings(data, defaults)
+    multiple_review = _as_bool(
+        data.get("multiple_review", data.get("multiplereview", data.get("multipleReview"))),
+        defaults.get("multiple_review", False),
+    )
+    manual_review_enabled = _as_bool(
+        data.get("manual_review_enabled", data.get("manualReviewEnabled")),
+        defaults.get("manual_review_enabled", False),
+    )
+    return {
+        "user_review": 1 if settings["instant_review"] else 0,
+        "instant_review": settings["instant_review"],
+        "multiple_review": multiple_review,
+        "review_mode": settings["review_mode"],
+        "manual_review_enabled": manual_review_enabled if settings["review_mode"] in ("manual", "no_review") else False,
+        "review_at": settings["review_at"],
+        "review_end_at": settings["review_end_at"],
+    }
 
 
 def _ensure_paper_schedule_tables(session):
@@ -42,6 +70,12 @@ def _ensure_paper_schedule_tables(session):
                     number_of_attempts INT NULL,
                     published INT DEFAULT 1,
                     status NVARCHAR(32) DEFAULT 'published',
+                    user_review INT DEFAULT 0,
+                    multiple_review BIT NOT NULL DEFAULT 0,
+                    review_mode NVARCHAR(32) DEFAULT 'no_review',
+                    manual_review_enabled BIT NOT NULL DEFAULT 0,
+                    review_at DATETIME NULL,
+                    review_end_at DATETIME NULL,
                     created_by NVARCHAR(255) NULL,
                     created_date DATETIME DEFAULT GETUTCDATE(),
                     updated_by NVARCHAR(255) NULL,
@@ -49,6 +83,18 @@ def _ensure_paper_schedule_tables(session):
                     is_deleted BIT DEFAULT 0
                 );
             END;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PaperSchedules') AND name = 'user_review')
+                ALTER TABLE PaperSchedules ADD user_review INT DEFAULT 0;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PaperSchedules') AND name = 'multiple_review')
+                ALTER TABLE PaperSchedules ADD multiple_review BIT NOT NULL CONSTRAINT DF_PaperSchedules_multiple_review DEFAULT (0) WITH VALUES;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PaperSchedules') AND name = 'review_mode')
+                ALTER TABLE PaperSchedules ADD review_mode NVARCHAR(32) DEFAULT 'no_review';
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PaperSchedules') AND name = 'manual_review_enabled')
+                ALTER TABLE PaperSchedules ADD manual_review_enabled BIT NOT NULL CONSTRAINT DF_PaperSchedules_manual_review_enabled DEFAULT (0) WITH VALUES;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PaperSchedules') AND name = 'review_at')
+                ALTER TABLE PaperSchedules ADD review_at DATETIME NULL;
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('PaperSchedules') AND name = 'review_end_at')
+                ALTER TABLE PaperSchedules ADD review_end_at DATETIME NULL;
         """))
         session.commit()
     except Exception as e1:
@@ -160,6 +206,12 @@ def publish_paper_schedule(request, current_user=None):
         elif data.get("created_by"):
             created_by_user = str(data.get("created_by"))
 
+        try:
+            review_cfg = _extract_paper_review_payload(data)
+        except ValueError as rv_err:
+            session.close()
+            return {"statusMessage": str(rv_err), "status": False}, 400
+
         new_schedule_id = str(uuid.uuid4())
         new_schedule = PaperSchedule(
             schedule_id=new_schedule_id,
@@ -175,6 +227,12 @@ def publish_paper_schedule(request, current_user=None):
             number_of_attempts=number_of_attempts,
             published=1,
             status="published",
+            user_review=review_cfg["user_review"],
+            multiple_review=review_cfg["multiple_review"],
+            review_mode=review_cfg["review_mode"],
+            manual_review_enabled=review_cfg["manual_review_enabled"],
+            review_at=review_cfg["review_at"],
+            review_end_at=review_cfg["review_end_at"],
             created_by=created_by_user,
             created_date=datetime.datetime.utcnow(),
             is_deleted=False,
@@ -462,6 +520,13 @@ def get_paper_schedules(request, current_user=None):
                         "published": 1,
                         "is_published": True,
                         "status": "published",
+                        "instant_review": True if getattr(s, "user_review", 0) == 1 else False,
+                        "user_review": 1 if getattr(s, "user_review", 0) == 1 else 0,
+                        "multiple_review": bool(getattr(s, "multiple_review", False)),
+                        "review_mode": getattr(s, "review_mode", None) or ("instant" if getattr(s, "user_review", 0) == 1 else "no_review"),
+                        "manual_review_enabled": bool(getattr(s, "manual_review_enabled", False)),
+                        "review_at": _format_utc_iso(getattr(s, "review_at", None)),
+                        "review_end_at": _format_utc_iso(getattr(s, "review_end_at", None)),
                         "test_mode": "paper",
                         "evaluated_count": e_cnt,
                         "evaluation_status": "Evaluated" if e_cnt > 0 else "Pending",
@@ -754,6 +819,13 @@ def get_paper_schedules(request, current_user=None):
                 "published": 1,
                 "is_published": True,
                 "status": "published",
+                "instant_review": True if getattr(s, "user_review", 0) == 1 else False,
+                "user_review": 1 if getattr(s, "user_review", 0) == 1 else 0,
+                "multiple_review": bool(getattr(s, "multiple_review", False)),
+                "review_mode": getattr(s, "review_mode", None) or ("instant" if getattr(s, "user_review", 0) == 1 else "no_review"),
+                "manual_review_enabled": bool(getattr(s, "manual_review_enabled", False)),
+                "review_at": _format_utc_iso(getattr(s, "review_at", None)),
+                "review_end_at": _format_utc_iso(getattr(s, "review_end_at", None)),
                 "test_mode": "paper",
                 "sections": sections_list,
                 "sections_count": len(sections_list),
@@ -825,77 +897,145 @@ def delete_paper_schedule(request, current_user=None):
 
 def update_paper_schedule(request, current_user=None):
     """
-    Updates assigned students for an existing PaperSchedule while its evaluation is still Pending.
-    If evaluation has started, editing is blocked.
+    Updates a PaperSchedule.
+    - Review access settings (instant/scheduled/manual, multiple_review, manual_review_enabled)
+      can be updated at any time, including after evaluation is completed.
+    - Assigned students, title, and schedule date can only be edited before evaluation starts.
     """
     db = SQLiteDB()
     session = db.connect()
     if not session:
         return {"statusMessage": "Error connecting to database", "status": False}, 500
 
+    _ensure_paper_schedule_tables(session)
+
     try:
         data = request.get_json(silent=True) or {}
-        schedule_id = str(data.get("schedule_id") or "").strip()
+        schedule_id = str(data.get("schedule_id") or data.get("id") or "").strip()
         if not schedule_id:
             session.close()
             return {"statusMessage": "schedule_id is required", "status": False}, 400
 
         schedule = session.query(PaperSchedule).filter(
             func.cast(PaperSchedule.schedule_id, String) == schedule_id,
-            PaperSchedule.is_deleted == False
+            or_(PaperSchedule.is_deleted == False, PaperSchedule.is_deleted.is_(None), PaperSchedule.is_deleted == 0),
         ).first()
 
         if not schedule:
             session.close()
             return {"statusMessage": "Schedule not found", "status": False}, 404
 
-        # Block if already evaluated
-        from db.models import Exam_Attempt
+        review_fields = {
+            "instant_review", "userreview", "user_review",
+            "multiple_review", "multiplereview", "multipleReview",
+            "review_mode", "reviewMode",
+            "manual_review_enabled", "manualReviewEnabled",
+            "review_at", "review_end_at",
+        }
+        has_review_update = any(k in data for k in review_fields)
+        has_assignment_or_meta_update = any(
+            k in data for k in ("assigned_user_ids", "title", "scheduler_name", "start_time", "start_date", "exam_date")
+        ) and not bool(data.get("review_only"))
+
         eval_count = session.query(Exam_Attempt).filter(
             func.cast(Exam_Attempt.schedule_id, String) == schedule_id,
-            Exam_Attempt.status == "completed"
+            Exam_Attempt.status.in_(["evaluated", "completed", "submitted"]),
         ).count()
 
-        if eval_count > 0:
-            session.close()
-            return {"statusMessage": "Cannot edit assigned students because evaluation has already started.", "status": False}, 400
+        if has_assignment_or_meta_update:
+            if eval_count > 0:
+                if not has_review_update:
+                    session.close()
+                    return {"statusMessage": "Cannot edit assigned students because evaluation has already started.", "status": False}, 400
+            else:
+                if "assigned_user_ids" in data:
+                    assigned_user_ids = data.get("assigned_user_ids") or []
+                    session.query(PaperScheduleMapping).filter(
+                        func.cast(PaperScheduleMapping.schedule_id, String) == schedule_id,
+                        PaperScheduleMapping.user_id.isnot(None)
+                    ).delete(synchronize_session=False)
 
-        # Replace assigned users
-        assigned_user_ids = data.get("assigned_user_ids") or []
-        session.query(PaperScheduleMapping).filter(
-            func.cast(PaperScheduleMapping.schedule_id, String) == schedule_id,
-            PaperScheduleMapping.user_id.isnot(None)
-        ).delete(synchronize_session=False)
+                    created_by_user = str(current_user.user_id) if current_user and getattr(current_user, "user_id", None) else None
+                    for uid in assigned_user_ids:
+                        if uid:
+                            session.add(
+                                PaperScheduleMapping(
+                                    mapping_id=str(uuid.uuid4()),
+                                    schedule_id=schedule_id,
+                                    user_id=str(uid),
+                                    created_by=created_by_user,
+                                )
+                            )
 
-        created_by_user = str(current_user.user_id) if current_user and getattr(current_user, "user_id", None) else None
-        for uid in assigned_user_ids:
-            if uid:
-                session.add(
-                    PaperScheduleMapping(
-                        mapping_id=str(uuid.uuid4()),
-                        schedule_id=schedule_id,
-                        user_id=str(uid),
-                        created_by=created_by_user,
-                    )
-                )
+                if data.get("title") or data.get("scheduler_name"):
+                    new_title = (data.get("scheduler_name") or data.get("title") or "").strip()
+                    if new_title:
+                        schedule.title = new_title
+                raw_start = data.get("start_time") or data.get("start_date") or data.get("exam_date")
+                if raw_start:
+                    try:
+                        s_str = str(raw_start).strip().replace("Z", "+00:00")
+                        if len(s_str) == 10 and "-" in s_str:
+                            s_str += "T09:00:00"
+                        schedule.start_time = datetime.datetime.fromisoformat(s_str)
+                        if schedule.duration_mins:
+                            schedule.end_time = schedule.start_time + datetime.timedelta(minutes=int(schedule.duration_mins))
+                    except Exception:
+                        pass
 
-        # Update schedule details if provided
-        if data.get("title") or data.get("scheduler_name"):
-            new_title = (data.get("scheduler_name") or data.get("title") or "").strip()
-            if new_title:
-                schedule.title = new_title
-        raw_start = data.get("start_time") or data.get("start_date") or data.get("exam_date")
-        if raw_start:
+        if has_review_update:
+            previous_manual = bool(getattr(schedule, "manual_review_enabled", False))
+            previous_mode = getattr(schedule, "review_mode", None) or ("instant" if getattr(schedule, "user_review", 0) == 1 else "no_review")
+            previous_review_at = getattr(schedule, "review_at", None)
+            previous_review_end_at = getattr(schedule, "review_end_at", None)
+
+            defaults = {
+                "instant_review": getattr(schedule, "user_review", 0) == 1,
+                "review_mode": previous_mode,
+                "review_at": previous_review_at,
+                "review_end_at": previous_review_end_at,
+                "multiple_review": bool(getattr(schedule, "multiple_review", False)),
+                "manual_review_enabled": previous_manual,
+            }
             try:
-                s_str = str(raw_start).strip().replace("Z", "+00:00")
-                if len(s_str) == 10 and "-" in s_str:
-                    s_str += "T09:00:00"
-                schedule.start_time = datetime.datetime.fromisoformat(s_str)
-                if schedule.duration_mins:
-                    schedule.end_time = schedule.start_time + datetime.timedelta(minutes=int(schedule.duration_mins))
-            except Exception:
-                pass
+                review_cfg = _extract_paper_review_payload(data, defaults)
+            except ValueError as rv_err:
+                session.rollback()
+                session.close()
+                return {"statusMessage": str(rv_err), "status": False}, 400
 
+            schedule.user_review = review_cfg["user_review"]
+            schedule.multiple_review = review_cfg["multiple_review"]
+            schedule.review_mode = review_cfg["review_mode"]
+            schedule.manual_review_enabled = review_cfg["manual_review_enabled"]
+            schedule.review_at = review_cfg["review_at"]
+            schedule.review_end_at = review_cfg["review_end_at"]
+
+            # Mirror Online Test: fresh single-time opening when admin turns manual review ON
+            # or configures/updates a scheduled review window.
+            access_just_enabled = (
+                schedule.review_mode in ("manual", "no_review")
+                and bool(schedule.manual_review_enabled)
+                and not previous_manual
+                and not bool(schedule.multiple_review)
+            )
+            scheduled_review_changed = (
+                schedule.review_mode == "scheduled"
+                and not bool(schedule.multiple_review)
+                and (
+                    previous_mode != "scheduled"
+                    or previous_review_at != schedule.review_at
+                    or previous_review_end_at != schedule.review_end_at
+                )
+            )
+            if access_just_enabled or scheduled_review_changed:
+                session.query(Exam_Attempt).filter(
+                    func.cast(Exam_Attempt.schedule_id, String) == schedule_id,
+                    Exam_Attempt.status == "evaluated",
+                ).update({Exam_Attempt.review_opened_at: None}, synchronize_session=False)
+
+        if current_user and getattr(current_user, "user_id", None):
+            schedule.updated_by = str(current_user.user_id)
         schedule.updated_date = datetime.datetime.utcnow()
         session.commit()
         session.close()
@@ -904,6 +1044,121 @@ def update_paper_schedule(request, current_user=None):
     except Exception as e:
         session.rollback()
         session.close()
-        return {"status": False, "statusMessage": f"Failed to update assigned students: {str(e)}"}, 500
+        return {"status": False, "statusMessage": f"Failed to update paper schedule: {str(e)}"}, 500
+
+
+def get_user_paper_results(request, current_user=None):
+    """
+    Returns the list of attended & evaluated PaperSchedule tests for a student,
+    computing review availability using the exact same rules as Online Test (ExamSchedule).
+    """
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    _ensure_paper_schedule_tables(session)
+
+    try:
+        args = getattr(request, "args", {}) or {}
+        req_user_id = args.get("user_id")
+        current_role = str(getattr(current_user, "user_role", "") or "").lower() if current_user else ""
+        is_student = current_role in ("user", "student", "learner", "candidate")
+        if is_student and current_user and getattr(current_user, "user_id", None):
+            user_id = str(current_user.user_id)
+        else:
+            user_id = str(req_user_id or (getattr(current_user, "user_id", "") if current_user else "")).strip()
+
+        if not user_id:
+            session.close()
+            return {"statusMessage": "user_id is required", "status": False}, 400
+
+        # Find attempts belonging to this user on PaperSchedules
+        user_attempts = (
+            session.query(Exam_Attempt)
+            .filter(func.cast(Exam_Attempt.user_id, String) == user_id)
+            .order_by(Exam_Attempt.submitted_date.desc(), Exam_Attempt.started_date.desc())
+            .all()
+        )
+        attempts_by_sched = {}
+        for att in user_attempts:
+            if att.schedule_id:
+                attempts_by_sched.setdefault(str(att.schedule_id), []).append(att)
+
+        if not attempts_by_sched:
+            session.close()
+            return {"status": True, "statusMessage": "No attended paper tests found", "data": []}, 200
+
+        candidate_sched_ids = list(attempts_by_sched.keys())
+        paper_schedules = (
+            session.query(PaperSchedule)
+            .filter(
+                func.cast(PaperSchedule.schedule_id, String).in_(candidate_sched_ids),
+                PaperSchedule.published == 1,
+                or_(PaperSchedule.is_deleted == False, PaperSchedule.is_deleted.is_(None), PaperSchedule.is_deleted == 0),
+            )
+            .order_by(PaperSchedule.created_date.desc())
+            .all()
+        )
+
+        now = datetime.datetime.utcnow()
+        results = []
+        for ps in paper_schedules:
+            sid_str = str(ps.schedule_id)
+            att_list = attempts_by_sched.get(sid_str, [])
+            evaluated_attempts = [a for a in att_list if str(getattr(a, "status", "")).lower() == "evaluated"]
+            # Only list tests the student has attended & evaluated (or submitted)
+            if not evaluated_attempts:
+                continue
+
+            evaluated_attempts.sort(key=lambda a: getattr(a, "attempt_number", 0) or 0)
+            target_attempt = evaluated_attempts[-1]
+
+            review_mode = getattr(ps, "review_mode", None) or ("instant" if getattr(ps, "user_review", 0) == 1 else "no_review")
+            multiple_review = bool(getattr(ps, "multiple_review", False))
+            manual_review_enabled = bool(getattr(ps, "manual_review_enabled", False))
+            review_at = getattr(ps, "review_at", None)
+            review_end_at = getattr(ps, "review_end_at", None)
+
+            review_allowed = False
+            if review_mode == "instant":
+                review_allowed = True
+            elif review_mode == "scheduled":
+                review_allowed = bool(
+                    review_at and now >= review_at and (not review_end_at or now <= review_end_at)
+                )
+            elif review_mode in ("manual", "no_review"):
+                review_allowed = manual_review_enabled
+
+            unreviewed = [a for a in evaluated_attempts if not getattr(a, "review_opened_at", None)]
+            already_consumed = (not multiple_review) and len(unreviewed) == 0
+            review_available = bool(review_allowed and not already_consumed)
+
+            results.append({
+                "schedule_id": sid_str,
+                "test_id": sid_str,
+                "exam_id": str(ps.exam_id),
+                "title": ps.title,
+                "attempt_id": str(target_attempt.attempt_id),
+                "review_attempt_id": str(unreviewed[-1].attempt_id if (not multiple_review and unreviewed) else target_attempt.attempt_id),
+                "review_mode": review_mode,
+                "multiple_review": multiple_review,
+                "manual_review_enabled": manual_review_enabled,
+                "review_at": _format_utc_iso(review_at),
+                "review_end_at": _format_utc_iso(review_end_at),
+                "user_review": review_available,
+                "review_available": review_available,
+                "review_consumed": already_consumed,
+                "submitted_date": _format_utc_iso(getattr(target_attempt, "submitted_date", None)),
+                "created_date": _format_utc_iso(getattr(ps, "created_date", None)),
+            })
+
+        session.close()
+        return {"status": True, "statusMessage": "Paper test results retrieved successfully", "data": results}, 200
+
+    except Exception as e:
+        session.close()
+        print(f"Error in get_user_paper_results: {e}", flush=True)
+        return {"status": False, "statusMessage": f"Failed to retrieve paper test results: {str(e)}"}, 500
 
 

@@ -247,6 +247,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   searchQuery = '';
   selectedStatus = 'All statuses';
   statusList = ['All statuses', 'AI Evaluated', 'Manual Reviewed', 'Need to Check', 'Not Evaluated'];
+  isStudentReadOnly = false;
+  studentReviewError = '';
 
   // Test KPI Summary Data
   testDetails = {
@@ -375,17 +377,39 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.pageMeta.setMeta('Test Evaluation');
+    const routeStudentOnly = Boolean(this.route?.snapshot?.data?.['studentReadOnly']);
+    const currentUser = this.auth.currentUserValue || JSON.parse(sessionStorage.getItem('user') || '{}');
+    const currentRole = String(currentUser?.role || currentUser?.user_role || sessionStorage.getItem('userRole') || '').toLowerCase();
+    const isStudentRole = ['user', 'candidate', 'student', 'learner'].includes(currentRole);
+    this.isStudentReadOnly = routeStudentOnly || isStudentRole || this.route?.snapshot?.queryParams?.['student_review'] === 'true';
+
+    // Check query params if navigated from exam-reports or student Paper Test Results
+    const qExamId = this.route?.snapshot?.queryParams?.['exam_id'] || this.route?.snapshot?.queryParams?.['schedule_id'];
+    const qUserId = this.route?.snapshot?.queryParams?.['user_id'] || this.route?.snapshot?.queryParams?.['student_id'];
+    const qAttemptId = this.route?.snapshot?.queryParams?.['attempt_id'] || '';
+    const qFromReport = this.route?.snapshot?.queryParams?.['from_report'];
+    const qOpenSheet = this.route?.snapshot?.queryParams?.['open_sheet'];
+
+    if (this.isStudentReadOnly) {
+      this.pageMeta.setMeta('Paper Test Review');
+      this.isOpenedFromReport = true;
+      this.currentView = 'evaluate';
+      const selfUserId = String(currentUser?.user_id || currentUser?.id || qUserId || '');
+      if (qExamId || qAttemptId) {
+        this.selectedExamId = String(qExamId || '');
+        this.loadEvaluationDetails(String(qExamId || ''), selfUserId, String(qAttemptId || ''));
+      } else {
+        this.studentReviewError = 'Missing test identifier for review.';
+      }
+      return;
+    }
+
     const savedJobId = sessionStorage.getItem('activeBulkJobId');
     if (savedJobId) {
       this.activeBulkJobId = savedJobId;
     }
     this.loadAIConfidenceThreshold();
 
-    // Check query params if navigated from exam-reports
-    const qExamId = this.route?.snapshot?.queryParams?.['exam_id'] || this.route?.snapshot?.queryParams?.['schedule_id'];
-    const qUserId = this.route?.snapshot?.queryParams?.['user_id'] || this.route?.snapshot?.queryParams?.['student_id'];
-    const qFromReport = this.route?.snapshot?.queryParams?.['from_report'];
-    const qOpenSheet = this.route?.snapshot?.queryParams?.['open_sheet'];
     if (qFromReport === 'true' || qFromReport === true || qOpenSheet === 'true' || qOpenSheet === true) {
       this.isOpenedFromReport = true;
     }
@@ -413,7 +437,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           this.testDetails = { ...this.testDetails, ...JSON.parse(savedMetaRaw) };
         } catch (e) { }
       }
-      this.loadEvaluationDetails(savedExamId, savedUserId);
+      this.loadEvaluationDetails(savedExamId, savedUserId, String(qAttemptId || ''));
     }
 
     const savedClass = sessionStorage.getItem('test_eval_class');
@@ -1471,6 +1495,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   openConfirmRemoveModal(student: StudentEvaluation, event?: Event): void {
+    if (this.isStudentReadOnly) return;
     if (event) {
       event.stopPropagation();
     }
@@ -1491,6 +1516,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   confirmRemoveUploadedSheet(): void {
+    if (this.isStudentReadOnly) return;
     const student = this.studentToRemove;
     if (!student) return;
 
@@ -1604,9 +1630,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     });
   }
 
-  loadEvaluationDetails(examId: string, userId: string): void {
+  loadEvaluationDetails(examId: string, userId: string, attemptId: string = ''): void {
     this.isLoadingEvaluation = true;
-    const url = `${API_BASE}/test-evaluation/student-evaluation-details?exam_id=${encodeURIComponent(examId)}&user_id=${encodeURIComponent(userId)}`;
+    this.studentReviewError = '';
+    const attemptParam = attemptId ? `&attempt_id=${encodeURIComponent(attemptId)}` : '';
+    const url = `${API_BASE}/test-evaluation/student-evaluation-details?exam_id=${encodeURIComponent(examId)}&user_id=${encodeURIComponent(userId)}${attemptParam}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
         this.isLoadingEvaluation = false;
@@ -1625,13 +1653,17 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             }, 60);
           }
         } else {
-          notify(res?.statusMessage || 'Could not load evaluation details.', 'error');
+          const msg = res?.statusMessage || 'Could not load evaluation details.';
+          if (this.isStudentReadOnly) this.studentReviewError = msg;
+          notify(msg, 'error');
         }
       },
       error: (err) => {
         this.isLoadingEvaluation = false;
         console.error('Failed to load evaluation details:', err);
-        notify(err?.error?.statusMessage || 'Failed to load evaluation details.', 'error');
+        const msg = err?.error?.statusMessage || 'Failed to load evaluation details.';
+        if (this.isStudentReadOnly) this.studentReviewError = msg;
+        notify(msg, 'error');
       }
     });
   }
@@ -2076,8 +2108,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   // ─── Teacher Mark Override Handlers ───
   startEditMarks(q: any): void {
-  if (this.evaluationPages.length === 0) {
-    return; // Block opening the marks editor if no answer sheet is uploaded
+  if (this.isStudentReadOnly || this.evaluationPages.length === 0) {
+    return; // Block opening the marks editor in student read-only mode or if no sheet is uploaded
   }
   q._editingMarks = true;
   q._editedMarks = q.marks_awarded != null ? q.marks_awarded : 0;
@@ -2091,6 +2123,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   saveMarks(q: any): void {
+    if (this.isStudentReadOnly) return;
     if (!q._marksEditReason || !q._marksEditReason.trim()) {
       q._marksReasonError = true;
       return;
@@ -2161,6 +2194,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   // ─── Rubric Comment Handlers ───
   startEditComment(comment: any): void {
+    if (this.isStudentReadOnly) return;
     comment._editing = true;
     comment._editedText = comment.comment_text;
   }
@@ -2170,6 +2204,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   saveReviewComment(comment: any): void {
+    if (this.isStudentReadOnly) return;
     if (!comment._editedText || !comment._editedText.trim()) return;
 
     const payload = {
@@ -2214,6 +2249,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   confirmDeleteComment(comment: any, q: any): void {
+    if (this.isStudentReadOnly) return;
     const payload = {
       comment_id: comment.comment_id,
       action: 'delete'
@@ -2311,6 +2347,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   openAttachModal(student?: StudentEvaluation): void {
+    if (this.isStudentReadOnly) return;
     this.selectedStudentForAttach = student || this.evaluatingStudent || null;
     this.isAttachModalOpen = true;
     this.selectedFilesList = [];
@@ -2546,6 +2583,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   // ─── Scan Answer Sheet Modal Handlers (Production-Ready) ───
   openScanModal(student?: StudentEvaluation): void {
+    if (this.isStudentReadOnly) return;
     this.selectedStudentForScan = student || this.students[0] || null;
     this.isScanModalOpen = true;
     this.cameraError = '';
