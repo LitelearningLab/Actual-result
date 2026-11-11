@@ -83,8 +83,8 @@
                         </div>
                     </div>
 
-                    <!-- Row 2: Schedule Name + Exam Date + Pass Percentage -->
-                    <div class="fields-row fields-row--3" style="margin-top: 16px; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px;">
+                    <!-- Row 2: Schedule Name (Auto-written) + Exam Date (Optional) -->
+                    <div class="fields-row fields-row--2" style="margin-top: 16px;">
                         <!-- Schedule Name -->
                         <div class="field-group">
                             <label class="field-label">Schedule name <span class="req">*</span></label>
@@ -106,20 +106,6 @@
                                 <input class="qp-input date-input" type="date" [(ngModel)]="examDate"
                                     (ngModelChange)="markDirty()" [disabled]="readOnly || isPublished" placeholder="dd-mm-yyyy" />
                             </div>
-                        </div>
-
-                        <!-- Pass Percentage (%) -->
-                        <div class="field-group">
-                            <label class="field-label">Pass Percentage (%)</label>
-                            <input class="qp-input" type="number"
-                                [(ngModel)]="passMark"
-                                (input)="onPassMarkInput($event)"
-                                (ngModelChange)="markDirty()"
-                                [disabled]="readOnly || isPublished"
-                                placeholder="50" min="0" max="100" />
-                            <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
-                                Minimum % required to pass.
-                            </span>
                         </div>
                     </div>
                 </div>
