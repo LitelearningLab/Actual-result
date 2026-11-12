@@ -1,4 +1,31 @@
 # Changelog
+## [2.4.0] - 2026-11-12
+
+### Features & Enhancements
+- **Student Paper Test Results & Read-Only Review**:
+  - Added `PaperTestResultsComponent`, `/user/paper-test-results` and `/user/paper-review` routes (`home-routing.module.ts`), and sidebar navigation entry (`side-nav.component.ts`).
+  - Added `/get-user-paper-results` backend endpoint (`backend/app.py`) backed by `get_user_paper_results` in `backend/others/paper_schedules.py`.
+  - Added student read-only mode (`isStudentReadOnly`) and pass/fail evaluation helpers (`effectivePassMark`, `isStudentPassed`) in `test-evaluation.component.ts`, blocking mark overrides, comment edits/deletes, and sheet uploads for students.
+  - Added `ConfirmOneTimeReviewDialogComponent` in `test-review-modal.component.ts`.
+- **Paper Schedule Review Access Controls**:
+  - Extended `PaperSchedule` (`backend/db/models.py`) with `user_review`, `multiple_review`, `review_mode`, `manual_review_enabled`, `review_at`, and `review_end_at`.
+  - Added `PaperReviewAccessDialogComponent`, manual review toggle/summary columns in `question-paper.component.ts`, and paper schedule review enforcement in `backend/others/exam_review.py`.
+- **Admin Exam Reports (Online & Paper Tests)**:
+  - Added Online vs. Paper test reporting mode, paper subject/schedule filters, analytics, user reports, and direct sheet evaluation navigation in `exam-reports.component.ts` and `backend/others/exam_reports.py`.
+- **Login UI & Layout**:
+  - Redesigned `login.component.html` and `login.component.scss` with updated brand panel pillars, card styling, and removal of the demo registration link.
+  - Updated `checkIsAuthRoute` in `app.component.ts` to hide navigation chrome for `/user/paper-review` and report-opened evaluation sheets.
+
+### Bug Fixes & Security
+- **Schedule-Scoped Evaluation & Bulk Uploads**:
+  - Propagated `schedule_id` across `/test-evaluation/bulk-evaluate-async` (`backend/app.py`), `BulkEvaluationManager` (`backend/others/bulk_eval_manager.py`), `backend/others/exams.py`, and `test-evaluation.component.ts` to prevent cross-schedule attempt and page collisions.
+- **Student Evaluation Access Guard**:
+  - Updated `/test-evaluation/student-evaluation-details` from `@admin_required` to `@jwt_required` (`backend/app.py`) with student ownership enforcement in `get_student_evaluation_details` (`backend/others/exams.py`).
+- **Empty Schedule Handling**:
+  - Updated `get_exam_schedule_details` in `backend/others/examschedule.py` to return HTTP `200` with an empty list instead of `404` when no schedules exist.
+- **Version Tracking**: Updated application version to `2.4.0` across `version.ts`, `package.json`, and lockfiles.
+
+---
 ## [2.3.5] - 2026-11-09
 
 ### Features & Enhancements
