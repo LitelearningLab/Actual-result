@@ -1,4 +1,23 @@
 # Changelog
+## [2.4.1] - 2026-11-12
+
+### Features & Enhancements
+- **Test Evaluation UI & Tooltip Styling**:
+  - Refined filter handling (`isFilterSelected`) and evaluation layout/styling in `test-evaluation.component.ts`, `test-evaluation.component.html`, and `test-evaluation.component.scss`.
+  - Added global `.ai-confidence-tooltip` styling in `frontend/edu-UI/src/styles.scss`.
+- **Question Paper & Paper Results Styling**:
+  - Updated layout and styling in `question-paper.component.scss` / `question-paper.component.html` and left-aligned `.cell-primary` in `paper-test-results.component.scss`.
+
+### Bug Fixes & Security
+- **Student Review Gate Enforcement**:
+  - Propagated `student_review=1` from `test-evaluation.component.ts` and enforced the review access gate in `get_student_evaluation_details` (`backend/others/exams.py`).
+  - Updated `paper-test-results.component.ts` and `ConfirmOneTimeReviewDialogComponent` (`test-review-modal.component.ts`) to pass `reviewMode` and prompt one-time review confirmation for `instant` review mode.
+- **Login UI & Autofill Prevention**:
+  - Removed the "Forgot password?" link from `login.component.html`.
+  - Disabled browser autofill on `login.component.html` and `login.component.ts` using `autocomplete="off"` / `new-password` and focus-unlocked `readonly` fields (`emailReadonly`, `passwordReadonly`).
+- **Version Tracking**: Updated application version to `2.4.1` across `version.ts`, `package.json`, and lockfiles.
+
+---
 ## [2.4.0] - 2026-11-12
 
 ### Features & Enhancements
