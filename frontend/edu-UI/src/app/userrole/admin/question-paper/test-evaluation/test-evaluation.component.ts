@@ -230,9 +230,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   // ─── Filter Selectors State ───
-  selectedClass = 'ALL';
-  selectedSection = 'ALL';
-  selectedSubject = 'ALL';
+  selectedClass = '';
+  selectedSection = '';
+  selectedSubject = '';
   selectedExamId = '';
 
   classList: Array<{ id: string; name: string }> = [];
@@ -443,9 +443,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const savedClass = sessionStorage.getItem('test_eval_class');
     const savedSection = sessionStorage.getItem('test_eval_section');
     const savedSubject = sessionStorage.getItem('test_eval_subject');
-    if (savedClass) this.selectedClass = savedClass;
-    if (savedSection) this.selectedSection = savedSection;
-    if (savedSubject) this.selectedSubject = savedSubject;
+    if (savedClass && savedClass !== 'ALL') this.selectedClass = savedClass;
+    if (savedSection && savedSection !== 'ALL') this.selectedSection = savedSection;
+    if (savedSubject && savedSubject !== 'ALL') this.selectedSubject = savedSubject;
 
     this.initFilterCascade();
   }
@@ -584,9 +584,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     sessionStorage.removeItem('test_eval_class');
     sessionStorage.removeItem('test_eval_section');
     sessionStorage.removeItem('test_eval_subject');
-    this.selectedClass = 'ALL';
-    this.selectedSection = 'ALL';
-    this.selectedSubject = 'ALL';
+    this.selectedClass = '';
+    this.selectedSection = '';
+    this.selectedSubject = '';
     this.selectedExamId = '';
     this.searchQuery = '';
     this.selectedStatus = 'All statuses';
@@ -622,13 +622,13 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     sessionStorage.removeItem('test_eval_class');
     sessionStorage.removeItem('test_eval_section');
     sessionStorage.removeItem('test_eval_subject');
-    this.selectedClass = 'ALL';
-    this.selectedSection = 'ALL';
-    this.selectedSubject = 'ALL';
+    this.selectedClass = '';
+    this.selectedSection = '';
+    this.selectedSubject = '';
     this.selectedExamId = '';
-    this.classList = [{ id: 'ALL', name: `All ${this.terminology.deptPlural}` }];
-    this.sectionList = [{ id: 'ALL', name: `All ${this.terminology.teamPlural}` }];
-    this.subjectList = [{ id: 'ALL', name: 'All Subjects' }];
+    this.classList = [];
+    this.sectionList = [];
+    this.subjectList = [];
     this.testList = [];
     this.allPublishedExams = [];
     this.allInstituteTeams = [];
@@ -697,9 +697,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     if (!isEvaluating && !hasActiveExam) {
       // Reset all dependent filters when manually switching institute in list mode
-      this.selectedClass = 'ALL';
-      this.selectedSection = 'ALL';
-      this.selectedSubject = 'ALL';
+      this.selectedClass = '';
+      this.selectedSection = '';
+      this.selectedSubject = '';
       this.selectedExamId = '';
       sessionStorage.removeItem('test_eval_class');
       sessionStorage.removeItem('test_eval_section');
@@ -772,7 +772,40 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }
   }
 
+  private isFilterSelected(value: string | null | undefined): boolean {
+    return !!value && value !== 'ALL';
+  }
+
+  private areMandatoryFiltersSelected(): boolean {
+    return (
+      (!this.isSuperAdmin || !!this.selectedInstitute) &&
+      this.isFilterSelected(this.selectedClass) &&
+      this.isFilterSelected(this.selectedSection) &&
+      this.isFilterSelected(this.selectedSubject)
+    );
+  }
+
   applyFiltersPanel(): void {
+    if (this.isSuperAdmin && !this.selectedInstitute) {
+      notify('Please select an Institute.', 'error');
+      return;
+    }
+    if (!this.isFilterSelected(this.selectedClass)) {
+      notify(`Please select a ${this.terminology.deptLabel}.`, 'error');
+      return;
+    }
+    if (!this.isFilterSelected(this.selectedSection)) {
+      notify(`Please select a ${this.terminology.teamLabel}.`, 'error');
+      return;
+    }
+    if (!this.isFilterSelected(this.selectedSubject)) {
+      notify('Please select a Subject.', 'error');
+      return;
+    }
+    if (!this.selectedExamId) {
+      notify('Please select a Test.', 'error');
+      return;
+    }
     this.closeFiltersOverlay();
     this.applyExamFilters();
     this.filterStudents();
@@ -807,22 +840,39 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         break;
       case 'class':
       case 'department':
-        this.selectedClass = 'ALL';
+        this.selectedClass = '';
+        this.selectedSection = '';
+        this.selectedExamId = '';
         sessionStorage.removeItem('test_eval_class');
+        sessionStorage.removeItem('test_eval_section');
+        sessionStorage.removeItem('test_eval_exam_id');
+        sessionStorage.removeItem('test_eval_user_id');
+        sessionStorage.removeItem('test_eval_student');
+        sessionStorage.removeItem('test_eval_meta');
         this.filterSectionList();
         this.applyExamFilters();
         this.filterStudents();
         break;
       case 'section':
       case 'team':
-        this.selectedSection = 'ALL';
+        this.selectedSection = '';
+        this.selectedExamId = '';
         sessionStorage.removeItem('test_eval_section');
+        sessionStorage.removeItem('test_eval_exam_id');
+        sessionStorage.removeItem('test_eval_user_id');
+        sessionStorage.removeItem('test_eval_student');
+        sessionStorage.removeItem('test_eval_meta');
         this.applyExamFilters();
         this.filterStudents();
         break;
       case 'subject':
-        this.selectedSubject = 'ALL';
+        this.selectedSubject = '';
+        this.selectedExamId = '';
         sessionStorage.removeItem('test_eval_subject');
+        sessionStorage.removeItem('test_eval_exam_id');
+        sessionStorage.removeItem('test_eval_user_id');
+        sessionStorage.removeItem('test_eval_student');
+        sessionStorage.removeItem('test_eval_meta');
         this.applyExamFilters();
         this.filterStudents();
         break;
@@ -854,18 +904,15 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       next: (res) => {
         const raw = res?.data || res || [];
         const items = Array.isArray(raw) ? raw : [];
-        this.classList = [
-          { id: 'ALL', name: `All ${this.terminology.deptPlural}` },
-          ...items.map((d: any) => ({
-            id: String(d.department_id || d.id || d.dept_id || d.name || ''),
-            name: String(d.name || d.department_name || d.department || d || '')
-          })).filter((x: any) => !!x.name)
-        ];
+        this.classList = items.map((d: any) => ({
+          id: String(d.department_id || d.id || d.dept_id || d.name || ''),
+          name: String(d.name || d.department_name || d.department || d || '')
+        })).filter((x: any) => !!x.name);
         this.filterSectionList();
       },
       error: (err) => {
         console.error('Failed to load departments/classes:', err);
-        this.classList = [{ id: 'ALL', name: `All ${this.terminology.deptPlural}` }];
+        this.classList = [];
       }
     });
   }
@@ -887,7 +934,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Failed to load teams/sections:', err);
         this.allInstituteTeams = [];
-        this.sectionList = [{ id: 'ALL', name: `All ${this.terminology.teamPlural}` }];
+        this.sectionList = [];
       }
     });
   }
@@ -898,59 +945,43 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       next: (res) => {
         const raw = res?.data || res || [];
         const items = Array.isArray(raw) ? raw : [];
-        this.subjectList = [
-          { id: 'ALL', name: 'All Subjects' },
-          ...items.map((s: any) => ({
-            id: String(s.subject_id || s.id || s.subjectId || s.name || ''),
-            name: String(s.subject_name || s.name || s.title || s || '')
-          })).filter((x: any) => !!x.name)
-        ];
+        this.subjectList = items.map((s: any) => ({
+          id: String(s.subject_id || s.id || s.subjectId || s.name || ''),
+          name: String(s.subject_name || s.name || s.title || s || '')
+        })).filter((x: any) => !!x.name);
       },
       error: (err) => {
         console.error('Failed to load subjects:', err);
-        this.subjectList = [{ id: 'ALL', name: 'All Subjects' }];
+        this.subjectList = [];
       }
     });
   }
 
   filterSectionList(): void {
-    if (!this.selectedClass || this.selectedClass === 'ALL') {
-      // Show unique section options when All Classes is selected
-      const seen = new Set<string>();
-      const uniqueList: Array<{ id: string; name: string }> = [];
-      for (const t of this.allInstituteTeams) {
-        if (!seen.has(t.id)) {
-          seen.add(t.id);
-          uniqueList.push({ id: t.id, name: t.name });
-        }
-      }
-      this.sectionList = [
-        { id: 'ALL', name: `All ${this.terminology.teamPlural}` },
-        ...uniqueList
-      ];
-    } else {
-      // Find matching class name if department_name is used
-      const selectedClassObj = this.classList.find(c => String(c.id) === String(this.selectedClass));
-      const selectedClassName = (selectedClassObj?.name || '').toLowerCase().trim();
-
-      const filtered = this.allInstituteTeams.filter((t) => {
-        const teamDeptId = t.department_id ? String(t.department_id) : '';
-        const teamDeptName = t.department_name ? t.department_name.toLowerCase().trim() : '';
-
-        if (teamDeptId && teamDeptId === String(this.selectedClass)) return true;
-        if (selectedClassName && teamDeptName && teamDeptName === selectedClassName) return true;
-        return false;
-      });
-
-      this.sectionList = [
-        { id: 'ALL', name: `All ${this.terminology.teamPlural}` },
-        ...filtered.map(t => ({ id: t.id, name: t.name }))
-      ];
+    if (!this.isFilterSelected(this.selectedClass)) {
+      this.sectionList = [];
+      this.selectedSection = '';
+      return;
     }
 
-    // If current selectedSection is no longer in sectionList, reset to 'ALL'
-    if (this.selectedSection !== 'ALL' && !this.sectionList.some(s => s.id === this.selectedSection)) {
-      this.selectedSection = 'ALL';
+    // Find matching class name if department_name is used
+    const selectedClassObj = this.classList.find(c => String(c.id) === String(this.selectedClass));
+    const selectedClassName = (selectedClassObj?.name || '').toLowerCase().trim();
+
+    const filtered = this.allInstituteTeams.filter((t) => {
+      const teamDeptId = t.department_id ? String(t.department_id) : '';
+      const teamDeptName = t.department_name ? t.department_name.toLowerCase().trim() : '';
+
+      if (teamDeptId && teamDeptId === String(this.selectedClass)) return true;
+      if (selectedClassName && teamDeptName && teamDeptName === selectedClassName) return true;
+      return false;
+    });
+
+    this.sectionList = filtered.map(t => ({ id: t.id, name: t.name }));
+
+    // If current selectedSection is no longer in sectionList (once departments are loaded), reset to ''
+    if (this.classList.length > 0 && this.selectedSection && !this.sectionList.some(s => s.id === this.selectedSection)) {
+      this.selectedSection = '';
     }
   }
 
@@ -1017,42 +1048,60 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   onClassChange(classId: string): void {
     this.selectedClass = classId;
-    if (classId && classId !== 'ALL') {
+    if (this.isFilterSelected(classId)) {
       sessionStorage.setItem('test_eval_class', classId);
     } else {
       sessionStorage.removeItem('test_eval_class');
     }
-    this.selectedSection = 'ALL';
+    this.selectedSection = '';
+    this.selectedExamId = '';
     sessionStorage.removeItem('test_eval_section');
+    sessionStorage.removeItem('test_eval_exam_id');
     this.filterSectionList();
     this.applyExamFilters();
   }
 
   onSectionChange(sectionId: string): void {
     this.selectedSection = sectionId;
-    if (sectionId && sectionId !== 'ALL') {
+    if (this.isFilterSelected(sectionId)) {
       sessionStorage.setItem('test_eval_section', sectionId);
     } else {
       sessionStorage.removeItem('test_eval_section');
     }
+    this.selectedExamId = '';
+    sessionStorage.removeItem('test_eval_exam_id');
     this.applyExamFilters();
   }
 
   onSubjectChange(subjectId: string): void {
     this.selectedSubject = subjectId;
-    if (subjectId && subjectId !== 'ALL') {
+    if (this.isFilterSelected(subjectId)) {
       sessionStorage.setItem('test_eval_subject', subjectId);
     } else {
       sessionStorage.removeItem('test_eval_subject');
     }
+    this.selectedExamId = '';
+    sessionStorage.removeItem('test_eval_exam_id');
     this.applyExamFilters();
   }
 
   applyExamFilters(): void {
+    if (!this.areMandatoryFiltersSelected()) {
+      this.testList = [];
+      if (this.currentView !== 'evaluate' && !(typeof sessionStorage !== 'undefined' && sessionStorage.getItem('test_eval_user_id'))) {
+        this.selectedExamId = '';
+        this.students = [];
+        this.filteredStudents = [];
+        this.resetTestDetails();
+        this.recalculateKpiTotals();
+      }
+      return;
+    }
+
     let filtered = [...this.allPublishedExams];
 
     // Filter by Class / Department
-    if (this.selectedClass && this.selectedClass !== 'ALL') {
+    if (this.isFilterSelected(this.selectedClass)) {
       filtered = filtered.filter((e) => {
         const depts = (e.departments || []).map((d: any) => String(d));
         return depts.includes(String(this.selectedClass));
@@ -1060,7 +1109,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }
 
     // Filter by Section / Team
-    if (this.selectedSection && this.selectedSection !== 'ALL') {
+    if (this.isFilterSelected(this.selectedSection)) {
       filtered = filtered.filter((e) => {
         const teams = (e.teams || []).map((t: any) => String(t));
         return teams.includes(String(this.selectedSection));
@@ -1068,7 +1117,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }
 
     // Filter by Subject
-    if (this.selectedSubject && this.selectedSubject !== 'ALL') {
+    if (this.isFilterSelected(this.selectedSubject)) {
       filtered = filtered.filter((e) => {
         return (
           String(e.subject_id) === String(this.selectedSubject) ||
