@@ -416,7 +416,6 @@
                                     [matTooltip]="isManualReview(e) ? 'Toggle student result review access' : ('Review mode: ' + getReviewSummaryLabel(e))">
                                     <span class="toggle-thumb" [attr.data-state]="e.manual_review_enabled ? 'checked' : 'unchecked'"></span>
                                 </button>
-                                <span class="review-mode-sub">{{ getReviewSummaryLabel(e) }}</span>
                             </div>
                         </td>
                     </ng-container>
