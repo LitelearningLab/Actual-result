@@ -1,10 +1,10 @@
-import { Component, EventEmitter, HostListener, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Inject, Optional, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import * as XLSX from 'xlsx';
 import * as docx from 'docx-preview';
@@ -36,8 +36,10 @@ export interface ReviewTargetRow {
       <div class="dialog-icon" aria-hidden="true">
         <mat-icon>visibility</mat-icon>
       </div>
-      <h2>One-time Review</h2>
-      <p class="dialog-message">This test allows a single-time review.</p>
+      <h2>{{ isInstantReview ? 'One-time Instant Review' : 'One-time Review' }}</h2>
+      <p class="dialog-message">
+        {{ isInstantReview ? 'This test uses Instant Review.' : 'This test allows a single-time review.' }}
+      </p>
       <div class="dialog-warning">
         <mat-icon class="warning-icon">warning_amber</mat-icon>
         <span>You can view this review only once. After you close it, the Review button will no longer be available.</span>
@@ -172,7 +174,13 @@ export interface ReviewTargetRow {
     `,
   ],
 })
-export class ConfirmOneTimeReviewDialogComponent {}
+export class ConfirmOneTimeReviewDialogComponent {
+  readonly isInstantReview: boolean;
+
+  constructor(@Optional() @Inject(MAT_DIALOG_DATA) data?: { reviewMode?: string }) {
+    this.isInstantReview = String(data?.reviewMode || '').toLowerCase() === 'instant';
+  }
+}
 
 @Component({
   selector: 'app-test-review-modal',
@@ -205,6 +213,7 @@ export class TestReviewModalComponent {
 
   private currentReviewRow: ReviewTargetRow | null = null;
   private currentReviewAttemptNo: number | null = null;
+  private currentReviewIsAdmin = false;
 
   constructor(private http: HttpClient, private dialog: MatDialog) {}
 
@@ -252,9 +261,9 @@ export class TestReviewModalComponent {
   openReview(row: ReviewTargetRow, options?: { isAdminUser?: boolean }): void {
     this.currentReviewRow = row;
     this.currentReviewAttemptNo = row.target_attempt_number || null;
-    const isAdminUser = Boolean(options?.isAdminUser);
+    this.currentReviewIsAdmin = Boolean(options?.isAdminUser);
 
-    if (!isAdminUser && !this.isMultipleReviewEnabled(row)) {
+    if (!this.currentReviewIsAdmin && !this.isMultipleReviewEnabled(row)) {
       this.dialog
         .open(ConfirmOneTimeReviewDialogComponent, {
           width: '32.8rem',
@@ -262,6 +271,7 @@ export class TestReviewModalComponent {
           autoFocus: false,
           restoreFocus: true,
           disableClose: true,
+          data: { reviewMode: row.review_mode || '' },
         })
         .afterClosed()
         .subscribe((confirmed: boolean) => {
@@ -425,7 +435,7 @@ export class TestReviewModalComponent {
             };
           });
 
-          if (!this.isMultipleReviewEnabled(row)) {
+          if (!this.currentReviewIsAdmin && !this.isMultipleReviewEnabled(row)) {
             const effectiveAttNo =
               row.target_attempt_number ||
               this.currentReviewAttemptNo ||
@@ -451,7 +461,7 @@ export class TestReviewModalComponent {
         try {
           notify(msg, 'error');
         } catch {}
-        if (!this.isMultipleReviewEnabled(row)) {
+        if (!this.currentReviewIsAdmin && !this.isMultipleReviewEnabled(row)) {
           this.reviewConsumed.emit({ row, attemptNumber: row.target_attempt_number || 1 });
         }
         this.reviewLoading = false;
@@ -462,7 +472,11 @@ export class TestReviewModalComponent {
   }
 
   closeReview(): void {
-    if (this.currentReviewRow && !this.isMultipleReviewEnabled(this.currentReviewRow)) {
+    if (
+      !this.currentReviewIsAdmin &&
+      this.currentReviewRow &&
+      !this.isMultipleReviewEnabled(this.currentReviewRow)
+    ) {
       const effectiveAttNo =
         this.currentReviewRow.target_attempt_number ||
         this.currentReviewAttemptNo ||
@@ -475,6 +489,7 @@ export class TestReviewModalComponent {
     this.reviewSelectedAttempt = 0;
     this.currentReviewRow = null;
     this.currentReviewAttemptNo = null;
+    this.currentReviewIsAdmin = false;
     this.reviewClosed.emit();
   }
 

@@ -4294,6 +4294,9 @@ def get_student_evaluation_details(request, current_user=None):
 
         current_role = str(getattr(current_user, "user_role", "") or "").lower() if current_user else ""
         is_student_request = current_role in ("user", "student", "learner", "candidate")
+        enforce_review_gate = is_student_request or (
+            str(args.get("student_review") or "").strip().lower() in ("1", "true")
+        )
         if is_student_request:
             if not current_user or not getattr(current_user, "user_id", None):
                 session.close()
@@ -4365,7 +4368,7 @@ def get_student_evaluation_details(request, current_user=None):
             )
 
         # Enforce student review access gate (Instant / Scheduled / Manual & Single vs Multiple Review)
-        if is_student_request:
+        if enforce_review_gate:
             from db.models import PaperSchedule
             if not attempt or str(getattr(attempt, "status", "")).lower() != "evaluated":
                 session.close()

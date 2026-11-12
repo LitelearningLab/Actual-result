@@ -1683,7 +1683,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.isLoadingEvaluation = true;
     this.studentReviewError = '';
     const attemptParam = attemptId ? `&attempt_id=${encodeURIComponent(attemptId)}` : '';
-    const url = `${API_BASE}/test-evaluation/student-evaluation-details?exam_id=${encodeURIComponent(examId)}&user_id=${encodeURIComponent(userId)}${attemptParam}`;
+    const studentReviewParam = this.isStudentReadOnly ? '&student_review=1' : '';
+    const url = `${API_BASE}/test-evaluation/student-evaluation-details?exam_id=${encodeURIComponent(examId)}&user_id=${encodeURIComponent(userId)}${attemptParam}${studentReviewParam}`;
     this.http.get<any>(url).subscribe({
       next: (res) => {
         this.isLoadingEvaluation = false;

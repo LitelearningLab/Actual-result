@@ -200,7 +200,10 @@ export class PaperTestResultsComponent implements OnInit, AfterViewInit, OnDestr
     if (event) event.stopPropagation();
     if (!this.canReview(row)) return;
 
-    if (!this.isAdminUser && !row.multiple_review) {
+    if (
+      String(row.review_mode || '').toLowerCase() === 'instant' &&
+      !row.multiple_review
+    ) {
       this.dialog
         .open(ConfirmOneTimeReviewDialogComponent, {
           width: '32.8rem',
@@ -208,6 +211,7 @@ export class PaperTestResultsComponent implements OnInit, AfterViewInit, OnDestr
           autoFocus: false,
           restoreFocus: true,
           disableClose: true,
+          data: { reviewMode: row.review_mode || '' },
         })
         .afterClosed()
         .subscribe((confirmed: boolean) => {
