@@ -24,14 +24,18 @@
                     <mat-icon>refresh</mat-icon>
                     <span>Refresh</span>
                 </button>
-                <button *ngIf="activeTab === 'drafts'" type="button" class="btn-primary-blue" (click)="openCreateQuestionPaper()" aria-label="Create new question paper">
-                    <mat-icon>add</mat-icon>
-                    <span>Create Question Paper</span>
-                </button>
-                <button *ngIf="activeTab === 'published'" type="button" class="btn-primary-blue" (click)="openPublishQuestionPaper()" aria-label="Publish question paper">
-                    <mat-icon>publish</mat-icon>
-                    <span>Publish Question Paper</span>
-                </button>
+                <ng-container *hasAccess="'Paper Question'; action: 'add'">
+                    <button *ngIf="activeTab === 'drafts'" type="button" class="btn-primary-blue" (click)="openCreateQuestionPaper()" aria-label="Create new question paper">
+                        <mat-icon>add</mat-icon>
+                        <span>Create Question Paper</span>
+                    </button>
+                </ng-container>
+                <ng-container *hasAccess="'Paper Question'; action: 'edit'">
+                    <button *ngIf="activeTab === 'published'" type="button" class="btn-primary-blue" (click)="openPublishQuestionPaper()" aria-label="Publish question paper">
+                        <mat-icon>publish</mat-icon>
+                        <span>Publish Question Paper</span>
+                    </button>
+                </ng-container>
             </div>
         </div>
     </div>
@@ -427,44 +431,50 @@
                             <div class="action-btn-group">
                                 <!-- ── Tab 1: Question Papers Actions ── -->
                                 <ng-container *ngIf="activeTab === 'drafts'">
-                                    <button type="button" class="action-btn action-btn-success" *ngIf="getPaperStatus(e) === 'ready_to_publish'" (click)="publishQuestionPaper(e)" matTooltip="Publish Question Paper" aria-label="Publish Question Paper">
-                                        <mat-icon>publish</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="viewQuestionPaper(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
+                                    <ng-container *hasAccess="'Paper Question'; action: 'edit'">
+                                        <button type="button" class="action-btn action-btn-success" *ngIf="getPaperStatus(e) === 'ready_to_publish'" (click)="publishQuestionPaper(e)" matTooltip="Publish Question Paper" aria-label="Publish Question Paper">
+                                            <mat-icon>publish</mat-icon>
+                                        </button>
+                                    </ng-container>
+                                    <button *hasAccess="'Paper Question'; action: 'view'" type="button" class="action-btn action-btn-blue" (click)="viewQuestionPaper(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
                                         <mat-icon>visibility</mat-icon>
                                     </button>
-                                    <button type="button" class="action-btn" *ngIf="isDraft(e)" (click)="onEdit(e)" matTooltip="Edit Draft" aria-label="Edit test">
-                                        <mat-icon>edit</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="downloadQuestionPaper(e)" matTooltip="Download Question Paper" aria-label="Download Question Paper">
+                                    <ng-container *hasAccess="'Paper Question'; action: 'edit'">
+                                        <button type="button" class="action-btn" *ngIf="isDraft(e)" (click)="onEdit(e)" matTooltip="Edit Draft" aria-label="Edit test">
+                                            <mat-icon>edit</mat-icon>
+                                        </button>
+                                    </ng-container>
+                                    <button *hasAccess="'Paper Question'; action: 'view'" type="button" class="action-btn action-btn-blue" (click)="downloadQuestionPaper(e)" matTooltip="Download Question Paper" aria-label="Download Question Paper">
                                         <mat-icon>description</mat-icon>
                                     </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="downloadEvaluationGuide(e)" matTooltip="Download Answer Key" aria-label="Download Answer Key">
+                                    <button *hasAccess="'Paper Question'; action: 'view'" type="button" class="action-btn action-btn-blue" (click)="downloadEvaluationGuide(e)" matTooltip="Download Answer Key" aria-label="Download Answer Key">
                                         <mat-icon>vpn_key</mat-icon>
                                     </button>
-                                    <button type="button" class="action-btn action-btn-danger" (click)="deleteSchedule(e)" matTooltip="Delete" aria-label="Delete test">
+                                    <button *hasAccess="'Paper Question'; action: 'delete'" type="button" class="action-btn action-btn-danger" (click)="deleteSchedule(e)" matTooltip="Delete" aria-label="Delete test">
                                         <mat-icon>delete_outline</mat-icon>
                                     </button>
                                 </ng-container>
 
                                 <!-- ── Tab 2: Published Actions ── -->
                                 <ng-container *ngIf="activeTab === 'published'">
-                                    <button type="button" class="action-btn action-btn-success" (click)="openReviewAccessDialog(e)" matTooltip="Grant / Configure Student Review Access" aria-label="Configure student review access">
+                                    <button *hasAccess="'Paper Question'; action: 'edit'" type="button" class="action-btn action-btn-success" (click)="openReviewAccessDialog(e)" matTooltip="Grant / Configure Student Review Access" aria-label="Configure student review access">
                                         <mat-icon>rule</mat-icon>
                                     </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="viewQuestionPaper(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
+                                    <button *hasAccess="'Paper Question'; action: 'view'" type="button" class="action-btn action-btn-blue" (click)="viewQuestionPaper(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
                                         <mat-icon>visibility</mat-icon>
                                     </button>
-                                    <button type="button" class="action-btn" *ngIf="canEditPublished(e)" (click)="editPublishedSchedule(e)" matTooltip="Edit Assigned Students" aria-label="Edit assigned students">
-                                        <mat-icon>edit</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="downloadQuestionPaper(e)" matTooltip="Download Question Paper" aria-label="Download Question Paper">
+                                    <ng-container *hasAccess="'Paper Question'; action: 'edit'">
+                                        <button type="button" class="action-btn" *ngIf="canEditPublished(e)" (click)="editPublishedSchedule(e)" matTooltip="Edit Assigned Students" aria-label="Edit assigned students">
+                                            <mat-icon>edit</mat-icon>
+                                        </button>
+                                    </ng-container>
+                                    <button *hasAccess="'Paper Question'; action: 'view'" type="button" class="action-btn action-btn-blue" (click)="downloadQuestionPaper(e)" matTooltip="Download Question Paper" aria-label="Download Question Paper">
                                         <mat-icon>description</mat-icon>
                                     </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="downloadEvaluationGuide(e)" matTooltip="Download Answer Key" aria-label="Download Answer Key">
+                                    <button *hasAccess="'Paper Question'; action: 'view'" type="button" class="action-btn action-btn-blue" (click)="downloadEvaluationGuide(e)" matTooltip="Download Answer Key" aria-label="Download Answer Key">
                                         <mat-icon>vpn_key</mat-icon>
                                     </button>
-                                    <button type="button" class="action-btn action-btn-danger" (click)="deleteSchedule(e)" matTooltip="Delete" aria-label="Delete test">
+                                    <button *hasAccess="'Paper Question'; action: 'delete'" type="button" class="action-btn action-btn-danger" (click)="deleteSchedule(e)" matTooltip="Delete" aria-label="Delete test">
                                         <mat-icon>delete_outline</mat-icon>
                                     </button>
                                 </ng-container>

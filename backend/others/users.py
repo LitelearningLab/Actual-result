@@ -14,7 +14,10 @@ PAGE_NAME_MAP = {
     "Exam": "Create/Edit Test",
     "Schedule Exam": "Schedule Test",
     "Schedule": "Schedule Test",
-    "Exam Reports": "Test Reports"
+    "Exam Reports": "Test Reports",
+    "Question Paper": "Paper Question",
+    "Question Papers": "Paper Question",
+    "Create Question Paper": "Paper Question"
 }
 
 REVERSE_PAGE_NAME_MAP = {
@@ -1365,6 +1368,8 @@ def get_user_page_access(user_id):
     session = db.connect()
     if not session:
         return None
+    from masters.others import ensure_paper_question_page
+    ensure_paper_question_page(session)
     #  get details from Page, UserPageAccess
     access_details = session.query(
         Page.page_id,

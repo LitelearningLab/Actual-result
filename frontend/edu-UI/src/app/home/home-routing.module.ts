@@ -49,8 +49,8 @@ const routes: Routes = [
   , { path: 'view-schedule-exam', component: ViewScheduleExamComponent, canActivate: [PermissionGuard], data: { pageName: 'Schedule Exam', action: 'view' } }
   , { path: 'exams', component: AdminExamsComponent, canActivate: [PermissionGuard], data: { pageName: 'Create/Edit Test', action: 'view' } }
   , { path: 'create-exam', component: CreateExamComponent, canActivate: [PermissionGuard], data: { pageName: 'Create/Edit Test', action: 'add' } }
-  , { path: 'question-papers', component: QuestionPaperComponent, canActivate: [PermissionGuard], data: { pageName: 'Create Question Paper', action: 'view', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
-  , { path: 'create-question-paper', component: CreateQuestionPaperComponent, canActivate: [PermissionGuard], canDeactivate: [questionPaperUnsavedChangesGuard], data: { pageName: 'Create Question Paper', action: 'add', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'question-papers', component: QuestionPaperComponent, canActivate: [PermissionGuard], data: { pageName: 'Paper Question', action: 'view' } }
+  , { path: 'create-question-paper', component: CreateQuestionPaperComponent, canActivate: [PermissionGuard], canDeactivate: [questionPaperUnsavedChangesGuard], data: { pageName: 'Paper Question', action: 'add' } }
   , { path: 'test-evaluation', component: TestEvaluationComponent, canActivate: [PermissionGuard], data: { pageName: 'Test Evaluation', action: 'view', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'view-users', component: ViewUsersComponent, canActivate: [PermissionGuard], data: { pageName: 'Users', action: 'view' } }
   , { path: 'unauthorized', component: UnauthorizedComponent }

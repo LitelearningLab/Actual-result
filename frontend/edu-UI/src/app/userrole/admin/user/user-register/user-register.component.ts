@@ -707,7 +707,11 @@ export class AdminUserRegisterComponent implements OnInit {
       'users': 'Users',
       'user': 'Users',
       'questions': 'Questions',
-      'question': 'Questions'
+      'question': 'Questions',
+      'paper question': 'Paper Question',
+      'question paper': 'Paper Question',
+      'question papers': 'Paper Question',
+      'create question paper': 'Paper Question'
     };
     return map[key] || name;
   }
