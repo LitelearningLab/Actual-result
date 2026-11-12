@@ -1484,6 +1484,9 @@ def update_descriptive_marks(request, current_user=None):
             marks_awarded = float(data.get("marks_awarded", 0))
         except (ValueError, TypeError):
             marks_awarded = 0.0
+
+        if marks_awarded < 0:
+            return {"statusMessage": "Awarded marks cannot be negative", "status": False}, 400
         updated_by_raw = data.get("updated_by", "")
         edit_reason = str(data.get("edit_reason", "") or "").strip()
 
@@ -1516,6 +1519,15 @@ def update_descriptive_marks(request, current_user=None):
                 Answer.attempt_id == attempt_id,
                 Answer.question_id == question_id
             ).first()
+
+        target_q_id = question_id or (answer_record.question_id if answer_record else None)
+        if target_q_id:
+            q_check = session.query(Question).filter(Question.question_id == target_q_id).first()
+            if q_check and q_check.marks is not None and marks_awarded > float(q_check.marks):
+                return {
+                    "statusMessage": f"Awarded marks ({marks_awarded}) cannot exceed maximum marks ({q_check.marks})",
+                    "status": False
+                }, 400
 
         if not answer_record:
             if not attempt_id or not question_id:

@@ -2178,6 +2178,18 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       q._marksReasonError = true;
       return;
     }
+
+    const enteredMarks = Number(q._editedMarks);
+    const maxMarks = Number(q.max_marks);
+    if (isNaN(enteredMarks) || enteredMarks < 0) {
+      notify('Awarded marks cannot be negative or invalid.', 'error');
+      return;
+    }
+    if (!isNaN(maxMarks) && maxMarks > 0 && enteredMarks > maxMarks) {
+      notify(`Awarded marks cannot exceed maximum marks (${maxMarks}).`, 'error');
+      return;
+    }
+
     q._savingMarks = true;
     q._marksReasonError = false;
 

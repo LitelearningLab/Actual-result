@@ -1031,7 +1031,7 @@
 
 
     <!-- ═══ Modal: Add / Edit Section ═══ -->
-    <div class="modal-backdrop" *ngIf="showAddSectionModal" (click)="$event.target === $event.currentTarget && closeAddSectionModal()">
+    <div class="modal-backdrop" *ngIf="showAddSectionModal" (mousedown)="$event.target === $event.currentTarget ? closeAddSectionModal() : null">
         <div class="modal-dialog section-dialog" (click)="$event.stopPropagation()">
             <div class="modal-header">
                 <h3>{{ editingSectionIndex >= 0 ? 'Edit Section' : 'Add New Section' }}</h3>
@@ -1092,7 +1092,7 @@
     </div>
 
     <!-- ═══ Modal: Add Questions ═══ -->
-    <div class="modal-backdrop" *ngIf="showAddQuestionModal" (click)="$event.target === $event.currentTarget && closeAddQuestionModal()">
+    <div class="modal-backdrop" *ngIf="showAddQuestionModal" (mousedown)="$event.target === $event.currentTarget ? closeAddQuestionModal() : null">
         <div class="modal-dialog questions-dialog" (click)="$event.stopPropagation()">
             <!-- Context header -->
             <div class="modal-context-header">

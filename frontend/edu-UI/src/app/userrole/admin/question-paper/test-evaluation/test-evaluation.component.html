@@ -1005,7 +1005,7 @@
                   'marks-ai': s.marks.includes('suggests') && !s.isRemoving,
                   'marks-muted': s.marks === 'Not marked' || s.isRemoving
                 }">
-                    {{ s.isRemoving ? 'Removing...' : s.marks }}
+                                        {{ s.isRemoving ? 'Removing...' : (s.marks === 'Not marked' ? '-' : s.marks) }}
                   </span>
                   <!-- Exact PASS / FAIL Result Badge -->
                   <span *ngIf="s.result && s.marks !== 'Not marked' && !s.isRemoving"
