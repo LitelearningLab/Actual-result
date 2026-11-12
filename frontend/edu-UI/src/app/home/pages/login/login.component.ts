@@ -34,6 +34,8 @@ export class LoginComponent implements OnDestroy {
   appVersion = APP_VERSION;
   loginForm: FormGroup;
   hide = true;
+  emailReadonly = true;
+  passwordReadonly = true;
 
   showLockoutModal = false;
   isAccountLocked = false;

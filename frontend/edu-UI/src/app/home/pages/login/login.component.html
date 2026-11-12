@@ -68,11 +68,11 @@
         <p class="login-sub">Sign in to your account to continue</p>
       </header>
 
-      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form" autocomplete="on">
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form" autocomplete="off">
         <div class="field-group">
           <mat-form-field appearance="outline" class="form-field">
             <mat-icon matPrefix fontSet="material-icons-outlined">email</mat-icon>
-            <input matInput type="email" formControlName="email" id="login-email" aria-label="Email Address" placeholder="Enter your email address" aria-describedby="email-error" autocomplete="email" />
+            <input matInput type="email" formControlName="email" id="login-email" aria-label="Email Address" placeholder="Enter your email address" aria-describedby="email-error" autocomplete="off" [readonly]="emailReadonly" (focus)="emailReadonly = false" />
             <mat-error id="email-error" *ngIf="loginForm.get('email')?.hasError('required') && (loginForm.get('email')?.dirty || loginForm.get('email')?.touched)">
               Email is required
             </mat-error>
@@ -85,7 +85,7 @@
         <div class="field-group">
           <mat-form-field appearance="outline" class="form-field">
             <mat-icon matPrefix fontSet="material-icons-outlined">lock</mat-icon>
-            <input matInput [type]="hide ? 'password' : 'text'" formControlName="password" id="login-password" aria-label="Password" placeholder="Enter your password" aria-describedby="password-error" autocomplete="current-password" />
+            <input matInput [type]="hide ? 'password' : 'text'" formControlName="password" id="login-password" aria-label="Password" placeholder="Enter your password" aria-describedby="password-error" autocomplete="new-password" [readonly]="passwordReadonly" (focus)="passwordReadonly = false" />
             <button mat-icon-button matSuffix type="button" [attr.aria-label]="hide ? 'Show password' : 'Hide password'" (click)="hide = !hide" tabindex="-1">
               <mat-icon fontSet="material-icons-outlined">{{ hide ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
