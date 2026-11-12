@@ -1,4 +1,19 @@
 # Changelog
+## [2.4.2] - 2026-11-12
+
+### Features & Enhancements
+- **Test Evaluation Table Display**:
+  - Updated unmarked student marks display in `test-evaluation.component.html` to show `-` instead of `Not marked`.
+
+### Bug Fixes & Validation
+- **Descriptive Marks Range Validation**:
+  - Added frontend marks range validation (`0` to `q.max_marks`) in `saveMarks` (`test-evaluation.component.ts`).
+  - Added backend validation in `update_descriptive_marks` (`backend/others/exam_review.py`) to reject negative marks and marks exceeding `Question.marks`.
+- **Question Paper Modal Backdrop**:
+  - Updated modal backdrop handlers in `create-question-paper.component.html` to use `(mousedown)` with a non-false ternary so drag-selecting text inside inputs does not close the modal and form inputs remain editable.
+- **Version Tracking**: Updated application version to `2.4.2` across `version.ts`, `package.json`, and lockfiles.
+
+---
 ## [2.4.1] - 2026-11-12
 
 ### Features & Enhancements
