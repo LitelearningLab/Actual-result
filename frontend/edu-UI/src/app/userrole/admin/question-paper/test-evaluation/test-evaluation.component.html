@@ -1413,6 +1413,13 @@
                       <span class="q-info ai-confidence-chip" *ngIf="q.ai_confidence">
                         <mat-icon>auto_awesome</mat-icon>
                         <span>AI Confidence: {{ q.ai_confidence }}%</span>
+                        <button type="button" class="ai-confidence-info-btn" #aiConfidenceTooltip="matTooltip"
+                          matTooltip="AI Confidence shows how sure the AI is about reading and evaluating the student's answer. The AI Confidence Threshold setting determines which answers need manual review. Answers at or below the threshold are marked as Needs Attention. It is not the student's score."
+                          matTooltipClass="ai-confidence-tooltip" matTooltipPosition="right"
+                          (click)="$event.stopPropagation(); aiConfidenceTooltip.show()"
+                          aria-label="AI Confidence explanation">
+                          <mat-icon>info_outline</mat-icon>
+                        </button>
                       </span>
                     </div>
                   </div>
