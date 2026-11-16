@@ -1593,44 +1593,72 @@ def create_question_using_llm(request):
     # Dynamically scale token estimate to match configured character count
     total_tokens_estimate = max((number_of_questions * character_count // 4) + 1500, 3000)
 
-    system_message = """You are an expert question setter and evaluator. Your task is to create a question and answer based on the provided source text and parameters.
-    Note for Question Type : 
-        'fill' --> Filling the blanks (use '______' for the blank in question_text, and provide ONLY the exact missing word/phrase in correct_answer and answer_text without repeating the full sentence)
-        'choose' --> Multiple choice single answer
-        'multi' --> Multiple choice multiple answers
-        'descriptive' --> Question for descriptive answer, appropriate for the answer character count
-    """
-    user_message = f"""    Using the following parameters, 
-    - Language: {language}
-    - Topic: {topic}
-    - Industry: {industry}
-    - Target Users: {target_users}
-    - User Role: {user_role}
-    - create {number_of_questions} question(s) along with their correct answers.
-    - Question Type: {type}
-    - Number of Options (if applicable): {number_of_options}
-    - Number of Questions: {number_of_questions}
-    - Complexity Level: {complexity} (easy, medium, hard)
-    - Source Text: {source_text}
-    - Additional Instructions: {additional_instructions}
-    - Question Mark: {question_mark}
-    - STRICT CHARACTER LIMIT: The generated question text and answer text combined must NOT exceed {character_count} characters.
-    - Recommended Answer Length: approximately {recommended_words_count} (Maximum {character_count} characters),
-    - IMPORTANT: Do NOT include mark annotations (such as "(5 marks)", "[5 Marks]", "(5 pts)") inside "question_text". Marks belong ONLY in the "mark" field.
-    Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
-    [
-        {{
-            "question_text": "<The text of the question>",
-            "options": ["<Option 1>", "<Option 2>", "..."] (only for 'choose' and 'multi' types),
-            "correct_answer": "<The correct answer text, indices of correct options, or comprehensive model answer for descriptive questions>",
-            "answer_text": "<Detailed model answer for descriptive and fill-in-the-blank questions>",
-            "type": "<question type>('fill', 'choose', 'multi' or 'descriptive')",
-            "mark": <question mark>
-        }}
-    ]
+    system_message = """You are an expert academic examination setter and evaluator for school and college curricula. Your task is to generate high-quality examination questions and authoritative, well-structured model answers based on the provided source text and parameters.
 
-    If only a single question is requested, returning a single JSON object is also acceptable. Ensure the output is valid JSON with no surrounding markdown or text.
-    """
+Academic Marking & Depth Standards:
+- The assigned marks determine the expected academic depth and answer length:
+  * 1–2 marks: Short, direct answers covering essential definitions, facts, or statements.
+  * 3–5 marks: Well-developed answers with clear explanations, supporting points, relevant examples, and reasoning.
+  * 8–10+ marks: Comprehensive academic examination answers with detailed explanations, clear headings, numbered stages, core principles, underlying mechanisms, relevant examples, and balanced chemical or mathematical equations wherever applicable.
+- Avoid Undue Compression: Do not stop after mentioning basic points when important academic explanations are still required. Explain each major concept, stage, mechanism, and reaction sufficiently to demonstrate understanding.
+- Meaningful Answer Expansion: When the available character budget permits, expand the answer by explaining the purpose, working principles, causes, effects, mechanisms, examples, applications, and significance of relevant concepts. Prefer meaningful academic details over unnecessarily short answers.
+- Crisp Academic Writing: Keep sentences precise, well-structured, and relevant. Avoid repetition, unnecessary introductions, generic conclusions, and unrelated background information. More detail must improve academic completeness, not create filler.
+- Grounded Knowledge: Use the provided source text as the primary factual reference while explaining the scientific principles, mechanisms, and equations inherent to the subject. Do not invent unverified facts or add irrelevant filler.
+- Dynamic Ceiling Constraint: The institute-configured character limit is a strict upper ceiling per question (question and answer combined). Never exceed this limit.
+
+Question Type Specifications:
+- 'fill': Fill-in-the-blanks (use '______' in question_text, and provide ONLY the exact missing word/phrase in correct_answer and answer_text without repeating the full sentence).
+- 'choose': Multiple choice single answer with concise, plausible options.
+- 'multi': Multiple choice multiple answers with concise options.
+- 'descriptive': Subjective examination question. The model answer ('answer_text' and 'correct_answer') must provide a complete, deeply detailed model answer with academic depth matching the assigned marks.
+"""
+    user_message = f"""Using the following parameters, generate {number_of_questions} question(s) along with their correct model answer(s):
+- Language: {language}
+- Topic: {topic}
+- Industry: {industry}
+- Target Users: {target_users}
+- User Role: {user_role}
+- Question Type: {type}
+- Number of Options (if applicable): {number_of_options}
+- Number of Questions: {number_of_questions}
+- Complexity Level: {complexity}
+- Source Text: {source_text}
+- Additional Instructions: {additional_instructions}
+- Assigned Marks: {question_mark} marks per question
+- Maximum Character Limit: {character_count} characters per question (question_text + answer_text combined)
+
+Instructions for Question and Model Answer Generation:
+1. Mark-Appropriate Academic Depth (for Descriptive Questions):
+   - For 1–2 marks: Keep answers brief, direct, and focused on essential definitions.
+   - For 3–5 marks: Provide a thorough explanation with key points and reasons.
+   - For 8–10+ marks: Provide an exhaustive, long-form academic model answer. Break the answer down into distinct numbered sections with clear headings. Fully explain the theoretical principles, raw materials, process mechanisms, individual reaction zones/stages, balanced chemical/mathematical equations, and industrial/practical relevance in depth. Do NOT summarize or condense a 10-mark answer into brief 1-sentence points; write comprehensive explanatory paragraphs for each stage to reflect a true full-mark essay response.
+2. Dynamic Character Limit Utilization:
+   - The configured {character_count} characters represent the maximum available capacity, not a target that must be reached exactly.
+   - Use the available character budget effectively. Do not generate unnecessarily short answers when additional relevant academic explanations are required.
+   - For descriptive questions, provide sufficient detail for the assigned marks. Expand important concepts, principles, mechanisms, stages, reactions, and examples wherever academically relevant.
+   - Before completing an answer, ensure that all important aspects required by the question have been adequately explained.
+   - Do not prematurely stop after covering only the basic points when meaningful academic details remain unexplained.
+   - Maintain crisp, precise academic writing without repetition or artificial expansion.
+   - Strictly ensure that question_text + answer_text never exceeds {character_count} characters.
+3. Source Text Fidelity: Use the provided source text as the primary factual reference. Do not invent facts or unsupported details. If the source does not contain sufficient information, generate only what can be reliably supported.
+4. Question Type Restraint: Keep objective questions ('choose', 'multi', 'fill') crisp and direct. Detailed structural explanations apply only to descriptive questions.
+5. Character Limit Calculation: The maximum limit of {character_count} characters applies to the question text and model answer combined (question_text + answer_text). Do not count duplicate answer fields against this limit.
+6. Clean Formatting: Do NOT include mark annotations (such as "({question_mark} marks)", "[{question_mark} Marks]") inside "question_text". Marks belong exclusively in the "mark" field.
+
+Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
+[
+    {{
+        "question_text": "<The text of the question>",
+        "options": ["<Option 1>", "<Option 2>", "..."] (only for 'choose' and 'multi' types),
+        "correct_answer": "<The correct answer text, indices of correct options, or comprehensive model answer for descriptive questions>",
+        "answer_text": "<Detailed model answer with academic depth and structure appropriate for {question_mark} marks>",
+        "type": "{type}",
+        "mark": {question_mark}
+    }}
+]
+
+If only a single question is requested, returning a single JSON object is also acceptable. Ensure the output is valid JSON with no surrounding markdown or text.
+"""
     # Token calculation based on number of questions and character/ word count
     total_tokens_estimate = number_of_questions * character_count // 4
     try:
@@ -1638,7 +1666,8 @@ def create_question_using_llm(request):
             system_message,
             user_message,
             aimodel=aimodel,
-            max_tokens = max(total_tokens_estimate + 2000, 4000)
+            max_tokens = max(total_tokens_estimate + 2000, 4000),
+            timeout = 120.0
         )
         # with open("debug_response.json", "w") as debug_file:
         #     debug_file.write(response.text)
