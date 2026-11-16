@@ -99,6 +99,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/question-papers': 'Paper Question',
     '/create-question-paper': 'Paper Question',
     '/test-evaluation': 'Paper Evaluation',
+    '/admin/ai-credits': 'AI Credits',
   };
 
   /** Updates selectedMenu by finding which menu path matches the current URL */
@@ -232,6 +233,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
       this.menus.push({ label: 'Create/Edit Test', path: '/exams', icon: 'exam' });
       this.menus.push({ label: 'Schedule Test', path: '/view-schedule-exam', icon: 'calendar' });
       this.menus.push({ label: 'Test Reports', path: '/admin/exam-reports', icon: 'report' });
+      this.menus.push({ label: 'AI Credits', path: '/admin/ai-credits', icon: 'brain' });
     }
 
     if (role === 'user' || role === 'candidate' || role === 'student' || role === 'learner' || role === 'admin' || role === 'super_admin' || role === 'superadmin' || role === 'super-admin') {

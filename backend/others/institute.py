@@ -1,4 +1,4 @@
-from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City, Subject
+from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City, Subject, openai_requests
 from db.db import SQLiteDB
 from datetime import datetime
 from sqlalchemy import func, or_
@@ -38,6 +38,8 @@ def _ensure_institute_registration_schema(session):
             "subscription_start": "DATE NULL",
             "subscription_end": "DATE NULL",
             "qa_character_limits": "NVARCHAR(MAX) NULL",
+            "allocated_credits": "BIGINT NULL DEFAULT 0",
+            "credit_alert_threshold": "INT NULL DEFAULT 10",
         }
         for column_name, definition in required_columns.items():
             exists = session.execute(
@@ -55,6 +57,25 @@ def _ensure_institute_registration_schema(session):
             session.execute(text(
                 "ALTER TABLE dbo.InstituteCampuses ADD city_name NVARCHAR(255) NULL"
             ))
+
+        # Ensure openai_requests table has feature_name and credits_consumed
+        openai_req_cols = {
+            "feature_name": "NVARCHAR(100) NULL",
+            "credits_consumed": "INT NULL DEFAULT 0",
+        }
+        for col, col_def in openai_req_cols.items():
+            exists = session.execute(
+                text("SELECT COL_LENGTH('dbo.openai_requests', :column_name)"),
+                {"column_name": col},
+            ).scalar()
+            if exists is None:
+                try:
+                    session.execute(text(
+                        f"ALTER TABLE dbo.openai_requests ADD [{col}] {col_def}"
+                    ))
+                except Exception:
+                    pass
+
         session.commit()
         _institute_schema_ready = True
 
@@ -164,6 +185,12 @@ def insert_institute(data):
     active_status = data.get("active_status", data.get("active", 1))
     active_status = 1 if active_status in (True, 1, "1", "true", "True", "active", "Active") else 0
 
+    allocated_credits = data.get("allocated_credits", 0)
+    try:
+        allocated_credits = int(allocated_credits or 0)
+    except (TypeError, ValueError):
+        allocated_credits = 0
+
     subscription_start_str = data.get("subscription_start", None)
     subscription_end_str = data.get("subscription_end", None)
     created_by = data.get("current_user", 'system')
@@ -232,6 +259,7 @@ def insert_institute(data):
             primary_contact_phone=primary_contact_phone,
             website=website,
             max_users=max_users,
+            allocated_credits=allocated_credits,
             subscription_start=subscription_start,
             subscription_end=subscription_end,
             qa_character_limits=qa_character_limits,
@@ -898,6 +926,15 @@ def get_institute_details(request):
             User.user_role == 'user',
             User.is_deleted == 0
         ).count()
+        allocated_credits = int(getattr(inst, "allocated_credits", 0) or 0)
+        try:
+            used_credits = int(session.query(func.coalesce(func.sum(openai_requests.total_tokens), 0)).filter(
+                openai_requests.institute_id == str(inst.institute_id)
+            ).scalar() or 0)
+        except Exception:
+            used_credits = 0
+        remaining_credits = max(0, allocated_credits - used_credits) if allocated_credits > 0 else 0
+
         result.append({
             "institute_id": inst.institute_id,
             "name": inst.name,
@@ -909,6 +946,9 @@ def get_institute_details(request):
             "industry_type": inst.industry_type,
             "industry_sector": inst.industry_sector,
             "max_users": inst.max_users,
+            "allocated_credits": allocated_credits,
+            "used_credits": used_credits,
+            "remaining_credits": remaining_credits,
             "admins_count": admins_count,
             "users_count": users_count,
             "subscription_start": inst.subscription_start,
@@ -1053,3 +1093,57 @@ def get_campus_list(request):
         "total": len(result)
     }
     return json_data, 200
+
+def update_institute_credits(request):
+    data = request.get_json(silent=True) or {}
+    institute_id = data.get("institute_id")
+    if not institute_id:
+        return {"status": False, "statusMessage": "institute_id is required"}, 400
+
+    new_credits = data.get("allocated_credits")
+    if new_credits is None:
+        return {"status": False, "statusMessage": "allocated_credits is required"}, 400
+
+    try:
+        new_credits = int(new_credits)
+        if new_credits < 0:
+            return {"status": False, "statusMessage": "allocated_credits must be non-negative"}, 400
+    except (TypeError, ValueError):
+        return {"status": False, "statusMessage": "allocated_credits must be an integer"}, 400
+
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"status": False, "statusMessage": "Database connection error"}, 500
+
+    try:
+        inst = session.query(Institute).filter_by(institute_id=institute_id).first()
+        if not inst:
+            session.close()
+            return {"status": False, "statusMessage": "Institute not found"}, 404
+
+        inst.allocated_credits = new_credits
+        inst.updated_date = datetime.utcnow()
+        session.commit()
+
+        used_credits = int(session.query(func.coalesce(func.sum(openai_requests.total_tokens), 0)).filter(
+            openai_requests.institute_id == str(institute_id)
+        ).scalar() or 0)
+        remaining = max(0, new_credits - used_credits) if new_credits > 0 else 0
+
+        session.close()
+        return {
+            "status": True,
+            "statusMessage": "Institute credits updated successfully",
+            "data": {
+                "institute_id": institute_id,
+                "allocated_credits": new_credits,
+                "used_credits": used_credits,
+                "remaining_credits": remaining
+            }
+        }, 200
+    except Exception as e:
+        session.rollback()
+        session.close()
+        return {"status": False, "statusMessage": f"Failed to update credits: {str(e)}"}, 500
+

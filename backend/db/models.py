@@ -37,6 +37,8 @@ class Institute(Base):
      subscription_start = Column(Date)
      subscription_end = Column(Date)
      qa_character_limits = Column(String, default='[{"marks": 2, "character_limit": 450}, {"marks": 5, "character_limit": 1000}, {"marks": 10, "character_limit": 1500}]')
+     allocated_credits = Column(Integer, default=0)
+     credit_alert_threshold = Column(Integer, default=10)
 
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
@@ -610,6 +612,8 @@ class openai_requests(Base):
      total_tokens = Column(Integer)
      latency_ms = Column(Integer)
      estimated_cost = Column(Float)
+     feature_name = Column(String(100))
+     credits_consumed = Column(Integer, default=0)
      institute_id = Column(String)
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.now)

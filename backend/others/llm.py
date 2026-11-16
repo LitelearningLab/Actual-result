@@ -14,7 +14,12 @@ class _ErrorResponse:
         self._message = message
 
     def json(self):
-        return {"error": self._message}
+        return {
+            "error": self._message,
+            "statusMessage": self._message,
+            "message": self._message,
+            "status": False,
+        }
 
 
 class openai_client:
@@ -66,12 +71,27 @@ class openai_client:
         timeout: float = 30.0,
         response_format=None,
         user_name=None,
+        institute_id=None,
+        feature_name=None,
+        endpoint=None,
     ):
         if not self.api_key:
             return _ErrorResponse(
                 503,
                 "OpenAI API key is not configured. Set OPENAI_API_KEY on the backend service.",
             )
+
+        # Check AI credit allocation & access permission for this institute
+        try:
+            from others.ai_credits import check_institute_ai_access
+            has_access, err_msg, err_code = check_institute_ai_access(
+                institute_id=institute_id,
+                user_id=None
+            )
+            if not has_access:
+                return _ErrorResponse(err_code, err_msg)
+        except Exception as e:
+            print(f"AI access check warning: {e}")
 
         messages = []
         if system_message:
@@ -125,6 +145,37 @@ class openai_client:
                     f"total={total_tokens}",
                     flush=True,
                 )
+
+                # Persist to database for institute usage and analytics
+                try:
+                    from others.ai_credits import record_ai_usage
+                    inferred_feature = feature_name
+                    if not inferred_feature:
+                        sys_str = str(system_message or "").lower()
+                        if "evaluat" in sys_str or "rubric" in sys_str or "marking" in sys_str:
+                            inferred_feature = "Evaluated"
+                        elif "examination setter" in sys_str or "generate" in sys_str:
+                            inferred_feature = "Question Generation"
+                        elif "ocr" in sys_str or "optical character" in sys_str:
+                            inferred_feature = "OCR Extraction"
+                        elif "wrong answer" in sys_str or "diagnostic" in sys_str:
+                            inferred_feature = "Exam Diagnostics"
+                        elif "subtopic" in sys_str:
+                            inferred_feature = "Exam Diagnostics"
+                        elif "student identity" in sys_str or "roster" in sys_str:
+                            inferred_feature = "Evaluated"
+                        else:
+                            inferred_feature = "Question Generation"
+
+                    record_ai_usage(
+                        resp_json,
+                        institute_id=institute_id,
+                        user_id=user_name,
+                        feature_name=inferred_feature,
+                        endpoint=endpoint or "chat_completion"
+                    )
+                except Exception as _track_err:
+                    print(f"[TOKEN AUDIT] Automatic tracking error: {_track_err}", flush=True)
             except Exception:
                 pass
 

@@ -1576,6 +1576,21 @@ def create_question_using_llm(request):
         except Exception:
             pass
 
+    # Enforce AI credits check: if Super Admin hasn't allocated credits or credits exhausted, block AI call
+    from others.ai_credits import check_institute_ai_access
+    has_access, err_msg, err_code = check_institute_ai_access(
+        institute_id=target_inst_id,
+        user_id=user_id,
+        request_obj=request
+    )
+    if not has_access:
+        return {
+            "status": False,
+            "error": err_msg,
+            "statusMessage": err_msg,
+            "message": err_msg,
+        }, err_code
+
     if target_inst_id and (not question_char_limit or not answer_min_char_limit or not answer_max_char_limit):
         try:
             db_inst = SQLiteDB()
@@ -1832,59 +1847,12 @@ Task: Rewrite the model answer more concisely while preserving all essential aca
     return result, 200
 
 
-def response_tracker(response_json, institute_id=None, user_id=None, endpoint="/create-question-using-ai"):
-    if not isinstance(response_json, dict):
-        return
-    choices = response_json.get("choices")
-    if not choices or not isinstance(choices, list) or len(choices) == 0:
-        return
-
+def response_tracker(response_json, institute_id=None, user_id=None, endpoint="/create-question-using-ai", feature_name=None):
     try:
-        db = SQLiteDB()
-        session = db.connect()
-
-        # If institute_id is missing, look up from user_id to ensure tokens are always tracked per institute
-        if not institute_id and user_id:
-            try:
-                u_rec = session.query(User).filter_by(user_id=user_id).first()
-                if u_rec and u_rec.institute_id:
-                    institute_id = u_rec.institute_id
-            except Exception:
-                pass
-
-        id = response_json.get("id", None)
-        model = response_json.get("model", None)
-        usage = response_json.get("usage") or {}
-        service_tier = response_json.get("service_tier", None)
-        system_fingerprint = response_json.get("system_fingerprint", None)
-
-        msg = choices[0].get("message") or {}
-        role = msg.get("role", None)
-        content = msg.get("content", None)
-        finish_reason = choices[0].get("finish_reason", None)
-
-        prompt_tokens = usage.get("prompt_tokens", None)
-        completion_tokens = usage.get("completion_tokens", None)
-        total_tokens = usage.get("total_tokens", None)
-
-        insert_record = openai_requests(
-            id=id,
-            endpoint=endpoint,
-            model=model,
-            service_tier=service_tier,
-            system_fingerprint=system_fingerprint,
-            role=role,
-            content=content,
-            finish_reason=finish_reason,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-            institute_id=institute_id,
-            created_by=user_id,
-        )
-        session.add(insert_record)
-        session.commit()
-        session.close()
+        from others.ai_credits import record_ai_usage
+        if not feature_name:
+            feature_name = "Fine-Tuning" if "fine-tune" in str(endpoint).lower() else "Question Generation"
+        record_ai_usage(response_json, institute_id=institute_id, user_id=user_id, feature_name=feature_name, endpoint=endpoint)
     except Exception as db_err:
         print(f"[response_tracker] Failed to save request metrics: {db_err}")
     return
@@ -1917,6 +1885,21 @@ def fine_tune_questions_using_llm(request):
     )
     institute_id = gv("institute_id", None)
     user_id = gv("user_id", None)
+
+    # Enforce AI credits check: if Super Admin hasn't allocated credits or credits exhausted, block AI call
+    from others.ai_credits import check_institute_ai_access
+    has_access, err_msg, err_code = check_institute_ai_access(
+        institute_id=institute_id,
+        user_id=user_id,
+        request_obj=request
+    )
+    if not has_access:
+        return {
+            "status": False,
+            "error": err_msg,
+            "statusMessage": err_msg,
+            "message": err_msg,
+        }, err_code
 
     try:
         system_message = "You are an expert question and answer evaluator. Your task is to evaluate and improve the provided question(s) and answer based on the given answer text and additional instructions."

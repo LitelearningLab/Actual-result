@@ -1244,14 +1244,25 @@ export class AdminQuestionsComponent {
       error: (err) => {
         this.isGenerating = false;
         console.error('AI generation failed', err);
+        const errMsg =
+          err?.error?.statusMessage ||
+          err?.error?.error ||
+          err?.error?.message ||
+          'AI generation failed';
+        if (
+          err?.status === 403 ||
+          String(errMsg).toLowerCase().includes('super admin') ||
+          String(errMsg).toLowerCase().includes('ai access')
+        ) {
+          this.confirmService.confirm({
+            title: 'AI Access Restricted',
+            message: errMsg,
+            confirmText: 'Understood',
+            cancelText: '',
+          });
+        }
         try {
-          notify(
-            err?.error?.error ||
-              err?.error?.statusMessage ||
-              err?.error?.message ||
-              'AI generation failed',
-            'error'
-          );
+          notify(errMsg, 'error');
         } catch (e) {}
         this.loader.hide();
       },
@@ -3568,8 +3579,25 @@ export class AdminQuestionsComponent {
         error: (err) => {
           if (q) q.isFineTuning = false;
           console.error('Fine-tune request failed', err);
+          const errMsg =
+            err?.error?.statusMessage ||
+            err?.error?.error ||
+            err?.error?.message ||
+            'Fine-tune failed';
+          if (
+            err?.status === 403 ||
+            String(errMsg).toLowerCase().includes('super admin') ||
+            String(errMsg).toLowerCase().includes('ai access')
+          ) {
+            this.confirmService.confirm({
+              title: 'AI Access Restricted',
+              message: errMsg,
+              confirmText: 'Understood',
+              cancelText: '',
+            });
+          }
           try {
-            notify(err?.error?.message || 'Fine-tune failed', 'error');
+            notify(errMsg, 'error');
           } catch (e) {}
         },
       });

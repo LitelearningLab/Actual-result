@@ -1,0 +1,331 @@
+<div class="ai-credits-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <div class="title-row">
+        <mat-icon class="page-title-icon">toll</mat-icon>
+        <h2>AI Credits & Token Usage</h2>
+      </div>
+      <p class="subtitle" *ngIf="summary">
+        Institute: <strong>{{ summary.institute_name }}</strong>
+        <span class="quota-pill" [class.low-credit]="summary.is_low_credit">
+          {{ summary.is_low_credit ? 'Low Balance' : 'Active Quota' }}
+        </span>
+      </p>
+    </div>
+    <div class="header-right">
+      <button mat-stroked-button color="primary" (click)="loadAllData()" [disabled]="isLoading">
+        <mat-icon [class.spin]="isLoading">refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- SECTION 1: KPI Metric Cards -->
+  <div class="kpi-grid">
+    <!-- Card 1: Allocated -->
+    <div class="kpi-card card-allocated">
+      <div class="kpi-icon-wrap icon-blue">
+        <mat-icon>account_balance_wallet</mat-icon>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Total Allocated Credits</span>
+        <span class="kpi-value">{{ (summary?.allocated_credits || 0) | number }}</span>
+        <span class="kpi-subtext">Set by Super Admin</span>
+      </div>
+    </div>
+
+    <!-- Card 2: Used -->
+    <div class="kpi-card card-used">
+      <div class="kpi-icon-wrap icon-purple">
+        <mat-icon>trending_up</mat-icon>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Credits Consumed</span>
+        <span class="kpi-value">{{ (summary?.used_credits || 0) | number }}</span>
+        <span class="kpi-subtext">{{ summary?.percentage_used || 0 }}% of total quota</span>
+      </div>
+    </div>
+
+    <!-- Card 3: Remaining -->
+    <div class="kpi-card card-remaining" [class.card-alert]="summary?.is_low_credit">
+      <div class="kpi-icon-wrap" [ngClass]="summary?.is_low_credit ? 'icon-red' : 'icon-green'">
+        <mat-icon>{{ summary?.is_low_credit ? 'warning' : 'check_circle' }}</mat-icon>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Remaining Credits</span>
+        <span class="kpi-value">{{ (summary?.remaining_credits || 0) | number }}</span>
+        <span class="kpi-subtext" [class.text-danger]="summary?.is_low_credit">
+          {{ summary?.is_low_credit ? 'Quota Running Low' : 'Healthy Balance' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Card 4: Total Tokens -->
+    <div class="kpi-card card-tokens">
+      <div class="kpi-icon-wrap icon-teal">
+        <mat-icon>token</mat-icon>
+      </div>
+      <div class="kpi-content">
+        <span class="kpi-label">Total Tokens Burned</span>
+        <span class="kpi-value">{{ (summary?.total_tokens || 0) | number }}</span>
+        <span class="kpi-subtext">
+          In: {{ (summary?.prompt_tokens || 0) | number }} | Out: {{ (summary?.completion_tokens || 0) | number }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: Progress Bar Container (Directly Under Cards) -->
+  <div class="section-card progress-card">
+    <div class="card-header-clean">
+      <div class="card-title-group">
+        <mat-icon class="section-icon">donut_large</mat-icon>
+        <h3>Credit Consumption Progress</h3>
+      </div>
+      <span class="progress-pct-badge" [ngClass]="getProgressColor()">
+        {{ summary?.percentage_used || 0 }}% Used
+      </span>
+    </div>
+
+    <div class="progress-bar-wrap">
+      <div class="custom-progress-track">
+        <div
+          class="custom-progress-fill"
+          [style.width.%]="summary?.percentage_used || 0"
+          [ngClass]="getProgressColor()"
+        ></div>
+      </div>
+      <div class="progress-legend">
+        <span>
+          <strong>{{ (summary?.used_credits || 0) | number }}</strong> credits used of
+          <strong>{{ (summary?.allocated_credits || 0) | number }}</strong> total
+        </span>
+        <span class="rem-legend">
+          <strong>{{ (summary?.remaining_credits || 0) | number }}</strong> credits remaining
+        </span>
+      </div>
+    </div>
+
+    <!-- Low balance alert banner -->
+    <div class="low-credit-banner" *ngIf="summary?.is_low_credit">
+      <mat-icon>warning_amber</mat-icon>
+      <div class="banner-text">
+        <strong>Low AI Credits Warning:</strong> Only {{ (summary?.remaining_credits || 0) | number }} credits remaining.
+        Please contact your Super Administrator to allocate additional AI credits to avoid disruption.
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: AI Services Breakdown Table (Directly Under Progress Bar) -->
+  <div class="section-card table-card">
+    <div class="card-header-clean">
+      <div class="card-title-group">
+        <mat-icon class="section-icon">table_chart</mat-icon>
+        <h3>AI Services Usage Breakdown</h3>
+      </div>
+      <span class="count-badge" *ngIf="totals">
+        {{ totals.count | number }} Total Operations
+      </span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="ai-table">
+        <thead>
+          <tr>
+            <th class="col-feature">AI Feature / Activity</th>
+            <th class="col-num text-center">Operations (Count)</th>
+            <th class="col-num text-right">Input (Prompt) Tokens</th>
+            <th class="col-num text-right">Output (Completion) Tokens</th>
+            <th class="col-num text-right">Total Tokens Used</th>
+            <th class="col-num text-right">Credits Consumed</th>
+            <th class="col-date text-center">Last Active</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of breakdown" class="table-row">
+            <td class="col-feature">
+              <div class="feature-cell">
+                <mat-icon class="feature-icon">{{ getFeatureIcon(item.feature) }}</mat-icon>
+                <span class="feature-name">{{ item.feature }}</span>
+              </div>
+            </td>
+            <td class="col-num text-center font-bold count-pill-cell">
+              <span class="count-pill">{{ item.count | number }}</span>
+            </td>
+            <td class="col-num text-right">{{ item.prompt_tokens | number }}</td>
+            <td class="col-num text-right">{{ item.completion_tokens | number }}</td>
+            <td class="col-num text-right font-semibold">{{ item.total_tokens | number }}</td>
+            <td class="col-num text-right font-bold text-primary">{{ item.credits_consumed | number }}</td>
+            <td class="col-date text-center text-muted">
+              {{ item.last_used || '—' }}
+            </td>
+          </tr>
+
+          <!-- Empty State -->
+          <tr *ngIf="!breakdown || breakdown.length === 0">
+            <td colspan="7" class="empty-cell">
+              <mat-icon class="empty-icon">smart_toy</mat-icon>
+              <p>No AI operations recorded yet for this institute.</p>
+              <span class="empty-hint">AI calls like Question Generation and Evaluation will automatically appear here.</span>
+            </td>
+          </tr>
+        </tbody>
+
+        <!-- Table Footer / Totals -->
+        <tfoot *ngIf="totals && breakdown.length > 0">
+          <tr class="total-row">
+            <td class="col-feature font-bold">TOTAL ALL SERVICES</td>
+            <td class="col-num text-center font-bold">{{ totals.count | number }}</td>
+            <td class="col-num text-right font-bold">{{ totals.prompt_tokens | number }}</td>
+            <td class="col-num text-right font-bold">{{ totals.completion_tokens | number }}</td>
+            <td class="col-num text-right font-bold">{{ totals.total_tokens | number }}</td>
+            <td class="col-num text-right font-bold text-primary">{{ totals.credits_consumed | number }}</td>
+            <td class="col-date text-center">—</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECTION 4: Token Consumption Bar Charts (Underneath the Table) -->
+  <div class="section-card chart-card">
+    <div class="chart-header">
+      <div class="card-title-group">
+        <mat-icon class="section-icon">bar_chart</mat-icon>
+        <div>
+          <h3>Token Usage Trends</h3>
+          <p class="chart-subtitle">Historical breakdown of tokens consumed over time</p>
+        </div>
+      </div>
+
+      <!-- Timeframe Toggle Buttons -->
+      <div class="period-toggle-group">
+        <button
+          type="button"
+          class="period-btn"
+          [class.active]="selectedPeriod === 'today'"
+          (click)="loadAnalytics('today')"
+        >
+          Today
+        </button>
+        <button
+          type="button"
+          class="period-btn"
+          [class.active]="selectedPeriod === 'weekly'"
+          (click)="loadAnalytics('weekly')"
+        >
+          Weekly
+        </button>
+        <button
+          type="button"
+          class="period-btn"
+          [class.active]="selectedPeriod === 'monthly'"
+          (click)="loadAnalytics('monthly')"
+        >
+          Monthly
+        </button>
+      </div>
+    </div>
+
+    <!-- SVG Bar Chart -->
+    <div class="svg-chart-container">
+      <svg
+        viewBox="0 0 760 250"
+        class="chart-svg"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        <defs>
+          <linearGradient id="barGradientPrimary" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#6366f1" />
+            <stop offset="100%" stop-color="#4338ca" />
+          </linearGradient>
+          <linearGradient id="barGradientHover" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#818cf8" />
+            <stop offset="100%" stop-color="#6366f1" />
+          </linearGradient>
+        </defs>
+
+        <!-- Horizontal Guide Lines -->
+        <line x1="40" y1="40" x2="740" y2="40" class="chart-gridline" />
+        <line x1="40" y1="95" x2="740" y2="95" class="chart-gridline" />
+        <line x1="40" y1="150" x2="740" y2="150" class="chart-gridline" />
+        <line x1="40" y1="200" x2="740" y2="200" class="chart-baseline" />
+
+        <!-- Bars -->
+        <g *ngFor="let bar of chartBars">
+          <!-- Animated Bar Rect -->
+          <rect
+            [attr.x]="bar.x"
+            [attr.y]="bar.y"
+            [attr.width]="bar.width"
+            [attr.height]="bar.height"
+            rx="5"
+            ry="5"
+            class="chart-bar-rect"
+            [class.hovered]="hoveredBar === bar"
+            (mouseenter)="hoveredBar = bar"
+            (mouseleave)="hoveredBar = null"
+          />
+
+          <!-- Value on top of bar -->
+          <text
+            *ngIf="bar.value > 0"
+            [attr.x]="bar.x + bar.width / 2"
+            [attr.y]="bar.y - 7"
+            class="chart-bar-val"
+            text-anchor="middle"
+          >
+            {{ bar.value > 999 ? (bar.value / 1000 | number: '1.0-1') + 'k' : bar.value }}
+          </text>
+
+          <!-- Label below baseline -->
+          <text
+            [attr.x]="bar.x + bar.width / 2"
+            y="222"
+            class="chart-bar-label"
+            text-anchor="middle"
+          >
+            {{ bar.label }}
+          </text>
+        </g>
+      </svg>
+
+      <!-- Hover Tooltip -->
+      <div
+        class="chart-floating-tooltip"
+        *ngIf="hoveredBar"
+        [style.left.px]="hoveredBar.x"
+        [style.top.px]="hoveredBar.y - 45"
+      >
+        <span class="tooltip-title">{{ hoveredBar.label }}</span>
+        <span class="tooltip-val"><strong>{{ hoveredBar.value | number }}</strong> Tokens</span>
+        <span class="tooltip-sub">In: {{ hoveredBar.prompt_value | number }} | Out: {{ hoveredBar.comp_value | number }}</span>
+      </div>
+    </div>
+
+    <!-- Chart Insights Footer Strip -->
+    <div class="chart-insights-strip">
+      <div class="insight-item">
+        <mat-icon class="insight-icon">functions</mat-icon>
+        <div>
+          <span class="insight-label">Period Total</span>
+          <span class="insight-value">{{ chartPeriodTotal | number }} Tokens</span>
+        </div>
+      </div>
+      <div class="insight-item">
+        <mat-icon class="insight-icon">trending_up</mat-icon>
+        <div>
+          <span class="insight-label">Peak Usage</span>
+          <span class="insight-value">{{ chartPeakLabel }} ({{ chartPeakValue | number }} Tokens)</span>
+        </div>
+      </div>
+      <div class="insight-item">
+        <mat-icon class="insight-icon">speed</mat-icon>
+        <div>
+          <span class="insight-label">Average</span>
+          <span class="insight-value">{{ chartAverage | number }} Tokens / Interval</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

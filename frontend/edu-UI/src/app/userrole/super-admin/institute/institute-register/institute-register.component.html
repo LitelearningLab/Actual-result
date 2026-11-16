@@ -1,4 +1,4 @@
-﻿<div class="page institute-register">
+<div class="page institute-register">
 
   <!-- ── Top Toolbar ── -->
   <div class="toolbar">
@@ -16,7 +16,7 @@
   <!-- ── Form Card ── -->
   <div class="form-card">
     <form [formGroup]="form" (ngSubmit)="onSubmit()" (keydown.enter)="preventEnterSubmit($event)">
-      <mat-horizontal-stepper linear #stepper>
+      <mat-horizontal-stepper [linear]="!isEditing" #stepper>
 
         <!-- ═══ Step 1: Basic Info ═══ -->
         <mat-step [stepControl]="form.controls['name']">
@@ -726,6 +726,64 @@
                 <mat-icon svgIcon="arrow_back"></mat-icon>
                 <span>Back</span>
               </button>
+              <button type="button" mat-button class="next-btn" (click)="goToAiCredits(stepper)">
+                <span>Next</span>
+                <mat-icon svgIcon="arrow_forward"></mat-icon>
+              </button>
+            </div>
+          </div>
+        </mat-step>
+
+        <!-- ═══ Step 4: AI Credits ═══ -->
+        <mat-step>
+          <ng-template matStepLabel>AI Credits</ng-template>
+          <div class="step-content">
+            <div class="section-block">
+              <div class="section-header">
+                <mat-icon class="section-icon">toll</mat-icon>
+                <div>
+                  <h3 class="section-heading">AI Credits & Token Allocation</h3>
+                  <p class="section-desc">Configure the AI token and credit quota for this institute.</p>
+                </div>
+              </div>
+
+              <div class="section-body">
+                <!-- Usage stats banner (shown when editing an existing institute) -->
+                <div *ngIf="isEditing" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 200px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;">
+                    <div style="font-size: 12px; color: #64748b; font-weight: 500;">Tokens Burned to Date</div>
+                    <div style="font-size: 22px; font-weight: 700; color: #0f172a; margin-top: 4px;">{{ usedCredits | number }}</div>
+                  </div>
+                  <div style="flex: 1; min-width: 200px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 16px;">
+                    <div style="font-size: 12px; color: #059669; font-weight: 500;">Current Remaining Balance</div>
+                    <div style="font-size: 22px; font-weight: 700; color: #065f46; margin-top: 4px;">{{ remainingCredits | number }}</div>
+                  </div>
+                </div>
+
+                <div class="field-row">
+                  <mat-form-field appearance="outline" class="field-half">
+                    <mat-label>Allocated AI Credits / Tokens</mat-label>
+                    <mat-icon matPrefix>toll</mat-icon>
+                    <input matInput type="number" min="0" step="10000" formControlName="allocated_credits" placeholder="e.g. 500000" />
+                    <mat-hint>Total credits/tokens this institute can consume for question generation and evaluation</mat-hint>
+                    <mat-error *ngIf="form.controls['allocated_credits'].hasError('min')">Value must be 0 or more</mat-error>
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" class="field-half">
+                    <mat-label>Low Balance Alert Threshold (%)</mat-label>
+                    <mat-icon matPrefix>notifications_active</mat-icon>
+                    <input matInput type="number" min="1" max="50" formControlName="credit_alert_threshold" placeholder="10" />
+                    <mat-hint>Trigger warning alert when remaining quota falls below this percentage</mat-hint>
+                  </mat-form-field>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" mat-button matStepperPrevious class="prev-btn">
+                <mat-icon svgIcon="arrow_back"></mat-icon>
+                <span>Back</span>
+              </button>
               <button type="button" mat-button class="next-btn" (click)="goToReview(stepper)">
                 <span>Next</span>
                 <mat-icon svgIcon="arrow_forward"></mat-icon>
@@ -734,7 +792,7 @@
           </div>
         </mat-step>
 
-        <!-- ═══ Step 4: Review & Submit ═══ -->
+        <!-- ═══ Step 5: Review & Submit ═══ -->
         <mat-step>
           <ng-template matStepLabel>Review</ng-template>
           <div class="step-content">
@@ -829,7 +887,7 @@
                 <!-- Billing -->
                 <div class="review-section">
                   <h4 class="review-section-title">
-                    <mat-icon>receipt_long</mat-icon> Billing & Limits
+                    <mat-icon>receipt_long</mat-icon> Billing & Subscription
                   </h4>
                   <div class="review-items">
                     <div class="review-item">
@@ -845,6 +903,74 @@
                     <div class="review-item">
                       <span class="review-label">Subscription</span>
                       <span class="review-value">{{ form.get('subscription_start')?.value || '–' }} → {{ form.get('subscription_end')?.value || '–' }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- AI Credits & Token Allocation Review -->
+                <div class="review-section">
+                  <h4 class="review-section-title">
+                    <mat-icon style="color: #6366f1;">toll</mat-icon> AI Credits & Tokens
+                  </h4>
+                  <div class="review-items">
+                    <div class="review-item">
+                      <span class="review-label">Allocated Quota</span>
+                      <span class="review-value" style="font-weight: 700; color: #1e293b;">
+                        {{ (form.get('allocated_credits')?.value | number) || '0' }} credits
+                      </span>
+                    </div>
+                    <div class="review-item">
+                      <span class="review-label">Alert Threshold</span>
+                      <span class="review-value">
+                        {{ form.get('credit_alert_threshold')?.value || '10' }}%
+                      </span>
+                    </div>
+                    <div class="review-item" *ngIf="isEditing">
+                      <span class="review-label">Tokens Used</span>
+                      <span class="review-value">{{ usedCredits | number }}</span>
+                    </div>
+                    <div class="review-item" *ngIf="isEditing">
+                      <span class="review-label">Remaining Balance</span>
+                      <span class="review-value" style="color: #059669; font-weight: 600;">
+                        {{ remainingCredits | number }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- AI QA Character Limits Review -->
+                <div class="review-section review-section--full" *ngIf="qaCharacterLimits?.length">
+                  <h4 class="review-section-title">
+                    <mat-icon style="color: #6366f1;">psychology</mat-icon> AI Question & Answer Character Limits
+                  </h4>
+                  <div class="review-items">
+                    <div style="overflow-x: auto; background: var(--bg-1); border: 1px solid var(--theme-3-border); border-radius: 8px;">
+                      <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; text-align: left;">
+                        <thead>
+                          <tr style="background: var(--bg-2); border-bottom: 1px solid var(--theme-3-border);">
+                            <th style="padding: 10px 14px; font-weight: 600; color: var(--theme-3-text-2);">Marks</th>
+                            <th style="padding: 10px 14px; font-weight: 600; color: var(--theme-3-text-2);">Question Char Limit</th>
+                            <th style="padding: 10px 14px; font-weight: 600; color: var(--theme-3-text-2);">Answer Min Characters</th>
+                            <th style="padding: 10px 14px; font-weight: 600; color: var(--theme-3-text-2);">Answer Max Characters</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr *ngFor="let g of qaCharacterLimits.controls; let idx = index" style="border-bottom: 1px solid var(--theme-3-border);">
+                            <td style="padding: 10px 14px; font-weight: 600; color: var(--theme-3-text-1);">
+                              <span class="review-chip" style="margin: 0;">{{ g.get('marks')?.value }} {{ g.get('marks')?.value === 1 ? 'Mark' : 'Marks' }}</span>
+                            </td>
+                            <td style="padding: 10px 14px; color: var(--theme-3-text-1); font-weight: 500;">
+                              {{ g.get('question_character_limit')?.value ? (g.get('question_character_limit')?.value + ' chars') : '–' }}
+                            </td>
+                            <td style="padding: 10px 14px; color: var(--theme-3-text-1);">
+                              {{ g.get('answer_min_character_limit')?.value ? (g.get('answer_min_character_limit')?.value + ' chars') : '–' }}
+                            </td>
+                            <td style="padding: 10px 14px; color: var(--theme-3-text-1); font-weight: 600;">
+                              {{ g.get('answer_max_character_limit')?.value ? (g.get('answer_max_character_limit')?.value + ' chars') : '–' }}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>

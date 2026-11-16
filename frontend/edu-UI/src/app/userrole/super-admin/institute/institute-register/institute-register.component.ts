@@ -103,6 +103,8 @@ export class InstituteRegisterComponent {
   // keep the original institute id when editing so we can send it in update payload
   step1Submitted: boolean = false;
   editingInstituteId: string | null = null;
+  usedCredits: number = 0;
+  remainingCredits: number = 0;
   headOfficeCampusId: string | null = null;
   // index of the expansion panel that should be expanded (helps open newly added campus)
   expandedIndex: number | null = null;
@@ -144,6 +146,8 @@ export class InstituteRegisterComponent {
       branch: ['' as string | null],
       team: [''],
       max_users: [null as number | null, [Validators.required, Validators.min(1)]],
+      allocated_credits: [0 as number | null, [Validators.min(0)]],
+      credit_alert_threshold: [10 as number | null, [Validators.min(1), Validators.max(100)]],
       subscription_start: [null as Date | null, Validators.required],
       subscription_end: [null as Date | null, Validators.required],
       active: [true],
@@ -703,8 +707,13 @@ export class InstituteRegisterComponent {
           primary_contact_phone: obj.primary_contact_phone || '',
           website: obj.website || '',
           max_users: obj.max_users || null,
+          allocated_credits: obj.allocated_credits ?? 0,
+          credit_alert_threshold: obj.credit_alert_threshold ?? 10,
           active: !!obj.active_status,
         });
+
+        this.usedCredits = obj.used_credits || 0;
+        this.remainingCredits = obj.remaining_credits !== undefined ? obj.remaining_credits : (obj.allocated_credits || 0);
 
         // If the stored institute has subscription dates, convert them to Date objects for the datepicker
         try {
@@ -1273,7 +1282,7 @@ export class InstituteRegisterComponent {
     stepper.next();
   }
 
-  goToReview(stepper: MatStepper) {
+  goToAiCredits(stepper: MatStepper) {
     const headOffice = this.form.get('headOffice');
     const campuses = this.form.get('campuses');
 
@@ -1289,6 +1298,18 @@ export class InstituteRegisterComponent {
       this.form.hasError('headOfficeOrCampusRequired')
     )
       return;
+
+    stepper.next();
+  }
+
+  goToReview(stepper: MatStepper) {
+    const allocated = this.form.get('allocated_credits');
+    const threshold = this.form.get('credit_alert_threshold');
+    allocated?.markAsTouched();
+    threshold?.markAsTouched();
+    if (allocated?.invalid || threshold?.invalid) {
+      return;
+    }
 
     stepper.next();
   }

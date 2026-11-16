@@ -1,4 +1,4 @@
-﻿import {
+import {
   Component,
   ViewChild,
   AfterViewInit,
@@ -52,6 +52,9 @@ export interface Institute {
   primary_contact_phone?: string;
   website?: string;
   max_users?: number;
+  allocated_credits?: number;
+  used_credits?: number;
+  remaining_credits?: number;
   admins_count?: number;
   users_count?: number;
   industry_type?: string;
@@ -580,6 +583,11 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
           this.rawRecords = res.data;
           this.institutes = res.data.map((r: any, idx: number) => ({
             id: idx + 1,
+            institute_id: r.institute_id,
+            allocated_credits: r.allocated_credits !== undefined && r.allocated_credits !== null ? r.allocated_credits : 0,
+            used_credits: r.used_credits || 0,
+            remaining_credits: r.remaining_credits !== undefined && r.remaining_credits !== null ? r.remaining_credits : (r.allocated_credits || 0),
+            ai_credits: r.remaining_credits !== undefined && r.remaining_credits !== null ? r.remaining_credits : (r.allocated_credits || 0),
             name: r.name,
             short: r.short_name || r.short || '',
             city:
@@ -1446,6 +1454,74 @@ export class ViewInstitutesComponent implements OnInit, AfterViewInit, OnDestroy
     } catch (e) {
       return;
     }
+  }
+
+  creditModalInstitute: any = null;
+  creditInputVal: number = 0;
+  isSavingCredits = false;
+
+  openCreditDialog(institute: any): void {
+    this.creditModalInstitute = institute;
+    const current = institute?.allocated_credits !== undefined && institute?.allocated_credits !== null
+      ? institute.allocated_credits
+      : (institute?.raw?.allocated_credits || 0);
+    this.creditInputVal = current;
+  }
+
+  closeCreditModal(): void {
+    this.creditModalInstitute = null;
+    this.isSavingCredits = false;
+  }
+
+  saveCredits(): void {
+    if (!this.creditModalInstitute) return;
+    const instId = this.creditModalInstitute.institute_id || this.creditModalInstitute.raw?.institute_id || this.creditModalInstitute.id;
+    if (!instId) {
+      notify('Cannot resolve institute ID.', 'error');
+      return;
+    }
+
+    const num = parseInt(String(this.creditInputVal), 10);
+    if (isNaN(num) || num < 0) {
+      notify('Please enter a valid non-negative credit number.', 'error');
+      return;
+    }
+
+    this.isSavingCredits = true;
+    const token = sessionStorage.getItem('token');
+    const headers: any = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    this.http.post<any>(`${API_BASE}/institutes/update-credits`, {
+      institute_id: instId,
+      allocated_credits: num
+    }, { headers }).subscribe({
+      next: (res) => {
+        this.isSavingCredits = false;
+        if (res && res.status) {
+          this.creditModalInstitute.allocated_credits = num;
+          if (this.creditModalInstitute.raw) {
+            this.creditModalInstitute.raw.allocated_credits = num;
+          }
+          if (res.data?.remaining_credits !== undefined) {
+            this.creditModalInstitute.remaining_credits = res.data.remaining_credits;
+            this.creditModalInstitute.used_credits = res.data.used_credits;
+            if (this.creditModalInstitute.raw) {
+              this.creditModalInstitute.raw.remaining_credits = res.data.remaining_credits;
+              this.creditModalInstitute.raw.used_credits = res.data.used_credits;
+            }
+          }
+          notify(`Credits updated successfully to ${num.toLocaleString()}`, 'success');
+          this.closeCreditModal();
+        } else {
+          notify(res?.statusMessage || 'Failed to update credits', 'error');
+        }
+      },
+      error: (err) => {
+        this.isSavingCredits = false;
+        notify(err?.error?.statusMessage || 'Error updating credits', 'error');
+      }
+    });
   }
 
   viewDetails(i: Institute, tabIndex: number = 0) {

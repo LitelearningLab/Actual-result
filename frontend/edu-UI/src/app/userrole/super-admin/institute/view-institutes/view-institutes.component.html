@@ -367,8 +367,8 @@
 
         <!-- S.No -->
         <ng-container matColumnDef="sno">
-          <th mat-header-cell *matHeaderCellDef>S.No</th>
-          <td mat-cell *matCellDef="let i; let idx = index">
+          <th mat-header-cell *matHeaderCellDef class="cell-sno-header">S.No</th>
+          <td mat-cell *matCellDef="let i; let idx = index" class="cell-sno-data">
             {{ paginator ? paginator.pageIndex * paginator.pageSize + idx + 1 : idx + 1 }}
           </td>
         </ng-container>
@@ -652,6 +652,14 @@
 
                   <div class="label"><mat-icon>people</mat-icon> Max Users</div>
                   <div class="value">{{ selectedInstitute.max_users || '—' }}</div>
+
+                  <div class="label"><mat-icon>toll</mat-icon> Allocated AI Credits</div>
+                  <div class="value">{{ (selectedInstitute.allocated_credits || 0) | number }}</div>
+
+                  <div class="label"><mat-icon>monetization_on</mat-icon> Remaining AI Credits</div>
+                  <div class="value" style="font-weight: 600; color: #0284c7;">
+                    {{ (selectedInstitute.remaining_credits !== undefined && selectedInstitute.remaining_credits !== null ? selectedInstitute.remaining_credits : (selectedInstitute.allocated_credits || 0)) | number }}
+                  </div>
 
                   <div class="label"><mat-icon>admin_panel_settings</mat-icon> Admins</div>
                   <div class="value">{{ getAdminCount(selectedInstitute) }}</div>

@@ -17,6 +17,7 @@ import { AuthService } from 'src/app/home/service/auth.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { API_BASE, resolveMediaUrl } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
+import { ConfirmService } from 'src/app/shared/services/confirm.service';
 import { Subscription, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
@@ -370,7 +371,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     private overlay: Overlay,
     private vcr: ViewContainerRef,
     private sanitizer: DomSanitizer,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private confirmService: ConfirmService
   ) {
     this.detectUserRole();
   }
@@ -3599,7 +3601,24 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           this.isUploading = false;
           this.isBulkEvaluating = false;
           console.error('Error starting bulk evaluation:', err);
-          notify(err?.error?.statusMessage || 'Failed to enqueue bulk answer sheets.', 'error');
+          const errMsg =
+            err?.error?.statusMessage ||
+            err?.error?.error ||
+            err?.error?.message ||
+            'Failed to enqueue bulk answer sheets.';
+          if (
+            err?.status === 403 ||
+            String(errMsg).toLowerCase().includes('super admin') ||
+            String(errMsg).toLowerCase().includes('ai access')
+          ) {
+            this.confirmService.confirm({
+              title: 'AI Access Restricted',
+              message: errMsg,
+              confirmText: 'Understood',
+              cancelText: '',
+            });
+          }
+          notify(errMsg, 'error');
         }
       });
     } else {

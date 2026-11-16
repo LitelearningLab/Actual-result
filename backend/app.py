@@ -7,7 +7,8 @@ from configparser import ConfigParser
 from werkzeug.datastructures import ImmutableMultiDict
 from werkzeug.exceptions import HTTPException
 
-from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, delete_institute, manage_institute, update_institute
+from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, delete_institute, manage_institute, update_institute, update_institute_credits
+from others.ai_credits import get_ai_credits_summary_api, get_ai_feature_breakdown_api, get_ai_analytics_api
 from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details, delete_user
 from others.exams import add_exam, autosave_exam_answers, get_active_exam_status, get_exam_details, get_exam_list, launch_exam_details, submit_exam_answers,get_user_exam_details
 from others.examschedule import add_exam_schedule, get_exam_schedule_details, delete_exam_schedule
@@ -260,6 +261,27 @@ def register_institute():
 def update_institute_route():
     response_data, status_code = update_institute(request)
     return jsonify(response_data), status_code
+
+@edu_blueprint.route('/institutes/update-credits', methods=['POST', 'PUT'])
+@super_admin_required
+def update_institute_credits_route():
+    response_data, status_code = update_institute_credits(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/ai-credits/summary', methods=['GET'])
+@admin_required
+def ai_credits_summary_route():
+    return get_ai_credits_summary_api()
+
+@edu_blueprint.route('/ai-credits/feature-breakdown', methods=['GET'])
+@admin_required
+def ai_credits_feature_breakdown_route():
+    return get_ai_feature_breakdown_api()
+
+@edu_blueprint.route('/ai-credits/analytics', methods=['GET'])
+@admin_required
+def ai_credits_analytics_route():
+    return get_ai_analytics_api()
 
 @edu_blueprint.route('/get-institutes', methods=['GET'])
 @super_admin_required
@@ -647,6 +669,14 @@ def start_bulk_evaluation_route():
     import json
     from others.bulk_eval_manager import bulk_eval_manager
     current_user = get_current_user_from_request()
+
+    from others.ai_credits import check_institute_ai_access
+    has_access, err_msg, err_code = check_institute_ai_access(
+        user_id=current_user,
+        request_obj=request
+    )
+    if not has_access:
+        return jsonify({"status": False, "statusMessage": err_msg, "error": err_msg, "message": err_msg}), err_code
 
     exam_id = request.form.get('exam_id') or request.form.get('schedule_id')
     schedule_id = request.form.get('schedule_id') or exam_id

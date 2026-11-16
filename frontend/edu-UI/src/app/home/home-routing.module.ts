@@ -32,6 +32,7 @@ import { scheduleTestUnsavedChangesGuard } from '../shared/guards/schedule-test-
 import { questionPaperUnsavedChangesGuard } from '../shared/guards/question-paper-unsaved-changes.guard';
 import { InstituteScopeInactiveComponent } from '../shared/components/institute-scope-inactive/institute-scope-inactive.component';
 import { AdminSettingsComponent } from '../userrole/admin/settings/settings.component';
+import { AiCreditsComponent } from '../userrole/admin/ai-credits/ai-credits.component';
 import { userExamExitGuard } from '../shared/guards/user-exam-exit.guard';
 import { UnauthGuard } from '../shared/guards/unauth.guard';
 
@@ -58,6 +59,7 @@ const routes: Routes = [
   , { path: 'category', component: CategoryComponent, canActivate: [PermissionGuard], data: { pageName: 'Categories', action: 'view' } }
   , { path: 'category/create', component: CategoryCreateComponent, canActivate: [PermissionGuard], data: { pageName: 'Categories', action: 'add' } }
   , { path: 'admin/exam-reports', loadChildren: () => import('../userrole/admin/exam-reports/exam-reports.module').then(m => m.ExamReportsModule), canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'admin/ai-credits', component: AiCreditsComponent, canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'admin-dashboard', component: AdminResultsComponent, canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'admin/settings', component: AdminSettingsComponent, canActivate: [PermissionGuard], data: { requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'user/exam', component: UserExamComponent, canActivate: [PermissionGuard], data: { requiredRole: ['user','admin','super_admin','superadmin','super-admin'] } }
