@@ -3384,7 +3384,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   openAddSectionModal() {
     this.newSectionName = '';
-    this.newSectionSubHeading = 'Answer all questions. Each question carries 1 mark.';
+    this.newSectionSubHeading = 'Answer all questions.';
     this.newSectionType = 'objective';
     this.newSectionTargetCount = null;
     this.newSectionMarksPerQ = null;
@@ -3418,8 +3418,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (sec.instructions && sec.instructions.trim()) {
       return sec.instructions.trim();
     }
-    const marks = this.getSectionMarksPerQ(sec) || 1;
-    return `Answer all questions. Each question carries ${marks} mark${marks > 1 ? 's' : ''}.`;
+    return 'Answer all questions.';
   }
 
   confirmAddSection() {

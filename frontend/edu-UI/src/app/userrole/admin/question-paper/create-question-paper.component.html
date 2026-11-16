@@ -626,7 +626,7 @@
                         <h2>Sections and Questions</h2>
                         <p>Drag a section to reorder it. Marks are added up automatically.</p>
                     </div>
-                    <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()" *ngIf="!readOnly" [disabled]="!subject_id">
+                    <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()" *ngIf="!readOnly && sections.length > 0" [disabled]="!subject_id">
                         <mat-icon>add</mat-icon>
                         <span>Add Section</span>
                     </button>
@@ -665,7 +665,6 @@
                                         {{ getSectionSubHeading(sec) }}
                                     </div>
                                     <div class="sec-meta">
-                                        <span class="sec-meta-item">{{ getSectionMarksPerQ(sec) || 1 }} mark each</span>
                                         <span class="sec-meta-item">{{ sec.questions.length || 0 }} of {{ sec.targetCount || 10 }} questions</span>
                                         <span class="sec-meta-item">{{ getSectionMarks(sec) }} of {{ (sec.targetCount || 10) * (getSectionMarksPerQ(sec) || 1) }} marks</span>
                                     </div>
@@ -1048,7 +1047,7 @@
                 <!-- Sub Heading / Instructions -->
                 <div class="form-group">
                     <label class="field-label">Sub Heading <span class="opt">(instructions / description)</span></label>
-                    <input class="qp-input" [(ngModel)]="newSectionSubHeading" placeholder="e.g. Answer all questions. Each question carries 1 mark." />
+                    <input class="qp-input" [(ngModel)]="newSectionSubHeading" placeholder="e.g. Answer all questions." />
                 </div>
                 <!-- Target count -->
                 <div class="form-group">
