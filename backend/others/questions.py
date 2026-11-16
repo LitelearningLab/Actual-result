@@ -1713,7 +1713,10 @@ If only a single question is requested, returning a single JSON object is also a
             user_message,
             aimodel=aimodel,
             max_tokens = max(total_tokens_estimate + 2000, 4000),
-            timeout = 120.0
+            timeout = 120.0,
+            institute_id=target_inst_id,
+            feature_name="Question Generation",
+            endpoint="/create-question-using-ai"
         )
         # with open("debug_response.json", "w") as debug_file:
         #     debug_file.write(response.text)
@@ -1920,6 +1923,9 @@ def fine_tune_questions_using_llm(request):
             InputData=user_message,
             aimodel=1,
             max_tokens=2500,
+            institute_id=institute_id,
+            feature_name="Fine-Tuning",
+            endpoint="/fine-tune-question"
         )
         response_json = response.json() if hasattr(response, "json") else {}
 

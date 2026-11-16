@@ -107,6 +107,14 @@ def record_ai_usage(response_json, institute_id=None, user_id=None, feature_name
         db = SQLiteDB()
         session = db.connect()
 
+        # Idempotency check: prevent duplicate logging of the same OpenAI completion
+        req_id = response_json.get("id")
+        if req_id:
+            existing = session.query(openai_requests).filter(openai_requests.id == req_id).first()
+            if existing:
+                session.close()
+                return
+
         resolved_inst = resolve_institute_id(None, institute_id, user_id)
 
         # Standardize feature names
