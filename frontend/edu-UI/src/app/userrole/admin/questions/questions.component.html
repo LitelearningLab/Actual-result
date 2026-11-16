@@ -1721,6 +1721,12 @@
 
               <!-- AI fine-tuning -->
               <div *ngIf="q.type === 'descriptive' && q.showFineTune" class="fine-tuning-section">
+                <!-- Inline Question-Specific Loading Animation -->
+                <div *ngIf="q.isFineTuning" style="display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin-bottom: 12px; color: #15803d; font-size: 13px; font-weight: 500;">
+                  <mat-icon class="rotating-spinner" style="font-size: 18px; width: 18px; height: 18px;">autorenew</mat-icon>
+                  <span>Refining this question with AI... please wait</span>
+                </div>
+
                 <mat-form-field appearance="outline" class="field-full">
                   <mat-label>AI Fine-tuning Instructions (optional)</mat-label>
                   <textarea
@@ -1729,6 +1735,7 @@
                     id="q-finetune-{{ qi }}"
                     [(ngModel)]="q.finetuneInstructions"
                     rows="1"
+                    [disabled]="q.isFineTuning"
                     title="AI Fine-tuning Instructions"
                     placeholder="Provide additional instructions for AI grading (max 500 chars)"
                   ></textarea>
@@ -1736,10 +1743,12 @@
                 <button
                   mat-stroked-button
                   type="button"
+                  style="display: inline-flex; align-items: center; gap: 8px;"
                   (click)="generateModelAnswer(qi, q.text, q.answerText, q.finetuneInstructions)"
-                  [disabled]="!q.text || q.text.length < 5"
+                  [disabled]="!q.text || q.text.length < 5 || q.isFineTuning"
                 >
-                  Apply Fine-tuning
+                  <mat-icon *ngIf="q.isFineTuning" class="rotating-spinner" style="font-size: 18px; width: 18px; height: 18px;">sync</mat-icon>
+                  <span>{{ q.isFineTuning ? 'Applying Fine-tuning...' : 'Apply Fine-tuning' }}</span>
                 </button>
               </div>
             </div>

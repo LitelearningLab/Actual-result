@@ -3518,7 +3518,10 @@ export class AdminQuestionsComponent {
     answerText: string,
     finetuneInstructions?: string
   ) {
-    this.loader.show();
+    const q = this.questions && this.questions[qIndex];
+    if (q) {
+      q.isFineTuning = true;
+    }
     try {
       const payload: any = {
         question_text: qText || '',
@@ -3527,7 +3530,6 @@ export class AdminQuestionsComponent {
       if (finetuneInstructions) payload.additional_instructions = finetuneInstructions;
       // include question id if available so backend can map
       try {
-        const q = this.questions && this.questions[qIndex];
         if (q && (q.id || q.question_id)) payload.question_id = q.id || q.question_id;
       } catch (e) {}
 
@@ -3539,10 +3541,9 @@ export class AdminQuestionsComponent {
               const data = res.data || res;
               // Replace question text and answer for the target block if present in response
               if (data && (data.question_text || data.answer_text)) {
-                const target = this.questions && this.questions[qIndex];
-                if (target) {
-                  if (data.question_text) target.text = data.question_text;
-                  if (data.answer_text) target.answerText = data.answer_text;
+                if (q) {
+                  if (data.question_text) q.text = data.question_text;
+                  if (data.answer_text) q.answerText = data.answer_text;
                 }
                 try {
                   notify('Fine-tuned question applied', 'success');
@@ -3562,17 +3563,18 @@ export class AdminQuestionsComponent {
           }
         },
         complete: () => {
-          this.loader.hide();
+          if (q) q.isFineTuning = false;
         },
         error: (err) => {
+          if (q) q.isFineTuning = false;
           console.error('Fine-tune request failed', err);
           try {
             notify(err?.error?.message || 'Fine-tune failed', 'error');
           } catch (e) {}
-          this.loader.hide();
         },
       });
     } catch (e) {
+      if (q) q.isFineTuning = false;
       console.error('generateModelAnswer failed', e);
       try {
         notify('Fine-tune request failed', 'error');
