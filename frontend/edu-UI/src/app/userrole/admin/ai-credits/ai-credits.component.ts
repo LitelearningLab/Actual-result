@@ -11,7 +11,9 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
+import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { API_BASE } from 'src/app/shared/api.config';
+import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { Subscription } from 'rxjs';
 
 interface CreditSummary {
@@ -108,6 +110,7 @@ export interface InstituteOption {
     MatProgressBarModule,
     MatTooltipModule,
     MatSnackBarModule,
+    MatPaginatorModule,
   ],
   templateUrl: './ai-credits.component.html',
   styleUrls: ['./ai-credits.component.scss'],
@@ -125,6 +128,21 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   institutesList: InstituteOption[] = [];
   institutesOverview: InstituteOverviewItem[] = [];
   instituteSearchTerm = '';
+
+  // Institutes table pagination
+  institutePageIndex = 0;
+  institutePageSize = 5;
+  institutePageSizeOptions = [5, 10, 25, 50];
+
+  get paginatedInstitutes(): InstituteOverviewItem[] {
+    const start = this.institutePageIndex * this.institutePageSize;
+    return this.institutesOverview.slice(start, start + this.institutePageSize);
+  }
+
+  onInstitutePageChange(event: PageEvent): void {
+    this.institutePageIndex = event.pageIndex;
+    this.institutePageSize = event.pageSize;
+  }
 
   get filteredInstitutes(): InstituteOption[] {
     const term = (this.instituteSearchTerm || '').trim().toLowerCase();
@@ -162,9 +180,15 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   private subs: Subscription = new Subscription();
 
-  constructor(private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(
+    private http: HttpClient,
+    private snackBar: MatSnackBar,
+    private pageMeta: PageMetaService
+  ) {}
 
   ngOnInit(): void {
+    this.pageMeta.setMeta('AI Credits', 'Quota allocation, consumption, and status');
+
     const userStr = sessionStorage.getItem('user');
     if (userStr) {
       try {
@@ -224,6 +248,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         next: (res) => {
           if (res && res.status && res.data) {
             this.institutesOverview = res.data;
+            this.institutePageIndex = 0;
             this.institutesList = res.data.map((item) => ({
               institute_id: item.institute_id,
               name: item.name,
@@ -415,6 +440,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.pageMeta.clear();
     this.subs.unsubscribe();
   }
 }

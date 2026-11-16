@@ -171,7 +171,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let inst of institutesOverview" class="table-row">
+          <tr *ngFor="let inst of paginatedInstitutes" class="table-row">
             <td class="col-inst">
               <div class="inst-cell">
                 <div class="inst-avatar">
@@ -224,6 +224,16 @@
         </tbody>
       </table>
     </div>
+    <mat-paginator
+      *ngIf="institutesOverview && institutesOverview.length > 0"
+      [length]="institutesOverview.length"
+      [pageSize]="institutePageSize"
+      [pageSizeOptions]="institutePageSizeOptions"
+      (page)="onInstitutePageChange($event)"
+      showFirstLastButtons
+      class="custom-paginator"
+      aria-label="Select institute page"
+    ></mat-paginator>
   </div>
 
   <!-- SECTION 4: AI Services Usage Breakdown Table -->
