@@ -152,20 +152,26 @@ class openai_client:
                     inferred_feature = feature_name
                     if not inferred_feature:
                         sys_str = str(system_message or "").lower()
-                        if "evaluat" in sys_str or "rubric" in sys_str or "marking" in sys_str:
-                            inferred_feature = "Evaluated"
+                        if "question detector" in sys_str or "physically written question" in sys_str or "anchor" in sys_str:
+                            inferred_feature = "Question Anchor Detection"
+                        elif "student identity" in sys_str or "roster" in sys_str or "recognizing student identity" in sys_str:
+                            inferred_feature = "Student Identification"
+                        elif "boundary detection" in sys_str or "is_start" in sys_str or "multi-student" in sys_str:
+                            inferred_feature = "PDF Sheet Splitting"
+                        elif "visual answer sheet grader" in sys_str or "handwritten answer sheet" in sys_str or "rubric & point-by-point" in sys_str:
+                            inferred_feature = "Paper Evaluation"
                         elif "examination setter" in sys_str or "generate" in sys_str:
-                            inferred_feature = "Question Generation"
-                        elif "ocr" in sys_str or "optical character" in sys_str:
-                            inferred_feature = "OCR Extraction"
-                        elif "wrong answer" in sys_str or "diagnostic" in sys_str:
+                            inferred_feature = "AI Question Generation"
+                        elif "wrong answer" in sys_str or "diagnostic" in sys_str or "misconception" in sys_str:
                             inferred_feature = "Exam Diagnostics"
                         elif "subtopic" in sys_str:
-                            inferred_feature = "Exam Diagnostics"
-                        elif "student identity" in sys_str or "roster" in sys_str:
-                            inferred_feature = "Evaluated"
+                            inferred_feature = "Subtopic Classification"
+                        elif "fine-tune" in sys_str or "improve the provided question" in sys_str:
+                            inferred_feature = "AI Fine-Tuning"
+                        elif "evaluat" in sys_str or "rubric" in sys_str or "marking" in sys_str:
+                            inferred_feature = "AI Evaluation"
                         else:
-                            inferred_feature = "Question Generation"
+                            inferred_feature = "AI Question Generation"
 
                     record_ai_usage(
                         resp_json,
@@ -188,7 +194,7 @@ class openai_client:
 
 
 def descriptive_evaluation(
-    api_client, question_mark, expected_answer, student_answer, question_text="", user_name=None
+    api_client, question_mark, expected_answer, student_answer, question_text="", user_name=None, institute_id=None, endpoint=None
 ):
     system_message = """You are an expert academic evaluator. Evaluate the student's descriptive
 answer fairly and accurately against the supplied question, expected answer,
@@ -349,7 +355,14 @@ working, or text outside the JSON object."""
         answer before generating feedback. Return only the specified JSON object.
         """
     try:
-        response = api_client.chat_completion(system_message, user_message, user_name=user_name)
+        response = api_client.chat_completion(
+            system_message,
+            user_message,
+            user_name=user_name,
+            institute_id=institute_id,
+            feature_name="AI Evaluation",
+            endpoint=endpoint or "/validate-answers"
+        )
         response_json = response.json()
         if response.status_code != 200:
             return {
@@ -400,7 +413,7 @@ working, or text outside the JSON object."""
 
 
 def analyze_wrong_answers_ai(
-    api_client, question_text, question_type, expected_answer, wrong_answers_list
+    api_client, question_text, question_type, expected_answer, wrong_answers_list, institute_id=None, user_name=None
 ):
     """
     Analyzes student incorrect/sub-optimal answers using LLM to provide:
@@ -506,7 +519,15 @@ Please classify relevance, cluster misconceptions, and provide the diagnostic su
 
     try:
         response = api_client.chat_completion(
-            system_message, user_message, max_tokens=3500, temperature=0.2, timeout=12.0
+            system_message,
+            user_message,
+            max_tokens=3500,
+            temperature=0.2,
+            timeout=12.0,
+            institute_id=institute_id,
+            user_name=user_name,
+            feature_name="Exam Diagnostics",
+            endpoint="/test-reports/analytics"
         )
         response_json = response.json()
         if response.status_code != 200:
@@ -559,7 +580,7 @@ Please classify relevance, cluster misconceptions, and provide the diagnostic su
         }
 
 
-def generate_ai_subtopics(api_client, questions_list, category_name=""):
+def generate_ai_subtopics(api_client, questions_list, category_name="", institute_id=None, user_name=None):
     """
     Uses OpenAI AI to dynamically analyze a list of questions (and category context)
     and infer a concise, high-level Subtopic for each question (max 20 characters per subtopic).
@@ -599,7 +620,15 @@ CRITICAL RULES:
 
     try:
         response = api_client.chat_completion(
-            system_message, user_message, max_tokens=1500, temperature=0.2, timeout=10.0
+            system_message,
+            user_message,
+            max_tokens=1500,
+            temperature=0.2,
+            timeout=10.0,
+            institute_id=institute_id,
+            user_name=user_name,
+            feature_name="Subtopic Classification",
+            endpoint="/test-reports/subtopics"
         )
         if response and getattr(response, "status_code", None) == 200:
             res_json = response.json()
@@ -624,7 +653,7 @@ CRITICAL RULES:
 
 
 def vision_detect_question_anchors(
-    api_client, page_images, exam_question_numbers=None, timeout=45.0
+    api_client, page_images, exam_question_numbers=None, timeout=45.0, institute_id=None, user_name=None, feature_name="Question Anchor Detection", endpoint="/test-evaluation/upload-answer-sheet"
 ):
     """
     Phase 1: Question Detection Engine.
@@ -799,6 +828,10 @@ OUTPUT ONLY THIS JSON:
             max_tokens=2000,
             temperature=0.0,
             timeout=timeout,
+            institute_id=institute_id,
+            user_name=user_name,
+            feature_name=feature_name or "Question Anchor Detection",
+            endpoint=endpoint or "/test-evaluation/upload-answer-sheet"
         )
 
         if not response or getattr(response, "status_code", None) != 200:
@@ -894,7 +927,7 @@ OUTPUT ONLY THIS JSON:
         }
 
 
-def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60.0, user_name=None):
+def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60.0, user_name=None, institute_id=None, feature_name="Paper Evaluation", endpoint="/test-evaluation/upload-answer-sheet"):
     """
     Evaluates student handwritten answer sheet page images directly using OpenAI Vision API.
     Does NOT use OCR or text extraction as an intermediate step.
@@ -1147,6 +1180,10 @@ OUTPUT JSON STRUCTURE:
             temperature=0.15,
             timeout=timeout,
             response_format={"type": "json_object"},
+            institute_id=institute_id,
+            user_name=user_name,
+            feature_name=feature_name or "Paper Evaluation",
+            endpoint=endpoint or "/test-evaluation/upload-answer-sheet"
         )
 
         if not response or getattr(response, "status_code", None) != 200:
@@ -1362,7 +1399,7 @@ OUTPUT JSON STRUCTURE:
 
 
 def vision_evaluate_question_images(
-    api_client, question_dict, answer_images, written_text=None, timeout=60.0, user_name=None
+    api_client, question_dict, answer_images, written_text=None, timeout=60.0, user_name=None, institute_id=None, feature_name="AI Evaluation", endpoint="/validate-answers"
 ):
     """
     Evaluates one question's handwritten answer images (and optional typed text)
@@ -1404,7 +1441,8 @@ def vision_evaluate_question_images(
         ],
     }
     res = vision_evaluate_answersheet(
-        api_client, exam_rubric, answer_images, timeout=timeout, user_name=user_name
+        api_client, exam_rubric, answer_images, timeout=timeout, user_name=user_name,
+        institute_id=institute_id, feature_name=feature_name or "AI Evaluation", endpoint=endpoint or "/validate-answers"
     )
     if res and res.get("status"):
         evals = res.get("evaluations", [])

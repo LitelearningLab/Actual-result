@@ -1962,13 +1962,15 @@ def get_question_wrong_answers(request):
 
             if wrong_items:
                 try:
+                    rep_inst_id = (request.args.get("institute_id") if hasattr(request, "args") else None) or (getattr(current_user, "institute_id", None) if current_user else None)
                     openai_inst = openai_client()
                     ai_res = analyze_wrong_answers_ai(
                         openai_inst,
                         getattr(qobj, 'question_text', '') or '',
                         q_type,
                         expected_answer_text,
-                        wrong_items
+                        wrong_items,
+                        institute_id=rep_inst_id
                     )
                     if ai_res.get('status'):
                         diag_summary = ai_res.get("diagnostic_summary", "")
@@ -2695,12 +2697,13 @@ def get_descriptive_ai_analysis(request):
         ai_subtopic_map = {}
 
         try:
+            rep_inst_id = (request.args.get("institute_id") if hasattr(request, "args") else None) or (getattr(current_user, "institute_id", None) if current_user else None)
             openai_inst = openai_client()
             q_dicts = [
                 {"question_id": str(q.question_id).strip(), "question_text": q.question_text or ""}
                 for q in q_objs if q and q.question_id
             ]
-            raw_ai_map = generate_ai_subtopics(openai_inst, q_dicts, category_name) or {}
+            raw_ai_map = generate_ai_subtopics(openai_inst, q_dicts, category_name, institute_id=rep_inst_id) or {}
             # Normalize all keys in ai_subtopic_map to stripped strings
             ai_subtopic_map = {str(k).strip(): str(v).strip() for k, v in raw_ai_map.items()}
         except Exception as ai_sub_err:

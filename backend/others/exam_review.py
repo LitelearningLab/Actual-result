@@ -1107,6 +1107,9 @@ def _validate_answers_impl(attempt_id):
                         prepared_images,
                         written_text=student_text,
                         user_name=user_name,
+                        institute_id=auth_inst_id,
+                        feature_name="AI Evaluation",
+                        endpoint=f"/validate-answers/{attempt_id}"
                     )
                 else:
                     evaluation = descriptive_evaluation(
@@ -1116,6 +1119,8 @@ def _validate_answers_impl(attempt_id):
                         student_text or raw_answer,
                         question_text=question.question_text if question else "",
                         user_name=user_name,
+                        institute_id=auth_inst_id,
+                        endpoint=f"/validate-answers/{attempt_id}"
                     )
 
                 if not evaluation.get("status", False):

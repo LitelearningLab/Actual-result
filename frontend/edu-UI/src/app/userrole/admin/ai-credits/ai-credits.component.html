@@ -238,60 +238,95 @@
     </div>
 
     <div class="table-responsive">
-      <table class="ai-table">
+      <table class="ai-table ai-feature-matrix">
         <thead>
           <tr>
-            <th class="col-feature">AI Feature / Activity</th>
-            <th class="col-num text-center">Operations (Count)</th>
-            <th class="col-num text-right">Input (Prompt) Tokens</th>
-            <th class="col-num text-right">Output (Completion) Tokens</th>
-            <th class="col-num text-right">Total Tokens Used</th>
-            <th class="col-num text-right">Credits Consumed</th>
-            <th class="col-date text-center">Last Active</th>
+            <th class="col-metric">AI Feature</th>
+            <th *ngFor="let col of featureColumns" class="col-feature-hdr text-center">
+              <div class="header-feature-box">
+                <mat-icon class="feature-hdr-icon">{{ col.icon || getFeatureIcon(col.feature) }}</mat-icon>
+                <span class="feature-hdr-title">{{ col.feature }}</span>
+              </div>
+            </th>
+            <th class="col-total-hdr text-center">
+              <div class="header-feature-box">
+                <mat-icon class="feature-hdr-icon total-icon">all_inclusive</mat-icon>
+                <span class="feature-hdr-title">TOTAL ALL</span>
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let item of breakdown" class="table-row">
-            <td class="col-feature">
-              <div class="feature-cell">
-                <mat-icon class="feature-icon">{{ getFeatureIcon(item.feature) }}</mat-icon>
-                <span class="feature-name">{{ item.feature }}</span>
+          <!-- Row 1: Total Credits / Tokens -->
+          <tr class="row-credits">
+            <td class="metric-name-cell">
+              <div class="metric-label">
+                <mat-icon>token</mat-icon>
+                <span>Total Credits</span>
               </div>
             </td>
-            <td class="col-num text-center font-bold count-pill-cell">
-              <span class="count-pill">{{ item.count | number }}</span>
+            <td *ngFor="let col of featureColumns" class="text-center font-bold value-hero">
+              <span class="credits-val">{{ (col.credits_consumed || col.total_tokens || 0) | number }}</span>
             </td>
-            <td class="col-num text-right">{{ item.prompt_tokens | number }}</td>
-            <td class="col-num text-right">{{ item.completion_tokens | number }}</td>
-            <td class="col-num text-right font-semibold">{{ item.total_tokens | number }}</td>
-            <td class="col-num text-right font-bold text-primary">{{ item.credits_consumed | number }}</td>
-            <td class="col-date text-center text-muted">
-              {{ item.last_used || '—' }}
+            <td class="text-center font-bold value-hero total-cell">
+              <span class="credits-val total-credits">{{ (totals?.credits_consumed || totals?.total_tokens || 0) | number }}</span>
             </td>
           </tr>
 
-          <!-- Empty State -->
-          <tr *ngIf="!breakdown || breakdown.length === 0">
-            <td colspan="7" class="empty-cell">
-              <mat-icon class="empty-icon">smart_toy</mat-icon>
-              <p>No AI operations recorded yet for this institute.</p>
-              <span class="empty-hint">AI calls like Question Generation and Evaluation will automatically appear here.</span>
+          <!-- Row 2: In / Out Tokens Flow -->
+          <tr class="row-tokens">
+            <td class="metric-name-cell">
+              <div class="metric-label">
+                <mat-icon>sync_alt</mat-icon>
+                <span>Token Flow</span>
+              </div>
             </td>
+            <td *ngFor="let col of featureColumns" class="text-center">
+              <div class="token-split-pill">
+                <span class="pill-in" title="Input (Prompt) Tokens">In: {{ (col.prompt_tokens || 0) | number }}</span>
+                <span class="pill-sep">•</span>
+                <span class="pill-out" title="Output (Completion) Tokens">Out: {{ (col.completion_tokens || 0) | number }}</span>
+              </div>
+            </td>
+            <td class="text-center total-cell">
+              <div class="token-split-pill total-pill">
+                <span class="pill-in" title="Total Input Tokens">In: {{ (totals?.prompt_tokens || 0) | number }}</span>
+                <span class="pill-sep">•</span>
+                <span class="pill-out" title="Total Output Tokens">Out: {{ (totals?.completion_tokens || 0) | number }}</span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Row 3: Operations Count -->
+          <tr class="row-ops">
+            <td class="metric-name-cell">
+              <div class="metric-label">
+                <mat-icon>call_made</mat-icon>
+                <span>Operations</span>
+              </div>
+            </td>
+            <td *ngFor="let col of featureColumns" class="text-center">
+              <span class="op-badge" [class.has-ops]="col.count > 0">{{ (col.count || 0) | number }} calls</span>
+            </td>
+            <td class="text-center total-cell">
+              <span class="op-badge total-badge">{{ (totals?.count || 0) | number }} calls</span>
+            </td>
+          </tr>
+
+          <!-- Row 4: Last Active -->
+          <tr class="row-last-active">
+            <td class="metric-name-cell">
+              <div class="metric-label">
+                <mat-icon>schedule</mat-icon>
+                <span>Last Active</span>
+              </div>
+            </td>
+            <td *ngFor="let col of featureColumns" class="text-center text-muted small-text">
+              {{ col.last_used || '—' }}
+            </td>
+            <td class="text-center total-cell text-muted small-text">—</td>
           </tr>
         </tbody>
-
-        <!-- Table Footer / Totals -->
-        <tfoot *ngIf="totals && breakdown.length > 0">
-          <tr class="total-row">
-            <td class="col-feature font-bold">TOTAL ALL SERVICES</td>
-            <td class="col-num text-center font-bold">{{ totals.count | number }}</td>
-            <td class="col-num text-right font-bold">{{ totals.prompt_tokens | number }}</td>
-            <td class="col-num text-right font-bold">{{ totals.completion_tokens | number }}</td>
-            <td class="col-num text-right font-bold">{{ totals.total_tokens | number }}</td>
-            <td class="col-num text-right font-bold text-primary">{{ totals.credits_consumed | number }}</td>
-            <td class="col-date text-center">—</td>
-          </tr>
-        </tfoot>
       </table>
     </div>
   </div>

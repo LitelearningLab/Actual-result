@@ -118,15 +118,27 @@ def record_ai_usage(response_json, institute_id=None, user_id=None, feature_name
         resolved_inst = resolve_institute_id(None, institute_id, user_id)
 
         # Standardize feature names
-        if not feature_name:
+        if feature_name:
+            feature_name = normalize_feature_name(feature_name)
+        else:
             if endpoint and "fine-tune" in str(endpoint).lower():
-                feature_name = "Fine-Tuning"
+                feature_name = "AI Fine-Tuning"
+            elif endpoint and "anchor" in str(endpoint).lower():
+                feature_name = "Question Anchor Detection"
+            elif endpoint and ("identify-student" in str(endpoint).lower() or "identity" in str(endpoint).lower()):
+                feature_name = "Student Identification"
+            elif endpoint and "split" in str(endpoint).lower():
+                feature_name = "PDF Sheet Splitting"
+            elif endpoint and ("upload-answer-sheet" in str(endpoint).lower() or "paper" in str(endpoint).lower()):
+                feature_name = "Paper Evaluation"
+            elif endpoint and ("diagnostic" in str(endpoint).lower() or "wrong" in str(endpoint).lower()):
+                feature_name = "Exam Diagnostics"
+            elif endpoint and "subtopic" in str(endpoint).lower():
+                feature_name = "Subtopic Classification"
             elif endpoint and ("eval" in str(endpoint).lower() or "review" in str(endpoint).lower()):
-                feature_name = "Evaluated"
-            elif endpoint and "ocr" in str(endpoint).lower():
-                feature_name = "OCR Extraction"
+                feature_name = "AI Evaluation"
             else:
-                feature_name = "Question Generation"
+                feature_name = "AI Question Generation"
 
         msg = choices[0].get("message") or {}
         role = msg.get("role", None)
@@ -274,11 +286,45 @@ def get_ai_credits_summary_api():
         return jsonify({"status": False, "statusMessage": f"Error fetching AI credit summary: {str(e)}"}), 500
 
 
+FEATURE_CONFIG = [
+    {"key": "question_generation", "title": "AI Question Generation", "icon": "help_outline"},
+    {"key": "fine_tuning", "title": "AI Fine-Tuning", "icon": "tune"},
+    {"key": "ai_evaluation", "title": "AI Evaluation", "icon": "fact_check"},
+    {"key": "paper_evaluation", "title": "Paper Evaluation", "icon": "description"},
+    {"key": "anchor_detection", "title": "Question Anchor Detection", "icon": "pin_drop"},
+    {"key": "student_identification", "title": "Student Identification", "icon": "person_search"},
+    {"key": "pdf_splitting", "title": "PDF Sheet Splitting", "icon": "call_split"},
+    {"key": "exam_diagnostics", "title": "Exam Diagnostics", "icon": "analytics"},
+    {"key": "subtopic_classification", "title": "Subtopic Classification", "icon": "category"}
+]
+
+def normalize_feature_name(raw_name):
+    n = str(raw_name or "").lower().strip()
+    if "fine" in n:
+        return "AI Fine-Tuning"
+    elif "anchor" in n:
+        return "Question Anchor Detection"
+    elif "student" in n or "identity" in n or "roster" in n:
+        return "Student Identification"
+    elif "split" in n:
+        return "PDF Sheet Splitting"
+    elif "paper" in n or "sheet" in n:
+        return "Paper Evaluation"
+    elif "diagnostic" in n or "misconception" in n or "wrong" in n:
+        return "Exam Diagnostics"
+    elif "subtopic" in n:
+        return "Subtopic Classification"
+    elif "question" in n:
+        return "AI Question Generation"
+    elif "evaluat" in n:
+        return "AI Evaluation"
+    return "AI Evaluation"
+
+
 def get_ai_feature_breakdown_api():
     """
     GET /edu/api/ai-credits/feature-breakdown
-    Returns aggregated table of AI features used:
-    e.g. Question Generation: 400, Evaluated: 300, etc.
+    Returns aggregated table of AI features used, both as horizontal columns and as a breakdown list.
     """
     inst_id = resolve_institute_id(request)
     if not inst_id:
@@ -290,9 +336,8 @@ def get_ai_feature_breakdown_api():
         return jsonify({"status": False, "statusMessage": "Database connection error"}), 500
 
     try:
-        # Group by feature_name
         query = session.query(
-            func.coalesce(openai_requests.feature_name, 'Question Generation').label('feature'),
+            openai_requests.feature_name,
             func.count(openai_requests.request_id).label('op_count'),
             func.coalesce(func.sum(openai_requests.prompt_tokens), 0).label('prompt_tok'),
             func.coalesce(func.sum(openai_requests.completion_tokens), 0).label('comp_tok'),
@@ -302,45 +347,68 @@ def get_ai_feature_breakdown_api():
         if str(inst_id).lower() != 'all':
             query = query.filter(openai_requests.institute_id == str(inst_id))
 
-        rows = query.group_by(
-            func.coalesce(openai_requests.feature_name, 'Question Generation')
-        ).order_by(
-            desc(func.coalesce(func.sum(openai_requests.total_tokens), 0))
-        ).all()
+        rows = query.group_by(openai_requests.feature_name).all()
 
+        # Map by normalized feature title
+        aggregated = {}
+        for r in rows:
+            norm_title = normalize_feature_name(r.feature_name)
+            if norm_title not in aggregated:
+                aggregated[norm_title] = {
+                    "count": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "last_used": None
+                }
+            aggregated[norm_title]["count"] += int(r.op_count or 0)
+            aggregated[norm_title]["prompt_tokens"] += int(r.prompt_tok or 0)
+            aggregated[norm_title]["completion_tokens"] += int(r.comp_tok or 0)
+            aggregated[norm_title]["total_tokens"] += int(r.total_tok or 0)
+            if r.last_used:
+                r_dt_str = r.last_used.strftime("%Y-%m-%d %H:%M")
+                if not aggregated[norm_title]["last_used"] or r_dt_str > aggregated[norm_title]["last_used"]:
+                    aggregated[norm_title]["last_used"] = r_dt_str
+
+        # Build complete feature list for columns
+        columns = []
         breakdown = []
         grand_total_ops = 0
         grand_prompt_tokens = 0
         grand_comp_tokens = 0
         grand_total_tokens = 0
 
-        for r in rows:
-            feature_name = r.feature
-            op_count = int(r.op_count or 0)
-            p_tok = int(r.prompt_tok or 0)
-            c_tok = int(r.comp_tok or 0)
-            t_tok = int(r.total_tok or 0)
-            last_used_dt = r.last_used.strftime("%Y-%m-%d %H:%M") if r.last_used else None
+        for cfg in FEATURE_CONFIG:
+            title = cfg["title"]
+            data = aggregated.get(title, {
+                "count": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "last_used": None
+            })
+            op_count = data["count"]
+            p_tok = data["prompt_tokens"]
+            c_tok = data["completion_tokens"]
+            t_tok = data["total_tokens"]
+            last_used_dt = data["last_used"]
 
             grand_total_ops += op_count
             grand_prompt_tokens += p_tok
             grand_comp_tokens += c_tok
             grand_total_tokens += t_tok
 
-            breakdown.append({
-                "feature": feature_name,
+            feature_entry = {
+                "key": cfg["key"],
+                "feature": title,
+                "icon": cfg["icon"],
                 "count": op_count,
                 "prompt_tokens": p_tok,
                 "completion_tokens": c_tok,
                 "total_tokens": t_tok,
                 "credits_consumed": t_tok,
                 "last_used": last_used_dt
-            })
+            }
+            columns.append(feature_entry)
+            breakdown.append(feature_entry)
 
         session.close()
         return jsonify({
             "status": True,
             "data": {
+                "columns": columns,
                 "breakdown": breakdown,
                 "totals": {
                     "count": grand_total_ops,

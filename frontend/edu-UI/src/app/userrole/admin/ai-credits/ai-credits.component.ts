@@ -28,8 +28,22 @@ interface CreditSummary {
   alert_threshold: number;
 }
 
-interface FeatureBreakdownItem {
+export interface FeatureColumnItem {
+  key?: string;
   feature: string;
+  icon?: string;
+  count: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  credits_consumed: number;
+  last_used?: string | null;
+}
+
+interface FeatureBreakdownItem {
+  key?: string;
+  feature: string;
+  icon?: string;
   count: number;
   prompt_tokens: number;
   completion_tokens: number;
@@ -100,6 +114,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   isLoading = false;
   summary: CreditSummary | null = null;
   breakdown: FeatureBreakdownItem[] = [];
+  featureColumns: FeatureColumnItem[] = [];
   totals: BreakdownTotals | null = null;
 
   // Super Admin view state
@@ -227,13 +242,18 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.http
       .get<{
         status: boolean;
-        data: { breakdown: FeatureBreakdownItem[]; totals: BreakdownTotals };
+        data: {
+          columns?: FeatureColumnItem[];
+          breakdown: FeatureBreakdownItem[];
+          totals: BreakdownTotals;
+        };
       }>(url, {
         headers: this.getAuthHeaders(),
       })
       .subscribe({
         next: (res) => {
           if (res && res.status && res.data) {
+            this.featureColumns = res.data.columns || res.data.breakdown || [];
             this.breakdown = res.data.breakdown || [];
             this.totals = res.data.totals || null;
           }
@@ -334,11 +354,15 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   getFeatureIcon(featureName: string): string {
     const f = (featureName || '').toLowerCase();
+    if (f.includes('fine')) return 'tune';
+    if (f.includes('anchor')) return 'pin_drop';
+    if (f.includes('student') || f.includes('roster') || f.includes('identity')) return 'person_search';
+    if (f.includes('split')) return 'call_split';
+    if (f.includes('paper') || f.includes('sheet')) return 'description';
+    if (f.includes('diagnos') || f.includes('misconception')) return 'analytics';
+    if (f.includes('subtopic') || f.includes('taxonom')) return 'category';
     if (f.includes('question') && !f.includes('fine')) return 'help_outline';
     if (f.includes('eval') || f.includes('review')) return 'fact_check';
-    if (f.includes('fine')) return 'tune';
-    if (f.includes('ocr') || f.includes('vision')) return 'document_scanner';
-    if (f.includes('diagnos') || f.includes('report')) return 'analytics';
     return 'smart_toy';
   }
 

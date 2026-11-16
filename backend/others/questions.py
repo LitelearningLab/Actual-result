@@ -1715,7 +1715,8 @@ If only a single question is requested, returning a single JSON object is also a
             max_tokens = max(total_tokens_estimate + 2000, 4000),
             timeout = 120.0,
             institute_id=target_inst_id,
-            feature_name="Question Generation",
+            user_name=user_id,
+            feature_name="AI Question Generation",
             endpoint="/create-question-using-ai"
         )
         # with open("debug_response.json", "w") as debug_file:
@@ -1783,7 +1784,11 @@ Task: Expand the answer by adding essential scientific/academic details, underly
                         "You are an expert academic evaluator. Provide only the expanded, academically complete model answer with no surrounding text or markdown.",
                         expand_prompt,
                         aimodel=aimodel,
-                        max_tokens=max(answer_max_char_limit, 1000)
+                        max_tokens=max(answer_max_char_limit, 1000),
+                        institute_id=target_inst_id,
+                        user_name=user_id,
+                        feature_name="AI Question Generation",
+                        endpoint="/create-question-using-ai"
                     )
                     if expand_res.status_code == 200:
                         new_ans = expand_res.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
@@ -1803,7 +1808,11 @@ Task: Rewrite the model answer more concisely while preserving all essential aca
                         "You are an expert academic evaluator. Provide only the concise model answer with no surrounding text or markdown.",
                         trim_prompt,
                         aimodel=aimodel,
-                        max_tokens=max(answer_max_char_limit, 1000)
+                        max_tokens=max(answer_max_char_limit, 1000),
+                        institute_id=target_inst_id,
+                        user_name=user_id,
+                        feature_name="AI Question Generation",
+                        endpoint="/create-question-using-ai"
                     )
                     if trim_res.status_code == 200:
                         trimmed = trim_res.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
@@ -1854,7 +1863,7 @@ def response_tracker(response_json, institute_id=None, user_id=None, endpoint="/
     try:
         from others.ai_credits import record_ai_usage
         if not feature_name:
-            feature_name = "Fine-Tuning" if "fine-tune" in str(endpoint).lower() else "Question Generation"
+            feature_name = "AI Fine-Tuning" if "fine-tune" in str(endpoint).lower() else "AI Question Generation"
         record_ai_usage(response_json, institute_id=institute_id, user_id=user_id, feature_name=feature_name, endpoint=endpoint)
     except Exception as db_err:
         print(f"[response_tracker] Failed to save request metrics: {db_err}")
@@ -1924,7 +1933,8 @@ def fine_tune_questions_using_llm(request):
             aimodel=1,
             max_tokens=2500,
             institute_id=institute_id,
-            feature_name="Fine-Tuning",
+            user_name=user_id,
+            feature_name="AI Fine-Tuning",
             endpoint="/fine-tune-question"
         )
         response_json = response.json() if hasattr(response, "json") else {}

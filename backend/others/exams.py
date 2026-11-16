@@ -5675,10 +5675,12 @@ def process_single_student_answer_sheet(
                 )
 
                 client = openai_client()
+                auth_inst_id = str(getattr(exam_obj, "institute_id", "") or (getattr(current_user, "institute_id", "") if current_user else "")).strip() or None
 
                 # Phase 1: Visually detect physically written question numbers
                 detection_result = vision_detect_question_anchors(
-                    client, ai_page_inputs, exam_question_numbers=all_exam_q_nums
+                    client, ai_page_inputs, exam_question_numbers=all_exam_q_nums,
+                    institute_id=auth_inst_id, feature_name="Question Anchor Detection", endpoint="/test-evaluation/upload-answer-sheet"
                 )
 
                 uncertain_q_nums_set = set()
@@ -5734,7 +5736,8 @@ def process_single_student_answer_sheet(
                     "sections": eval_sections,
                 }
                 ai_eval_result = vision_evaluate_answersheet(
-                    client, eval_rubric, ai_page_inputs
+                    client, eval_rubric, ai_page_inputs,
+                    institute_id=auth_inst_id, feature_name="Paper Evaluation", endpoint="/test-evaluation/upload-answer-sheet"
                 )
                 if ai_eval_result and ai_eval_result.get("status"):
                     for ev in ai_eval_result.get("evaluations", []):
@@ -6298,12 +6301,19 @@ def identify_student_from_answer_sheet(request, current_user=None):
                     {"type": "image_url", "image_url": {"url": data_uri}},
                 ]
 
+                target_inst_id = (
+                    request.form.get("institute_id")
+                    or (getattr(current_user, "institute_id", None) if current_user else None)
+                )
                 response = client.chat_completion(
                     system_message=system_prompt,
                     InputData=user_content,
                     aimodel=1,
                     max_tokens=300,
                     temperature=0.1,
+                    institute_id=target_inst_id,
+                    feature_name="Student Identification",
+                    endpoint="/test-evaluation/identify-student"
                 )
 
                 if response.status_code == 200:
@@ -6742,12 +6752,19 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                     {"type": "text", "text": f"Analyze Page {p_num}: detect student name and roll number, match against candidate roster, and check if it starts a student sheet."},
                     {"type": "image_url", "image_url": {"url": data_uri}}
                 ]
+                split_inst_id = (
+                    request.form.get("institute_id")
+                    or (getattr(current_user, "institute_id", None) if current_user else None)
+                )
                 resp = client.chat_completion(
                     system_message=system_prompt,
                     InputData=user_content,
                     aimodel=1,
                     max_tokens=300,
-                    temperature=0.1
+                    temperature=0.1,
+                    institute_id=split_inst_id,
+                    feature_name="PDF Sheet Splitting",
+                    endpoint="/test-evaluation/split-multi-student-pdf"
                 )
                 if resp.status_code == 200:
                     choices = resp.json().get("choices", [])
