@@ -12,6 +12,8 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
 
   .header-left {
     .title-row {
@@ -41,8 +43,58 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex-wrap: wrap;
     }
   }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .inst-select-field {
+      width: 290px;
+      margin-bottom: -1.25em;
+
+      ::ng-deep .mat-mdc-text-field-wrapper {
+        background-color: #ffffff;
+      }
+    }
+
+    .refresh-btn {
+      height: 48px;
+      border-radius: 8px;
+    }
+  }
+}
+
+.back-global-btn {
+  margin-left: 8px;
+  font-size: 12px;
+  height: 28px;
+  line-height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: #4f46e5;
+  border-color: #c7d2fe;
+  background-color: #eef2ff;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+
+  &:hover {
+    background-color: #e0e7ff;
+  }
+}
+
+.inst-opt-global {
+  font-weight: 600;
+  color: #4f46e5;
 }
 
 .quota-pill {
@@ -579,5 +631,134 @@
 @keyframes spin {
   100% {
     transform: rotate(360deg);
+  }
+}
+
+/* Institutes Overview Table */
+.institutes-overview-card {
+  margin-bottom: 24px;
+  border-left: 4px solid #6366f1;
+
+  .col-inst {
+    min-width: 240px;
+    text-align: left;
+  }
+}
+
+.inst-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .inst-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #eef2ff;
+    color: #4f46e5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .inst-meta {
+    display: flex;
+    flex-direction: column;
+
+    .inst-name {
+      font-weight: 600;
+      color: #0f172a;
+      font-size: 14px;
+    }
+
+    .inst-sub {
+      font-size: 12px;
+      color: #64748b;
+    }
+  }
+}
+
+.pct-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+
+  &.pct-normal {
+    background-color: #ecfdf5;
+    color: #059669;
+  }
+
+  &.pct-accent {
+    background-color: #fffbeb;
+    color: #d97706;
+  }
+
+  &.pct-warn {
+    background-color: #fef2f2;
+    color: #dc2626;
+  }
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+
+  &.status-active {
+    background-color: #dcfce7;
+    color: #15803d;
+  }
+
+  &.status-warning {
+    background-color: #fef3c7;
+    color: #b45309;
+  }
+
+  &.status-danger {
+    background-color: #fee2e2;
+    color: #b91c1c;
+  }
+
+  &.status-neutral {
+    background-color: #f1f5f9;
+    color: #64748b;
+  }
+}
+
+.inspect-btn {
+  font-size: 12px;
+  height: 32px;
+  line-height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  color: #2563eb;
+  border-color: #bfdbfe;
+  background-color: #eff6ff;
+  display: inline-flex;
+  align-items: center;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    margin-right: 4px;
+  }
+
+  &:hover {
+    background-color: #dbeafe;
+    border-color: #93c5fd;
   }
 }

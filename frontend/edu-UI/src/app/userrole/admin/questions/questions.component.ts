@@ -1076,6 +1076,13 @@ export class AdminQuestionsComponent {
       return;
     }
 
+    if (!this.aiQuestionComplexity || !this.aiQuestionComplexity.trim()) {
+      try {
+          notify('Please select a Complexity level', 'error');
+      } catch (e) {}
+      return;
+    }
+
     if (!this.aiQuestionNumber || this.aiQuestionNumber < 1) {
       this.aiQuestionNumber = 5;
     }
@@ -1145,10 +1152,7 @@ export class AdminQuestionsComponent {
             // backend returns a single question object or an array — normalize
             // if response includes question_text/options etc, map to our internal shape
             const normalized = rawQuestions.map((r: any) => {
-              const normType = this.normalizeQuestionType(
-                r.type || r.question_type || r.questionType || 'descriptive',
-                r
-              );
+              const normType = this.normalizeQuestionType(r.type || r.question_type || r.questionType || this.aiQuestionType,r);
               const cleanOpts = Array.isArray(r.options)
                 ? r.options.map((o: any) =>
                     typeof o === 'string' ? o : o.option_text || o.text || String(o)
@@ -1189,7 +1193,7 @@ export class AdminQuestionsComponent {
               const selectedInstituteId = this.questions?.[0]?.institute_id || '';
               const selectedCategoryId = this.questions?.[0]?.category_id || '';
               this.questions = normalized.map((g: any) => {
-                const qtype = this.normalizeQuestionType(g.type || 'descriptive', g);
+                const qtype = this.normalizeQuestionType(g.type || this.aiQuestionType, g);
                 const opts = Array.isArray(g.options) ? g.options.slice() : [];
                 // ensure at least two option placeholders for choice types
                 if ((qtype === 'choose' || qtype === 'multi') && opts.length < 2) {

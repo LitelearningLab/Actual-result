@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,6 +8,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { API_BASE } from 'src/app/shared/api.config';
 import { Subscription } from 'rxjs';
 
@@ -54,11 +57,35 @@ interface ChartBar {
   comp_value: number;
 }
 
+export interface InstituteOverviewItem {
+  institute_id: string;
+  name: string;
+  short_name: string;
+  allocated_credits: number;
+  used_credits: number;
+  remaining_credits: number;
+  percentage_used: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  operations: number;
+  threshold: number;
+  status: string;
+}
+
+export interface InstituteOption {
+  institute_id: string;
+  name: string;
+  short_name?: string;
+}
+
 @Component({
   selector: 'app-ai-credits',
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
+    MatFormFieldModule,
+    MatSelectModule,
     MatCardModule,
     MatButtonModule,
     MatIconModule,
@@ -74,6 +101,12 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   summary: CreditSummary | null = null;
   breakdown: FeatureBreakdownItem[] = [];
   totals: BreakdownTotals | null = null;
+
+  // Super Admin view state
+  isSuperAdmin = false;
+  selectedInstituteId = 'all';
+  institutesList: InstituteOption[] = [];
+  institutesOverview: InstituteOverviewItem[] = [];
 
   // Bar Chart state
   selectedPeriod: 'today' | 'weekly' | 'monthly' = 'weekly';
@@ -91,14 +124,38 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   constructor(private http: HttpClient, private snackBar: MatSnackBar) {}
 
   ngOnInit(): void {
+    const userStr = sessionStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        const role = (user.user_role || user.role || '').toLowerCase();
+        this.isSuperAdmin = role.includes('super');
+      } catch (e) {
+        console.error('Failed to parse user session', e);
+      }
+    }
+
     this.loadAllData();
   }
 
   loadAllData(): void {
     this.isLoading = true;
+    if (this.isSuperAdmin) {
+      this.loadInstitutesOverview();
+    }
     this.loadSummary();
     this.loadBreakdown();
     this.loadAnalytics(this.selectedPeriod);
+  }
+
+  onInstituteChange(instId: string): void {
+    this.selectedInstituteId = instId;
+    this.loadAllData();
+  }
+
+  selectInstitute(instId: string): void {
+    this.selectedInstituteId = instId;
+    this.loadAllData();
   }
 
   private getAuthHeaders(): { [key: string]: string } {
@@ -115,12 +172,40 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     return headers;
   }
 
-  loadSummary(): void {
+  loadInstitutesOverview(): void {
+    if (!this.isSuperAdmin) return;
     this.http
-      .get<{ status: boolean; data: CreditSummary }>(
-        `${API_BASE}/ai-credits/summary`,
+      .get<{ status: boolean; data: InstituteOverviewItem[] }>(
+        `${API_BASE}/ai-credits/institutes-overview`,
         { headers: this.getAuthHeaders() }
       )
+      .subscribe({
+        next: (res) => {
+          if (res && res.status && res.data) {
+            this.institutesOverview = res.data;
+            this.institutesList = res.data.map((item) => ({
+              institute_id: item.institute_id,
+              name: item.name,
+              short_name: item.short_name,
+            }));
+          }
+        },
+        error: (err) => {
+          console.error('Error fetching institutes overview:', err);
+        },
+      });
+  }
+
+  loadSummary(): void {
+    let url = `${API_BASE}/ai-credits/summary`;
+    if (this.isSuperAdmin && this.selectedInstituteId) {
+      url += `?institute_id=${encodeURIComponent(this.selectedInstituteId)}`;
+    }
+
+    this.http
+      .get<{ status: boolean; data: CreditSummary }>(url, {
+        headers: this.getAuthHeaders(),
+      })
       .subscribe({
         next: (res) => {
           if (res && res.status && res.data) {
@@ -134,11 +219,16 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   loadBreakdown(): void {
+    let url = `${API_BASE}/ai-credits/feature-breakdown`;
+    if (this.isSuperAdmin && this.selectedInstituteId) {
+      url += `?institute_id=${encodeURIComponent(this.selectedInstituteId)}`;
+    }
+
     this.http
       .get<{
         status: boolean;
         data: { breakdown: FeatureBreakdownItem[]; totals: BreakdownTotals };
-      }>(`${API_BASE}/ai-credits/feature-breakdown`, {
+      }>(url, {
         headers: this.getAuthHeaders(),
       })
       .subscribe({
@@ -156,6 +246,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   loadAnalytics(period: 'today' | 'weekly' | 'monthly'): void {
     this.selectedPeriod = period;
+    let url = `${API_BASE}/ai-credits/analytics?period=${period}`;
+    if (this.isSuperAdmin && this.selectedInstituteId) {
+      url += `&institute_id=${encodeURIComponent(this.selectedInstituteId)}`;
+    }
+
     this.http
       .get<{
         status: boolean;
@@ -170,7 +265,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
           period_total: number;
           avg: number;
         };
-      }>(`${API_BASE}/ai-credits/analytics?period=${period}`, {
+      }>(url, {
         headers: this.getAuthHeaders(),
       })
       .subscribe({
@@ -182,7 +277,12 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
             this.chartPeakValue = d.peak_value || 0;
             this.chartPeriodTotal = d.period_total || 0;
             this.chartAverage = d.avg || 0;
-            this.buildChartBars(d.labels || [], d.values || [], d.prompt_values || [], d.completion_values || []);
+            this.buildChartBars(
+              d.labels || [],
+              d.values || [],
+              d.prompt_values || [],
+              d.completion_values || []
+            );
           }
         },
         error: (err) => {
@@ -192,7 +292,12 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       });
   }
 
-  buildChartBars(labels: string[], values: number[], promptValues: number[], compValues: number[]): void {
+  buildChartBars(
+    labels: string[],
+    values: number[],
+    promptValues: number[],
+    compValues: number[]
+  ): void {
     if (!labels || labels.length === 0) {
       this.chartBars = [];
       return;
@@ -201,7 +306,10 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     const maxValue = Math.max(...values, 100);
     const chartHeight = 160; // Max height in SVG px
     const chartWidth = 700; // SVG viewBox width
-    const barWidth = Math.max(18, Math.min(48, Math.floor((chartWidth - 80) / labels.length - 16)));
+    const barWidth = Math.max(
+      18,
+      Math.min(48, Math.floor((chartWidth - 80) / labels.length - 16))
+    );
     const totalSlots = labels.length;
     const spacing = (chartWidth - 80) / totalSlots;
 
@@ -239,6 +347,21 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     if (pct >= 90) return 'warn';
     if (pct >= 70) return 'accent';
     return 'primary';
+  }
+
+  getStatusBadgeClass(status: string): string {
+    switch ((status || '').toLowerCase()) {
+      case 'active':
+        return 'status-active';
+      case 'low balance':
+        return 'status-warning';
+      case 'exhausted':
+        return 'status-danger';
+      case 'not allocated':
+        return 'status-neutral';
+      default:
+        return 'status-neutral';
+    }
   }
 
   ngOnDestroy(): void {

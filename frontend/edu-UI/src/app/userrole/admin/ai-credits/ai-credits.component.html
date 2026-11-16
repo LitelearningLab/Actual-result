@@ -7,14 +7,36 @@
         <h2>AI Credits & Token Usage</h2>
       </div>
       <p class="subtitle" *ngIf="summary">
-        Institute: <strong>{{ summary.institute_name }}</strong>
+        Scope: <strong>{{ summary.institute_name }}</strong>
         <span class="quota-pill" [class.low-credit]="summary.is_low_credit">
           {{ summary.is_low_credit ? 'Low Balance' : 'Active Quota' }}
         </span>
+        <button
+          *ngIf="isSuperAdmin && selectedInstituteId !== 'all'"
+          mat-stroked-button
+          class="back-global-btn"
+          (click)="selectInstitute('all')"
+          matTooltip="Return to platform-wide overview"
+        >
+          <mat-icon>arrow_back</mat-icon> All Institutes Overview
+        </button>
       </p>
     </div>
     <div class="header-right">
-      <button mat-stroked-button color="primary" (click)="loadAllData()" [disabled]="isLoading">
+      <!-- Super Admin Institute Selector -->
+      <mat-form-field appearance="outline" class="inst-select-field" *ngIf="isSuperAdmin">
+        <mat-label>View Institute Scope</mat-label>
+        <mat-select [(ngModel)]="selectedInstituteId" (selectionChange)="onInstituteChange($event.value)">
+          <mat-option value="all">
+            <span class="inst-opt-global">🏢 All Institutes (Global Overview)</span>
+          </mat-option>
+          <mat-option *ngFor="let inst of institutesList" [value]="inst.institute_id">
+            {{ inst.name }}
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <button mat-stroked-button color="primary" class="refresh-btn" (click)="loadAllData()" [disabled]="isLoading">
         <mat-icon [class.spin]="isLoading">refresh</mat-icon> Refresh
       </button>
     </div>
@@ -75,7 +97,7 @@
     </div>
   </div>
 
-  <!-- SECTION 2: Progress Bar Container (Directly Under Cards) -->
+  <!-- SECTION 2: Progress Bar Container -->
   <div class="section-card progress-card">
     <div class="card-header-clean">
       <div class="card-title-group">
@@ -116,12 +138,99 @@
     </div>
   </div>
 
-  <!-- SECTION 3: AI Services Breakdown Table (Directly Under Progress Bar) -->
+  <!-- SECTION 3: All Institutes AI Credit Allocations Table (Visible for Super Admin when Global Overview is active) -->
+  <div class="section-card table-card institutes-overview-card" *ngIf="isSuperAdmin && selectedInstituteId === 'all'">
+    <div class="card-header-clean">
+      <div class="card-title-group">
+        <mat-icon class="section-icon">domain</mat-icon>
+        <div>
+          <h3>All Institutes AI Credit Allocations</h3>
+          <p class="chart-subtitle">Quota allocation, consumption, and status across all registered institutes</p>
+        </div>
+      </div>
+      <span class="count-badge">
+        {{ institutesOverview.length }} Registered Institutes
+      </span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="ai-table">
+        <thead>
+          <tr>
+            <th class="col-inst">Institute Name</th>
+            <th class="col-num text-right">Allocated Quota</th>
+            <th class="col-num text-right">Tokens Burned</th>
+            <th class="col-num text-right">Remaining Quota</th>
+            <th class="col-num text-center">Usage %</th>
+            <th class="col-status text-center">Status</th>
+            <th class="col-action text-center">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let inst of institutesOverview" class="table-row">
+            <td class="col-inst">
+              <div class="inst-cell">
+                <div class="inst-avatar">
+                  <mat-icon>school</mat-icon>
+                </div>
+                <div class="inst-meta">
+                  <span class="inst-name">{{ inst.name }}</span>
+                  <span class="inst-sub" *ngIf="inst.short_name">{{ inst.short_name }}</span>
+                </div>
+              </div>
+            </td>
+            <td class="col-num text-right font-semibold">
+              {{ inst.allocated_credits | number }}
+            </td>
+            <td class="col-num text-right font-semibold text-primary">
+              {{ inst.used_credits | number }}
+            </td>
+            <td class="col-num text-right font-bold" [class.text-danger]="inst.status === 'Exhausted' || inst.status === 'Low Balance'">
+              {{ inst.remaining_credits | number }}
+            </td>
+            <td class="col-num text-center">
+              <div class="pct-pill" [ngClass]="inst.percentage_used >= 90 ? 'pct-warn' : (inst.percentage_used >= 70 ? 'pct-accent' : 'pct-normal')">
+                {{ inst.percentage_used }}%
+              </div>
+            </td>
+            <td class="col-status text-center">
+              <span class="status-badge" [ngClass]="getStatusBadgeClass(inst.status)">
+                {{ inst.status }}
+              </span>
+            </td>
+            <td class="col-action text-center">
+              <button
+                mat-stroked-button
+                class="inspect-btn"
+                (click)="selectInstitute(inst.institute_id)"
+                matTooltip="Inspect detailed AI breakdown and token trends for this institute"
+              >
+                <mat-icon>visibility</mat-icon> Inspect
+              </button>
+            </td>
+          </tr>
+
+          <!-- Empty State -->
+          <tr *ngIf="!institutesOverview || institutesOverview.length === 0">
+            <td colspan="7" class="empty-cell">
+              <mat-icon class="empty-icon">business</mat-icon>
+              <p>No institutes found.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECTION 4: AI Services Usage Breakdown Table -->
   <div class="section-card table-card">
     <div class="card-header-clean">
       <div class="card-title-group">
         <mat-icon class="section-icon">table_chart</mat-icon>
-        <h3>AI Services Usage Breakdown</h3>
+        <div>
+          <h3>AI Services Usage Breakdown</h3>
+          <p class="chart-subtitle" *ngIf="isSuperAdmin && selectedInstituteId === 'all'">Platform aggregate across all institutes</p>
+        </div>
       </div>
       <span class="count-badge" *ngIf="totals">
         {{ totals.count | number }} Total Operations
@@ -187,7 +296,7 @@
     </div>
   </div>
 
-  <!-- SECTION 4: Token Consumption Bar Charts (Underneath the Table) -->
+  <!-- SECTION 5: Token Consumption Bar Charts (Trends) -->
   <div class="section-card chart-card">
     <div class="chart-header">
       <div class="card-title-group">

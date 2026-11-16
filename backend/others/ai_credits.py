@@ -16,13 +16,13 @@ def resolve_institute_id(request_obj=None, explicit_inst_id=None, user_id=None):
 
     req = request_obj or request
     if req:
-        header_inst = req.headers.get('X-Institute-Id') or req.headers.get('X-Global-Institute-Id')
-        if header_inst and str(header_inst).strip():
-            return str(header_inst).strip()
-
         args_inst = req.args.get('institute_id') if hasattr(req, 'args') else None
         if args_inst and str(args_inst).strip():
             return str(args_inst).strip()
+
+        header_inst = req.headers.get('X-Institute-Id') or req.headers.get('X-Global-Institute-Id')
+        if header_inst and str(header_inst).strip():
+            return str(header_inst).strip()
 
     if hasattr(g, 'current_user') and g.current_user and getattr(g.current_user, 'institute_id', None):
         return str(g.current_user.institute_id).strip()
@@ -178,6 +178,54 @@ def get_ai_credits_summary_api():
         return jsonify({"status": False, "statusMessage": "Database connection error"}), 500
 
     try:
+        if str(inst_id).lower() == 'all':
+            allocated_credits = session.query(
+                func.coalesce(func.sum(Institute.allocated_credits), 0)
+            ).filter(
+                or_(Institute.is_deleted == False, Institute.is_deleted == 0, Institute.is_deleted == None)
+            ).scalar() or 0
+            allocated_credits = int(allocated_credits)
+            alert_threshold = 10
+
+            usage_query = session.query(
+                func.coalesce(func.sum(openai_requests.total_tokens), 0),
+                func.coalesce(func.sum(openai_requests.prompt_tokens), 0),
+                func.coalesce(func.sum(openai_requests.completion_tokens), 0),
+                func.count(openai_requests.request_id)
+            ).first()
+
+            used_credits = int(usage_query[0] or 0)
+            prompt_tokens = int(usage_query[1] or 0)
+            completion_tokens = int(usage_query[2] or 0)
+            total_operations = int(usage_query[3] or 0)
+
+            remaining_credits = max(0, allocated_credits - used_credits) if allocated_credits > 0 else 0
+            percentage_used = round((used_credits / allocated_credits * 100), 1) if allocated_credits > 0 else 0.0
+
+            is_low_credit = False
+            if allocated_credits > 0:
+                remaining_pct = (remaining_credits / allocated_credits) * 100
+                is_low_credit = remaining_pct <= alert_threshold
+
+            session.close()
+            return jsonify({
+                "status": True,
+                "data": {
+                    "institute_id": "all",
+                    "institute_name": "All Registered Institutes (Global Overview)",
+                    "allocated_credits": allocated_credits,
+                    "used_credits": used_credits,
+                    "remaining_credits": remaining_credits,
+                    "percentage_used": percentage_used,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": used_credits,
+                    "total_operations": total_operations,
+                    "is_low_credit": is_low_credit,
+                    "alert_threshold": alert_threshold
+                }
+            }), 200
+
         inst = session.query(Institute).filter_by(institute_id=inst_id).first()
         allocated_credits = int(getattr(inst, "allocated_credits", 0) or 0) if inst else 0
         alert_threshold = int(getattr(inst, "credit_alert_threshold", 10) or 10) if inst else 10
@@ -243,16 +291,18 @@ def get_ai_feature_breakdown_api():
 
     try:
         # Group by feature_name
-        rows = session.query(
+        query = session.query(
             func.coalesce(openai_requests.feature_name, 'Question Generation').label('feature'),
             func.count(openai_requests.request_id).label('op_count'),
             func.coalesce(func.sum(openai_requests.prompt_tokens), 0).label('prompt_tok'),
             func.coalesce(func.sum(openai_requests.completion_tokens), 0).label('comp_tok'),
             func.coalesce(func.sum(openai_requests.total_tokens), 0).label('total_tok'),
             func.max(openai_requests.created_date).label('last_used')
-        ).filter(
-            openai_requests.institute_id == str(inst_id)
-        ).group_by(
+        )
+        if str(inst_id).lower() != 'all':
+            query = query.filter(openai_requests.institute_id == str(inst_id))
+
+        rows = query.group_by(
             func.coalesce(openai_requests.feature_name, 'Question Generation')
         ).order_by(
             desc(func.coalesce(func.sum(openai_requests.total_tokens), 0))
@@ -324,19 +374,20 @@ def get_ai_analytics_api():
     now = datetime.datetime.utcnow()
 
     try:
+        is_all = str(inst_id).lower() == 'all'
         if period == 'today':
             # Today from 00:00 to now, grouped by 2-hour or 3-hour buckets
             start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            records = session.query(
+            q = session.query(
                 openai_requests.created_date,
                 openai_requests.prompt_tokens,
                 openai_requests.completion_tokens,
                 openai_requests.total_tokens,
                 openai_requests.feature_name
-            ).filter(
-                openai_requests.institute_id == str(inst_id),
-                openai_requests.created_date >= start_date
-            ).all()
+            ).filter(openai_requests.created_date >= start_date)
+            if not is_all:
+                q = q.filter(openai_requests.institute_id == str(inst_id))
+            records = q.all()
 
             # 8 buckets of 3 hours: 00-03, 03-06, 06-09, 09-12, 12-15, 15-18, 18-21, 21-24
             labels = ["12 AM", "3 AM", "6 AM", "9 AM", "12 PM", "3 PM", "6 PM", "9 PM"]
@@ -379,15 +430,15 @@ def get_ai_analytics_api():
         elif period == 'monthly':
             # Last 30 days grouped into 5 weeks or 6-day intervals
             start_date = (now - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
-            records = session.query(
+            q = session.query(
                 openai_requests.created_date,
                 openai_requests.prompt_tokens,
                 openai_requests.completion_tokens,
                 openai_requests.total_tokens
-            ).filter(
-                openai_requests.institute_id == str(inst_id),
-                openai_requests.created_date >= start_date
-            ).all()
+            ).filter(openai_requests.created_date >= start_date)
+            if not is_all:
+                q = q.filter(openai_requests.institute_id == str(inst_id))
+            records = q.all()
 
             # 5 weekly intervals: Week 1, Week 2, Week 3, Week 4, Week 5
             labels = ["W-4 (28d)", "W-3 (21d)", "W-2 (14d)", "W-1 (7d)", "Current Week"]
@@ -438,15 +489,15 @@ def get_ai_analytics_api():
         else:
             # Default: weekly (last 7 days, e.g. Mon, Tue, Wed, Thu, Fri, Sat, Sun)
             start_date = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
-            records = session.query(
+            q = session.query(
                 openai_requests.created_date,
                 openai_requests.prompt_tokens,
                 openai_requests.completion_tokens,
                 openai_requests.total_tokens
-            ).filter(
-                openai_requests.institute_id == str(inst_id),
-                openai_requests.created_date >= start_date
-            ).all()
+            ).filter(openai_requests.created_date >= start_date)
+            if not is_all:
+                q = q.filter(openai_requests.institute_id == str(inst_id))
+            records = q.all()
 
             # Generate 7 days labels ending with today
             day_labels = []
@@ -494,3 +545,82 @@ def get_ai_analytics_api():
     except Exception as e:
         session.close()
         return jsonify({"status": False, "statusMessage": f"Error fetching AI analytics: {str(e)}"}), 500
+
+
+def get_all_institutes_overview_api():
+    """
+    GET /edu/api/ai-credits/institutes-overview
+    Super Admin endpoint to list all institutes with their allocated quota, 
+    used tokens, remaining quota, percentage used, and status.
+    """
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return jsonify({"status": False, "statusMessage": "Database connection error"}), 500
+
+    try:
+        institutes = session.query(Institute).filter(
+            or_(Institute.is_deleted == False, Institute.is_deleted == 0, Institute.is_deleted == None)
+        ).order_by(Institute.name.asc()).all()
+
+        # Query all usage aggregated by institute_id
+        usage_by_inst = session.query(
+            openai_requests.institute_id,
+            func.coalesce(func.sum(openai_requests.total_tokens), 0).label("used_tokens"),
+            func.coalesce(func.sum(openai_requests.prompt_tokens), 0).label("prompt_tokens"),
+            func.coalesce(func.sum(openai_requests.completion_tokens), 0).label("completion_tokens"),
+            func.count(openai_requests.request_id).label("operations")
+        ).group_by(openai_requests.institute_id).all()
+
+        usage_map = {}
+        for u in usage_by_inst:
+            if u.institute_id:
+                usage_map[str(u.institute_id).lower().strip()] = {
+                    "used_tokens": int(u.used_tokens or 0),
+                    "prompt_tokens": int(u.prompt_tokens or 0),
+                    "completion_tokens": int(u.completion_tokens or 0),
+                    "operations": int(u.operations or 0)
+                }
+
+        overview_list = []
+        for inst in institutes:
+            inst_uuid = str(inst.institute_id).lower().strip()
+            allocated = int(getattr(inst, 'allocated_credits', 0) or 0)
+            threshold = int(getattr(inst, 'credit_alert_threshold', 10) or 10)
+            u_info = usage_map.get(inst_uuid, {"used_tokens": 0, "prompt_tokens": 0, "completion_tokens": 0, "operations": 0})
+            used = u_info["used_tokens"]
+            remaining = max(0, allocated - used) if allocated > 0 else 0
+            pct = round((used / allocated * 100), 1) if allocated > 0 else 0.0
+
+            if allocated == 0:
+                status = "Not Allocated"
+            elif used >= allocated:
+                status = "Exhausted"
+            elif remaining > 0 and ((remaining / allocated) * 100) <= threshold:
+                status = "Low Balance"
+            else:
+                status = "Active"
+
+            overview_list.append({
+                "institute_id": str(inst.institute_id),
+                "name": inst.name,
+                "short_name": inst.short_name or "",
+                "allocated_credits": allocated,
+                "used_credits": used,
+                "remaining_credits": remaining,
+                "percentage_used": pct,
+                "prompt_tokens": u_info["prompt_tokens"],
+                "completion_tokens": u_info["completion_tokens"],
+                "operations": u_info["operations"],
+                "threshold": threshold,
+                "status": status
+            })
+
+        session.close()
+        return jsonify({
+            "status": True,
+            "data": overview_list
+        }), 200
+    except Exception as e:
+        session.close()
+        return jsonify({"status": False, "statusMessage": f"Error fetching institutes overview: {str(e)}"}), 500
