@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { API_BASE } from 'src/app/shared/api.config';
 import { Subscription } from 'rxjs';
 
@@ -99,6 +100,7 @@ export interface InstituteOption {
     CommonModule,
     FormsModule,
     MatFormFieldModule,
+    MatInputModule,
     MatSelectModule,
     MatCardModule,
     MatButtonModule,
@@ -122,6 +124,30 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   selectedInstituteId = 'all';
   institutesList: InstituteOption[] = [];
   institutesOverview: InstituteOverviewItem[] = [];
+  instituteSearchTerm = '';
+
+  get filteredInstitutes(): InstituteOption[] {
+    const term = (this.instituteSearchTerm || '').trim().toLowerCase();
+    if (!term) {
+      return this.institutesList;
+    }
+    return this.institutesList.filter(
+      (inst) =>
+        (inst.name || '').toLowerCase().includes(term) ||
+        (inst.short_name || '').toLowerCase().includes(term) ||
+        (this.selectedInstituteId !== 'all' && inst.institute_id === this.selectedInstituteId)
+    );
+  }
+
+  stopFilterSearchEvent(event: Event): void {
+    event.stopPropagation();
+  }
+
+  onInstSelectOpened(isOpen: boolean): void {
+    if (!isOpen) {
+      this.instituteSearchTerm = '';
+    }
+  }
 
   // Bar Chart state
   selectedPeriod: 'today' | 'weekly' | 'monthly' = 'weekly';

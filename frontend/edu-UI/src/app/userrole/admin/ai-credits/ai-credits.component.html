@@ -26,12 +26,28 @@
       <!-- Super Admin Institute Selector -->
       <mat-form-field appearance="outline" class="inst-select-field" *ngIf="isSuperAdmin">
         <mat-label>View Institute Scope</mat-label>
-        <mat-select [(ngModel)]="selectedInstituteId" (selectionChange)="onInstituteChange($event.value)">
-          <mat-option value="all">
+        <mat-select [(ngModel)]="selectedInstituteId" (selectionChange)="onInstituteChange($event.value)" (openedChange)="onInstSelectOpened($event)">
+          <mat-option class="select-search-option" (click)="$event.stopPropagation()">
+            <input
+              matInput
+              class="select-search-input"
+              placeholder="Search institute..."
+              [(ngModel)]="instituteSearchTerm"
+              [ngModelOptions]="{ standalone: true }"
+              (click)="$event.stopPropagation()"
+              (keydown)="stopFilterSearchEvent($event)"
+              (keyup)="stopFilterSearchEvent($event)"
+              (input)="stopFilterSearchEvent($event)"
+            />
+          </mat-option>
+          <mat-option value="all" *ngIf="!instituteSearchTerm || 'all institutes global overview'.includes(instituteSearchTerm.toLowerCase())">
             <span class="inst-opt-global">🏢 All Institutes (Global Overview)</span>
           </mat-option>
-          <mat-option *ngFor="let inst of institutesList" [value]="inst.institute_id">
+          <mat-option *ngFor="let inst of filteredInstitutes" [value]="inst.institute_id">
             {{ inst.name }}
+          </mat-option>
+          <mat-option *ngIf="filteredInstitutes.length === 0 && instituteSearchTerm" disabled>
+            <span class="no-match-text">No institutes matching "{{ instituteSearchTerm }}"</span>
           </mat-option>
         </mat-select>
       </mat-form-field>
@@ -44,7 +60,7 @@
 
   <!-- SECTION 1: KPI Metric Cards -->
   <div class="kpi-grid">
-    <!-- Card 1: Allocated -->
+    <!-- Card 1: Total Allocated Credits -->
     <div class="kpi-card card-allocated">
       <div class="kpi-icon-wrap icon-blue">
         <mat-icon>account_balance_wallet</mat-icon>
@@ -56,19 +72,7 @@
       </div>
     </div>
 
-    <!-- Card 2: Used -->
-    <div class="kpi-card card-used">
-      <div class="kpi-icon-wrap icon-purple">
-        <mat-icon>trending_up</mat-icon>
-      </div>
-      <div class="kpi-content">
-        <span class="kpi-label">Credits Consumed</span>
-        <span class="kpi-value">{{ (summary?.used_credits || 0) | number }}</span>
-        <span class="kpi-subtext">{{ summary?.percentage_used || 0 }}% of total quota</span>
-      </div>
-    </div>
-
-    <!-- Card 3: Remaining -->
+    <!-- Card 2: Remaining Credits -->
     <div class="kpi-card card-remaining" [class.card-alert]="summary?.is_low_credit">
       <div class="kpi-icon-wrap" [ngClass]="summary?.is_low_credit ? 'icon-red' : 'icon-green'">
         <mat-icon>{{ summary?.is_low_credit ? 'warning' : 'check_circle' }}</mat-icon>
@@ -82,7 +86,7 @@
       </div>
     </div>
 
-    <!-- Card 4: Total Tokens -->
+    <!-- Card 3: Total Tokens Burned -->
     <div class="kpi-card card-tokens">
       <div class="kpi-icon-wrap icon-teal">
         <mat-icon>token</mat-icon>

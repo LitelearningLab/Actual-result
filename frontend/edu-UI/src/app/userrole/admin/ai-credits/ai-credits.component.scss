@@ -97,6 +97,20 @@
   color: #4f46e5;
 }
 
+::ng-deep .mat-mdc-option.select-search-option {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.no-match-text {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 13px;
+}
+
 .quota-pill {
   font-size: 11px;
   font-weight: 600;
