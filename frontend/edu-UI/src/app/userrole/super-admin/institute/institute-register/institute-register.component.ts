@@ -1,4 +1,4 @@
-﻿import { Component, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { of, Subscription } from 'rxjs';
 import { finalize, switchMap, tap } from 'rxjs/operators';
@@ -149,9 +149,9 @@ export class InstituteRegisterComponent {
       active: [true],
       campuses: this.fb.array([]),
       qa_character_limits: this.fb.array([
-        this.fb.group({ marks: [2, [Validators.required, Validators.min(1)]], character_limit: [450, [Validators.required, Validators.min(10)]] }),
-        this.fb.group({ marks: [5, [Validators.required, Validators.min(1)]], character_limit: [1000, [Validators.required, Validators.min(10)]] }),
-        this.fb.group({ marks: [10, [Validators.required, Validators.min(1)]], character_limit: [1500, [Validators.required, Validators.min(10)]] }),
+        this.createQaLimitGroup(2, 350, 450, 550),
+        this.createQaLimitGroup(5, 500, 800, 1100),
+        this.createQaLimitGroup(10, 700, 1300, 1800),
       ]),
     },
     { validators: [subscriptionDateRangeValidator, headOfficeOrCampusRequiredValidator] }
@@ -161,13 +161,30 @@ export class InstituteRegisterComponent {
     return this.form.get('qa_character_limits') as FormArray;
   }
 
-  addQaLimitRow(marks: number | null = null, limit: number | null = null): void {
-    this.qaCharacterLimits.push(
-      this.fb.group({
-        marks: [marks, [Validators.required, Validators.min(1)]],
-        character_limit: [limit, [Validators.required, Validators.min(10)]],
-      })
-    );
+  createQaLimitGroup(
+    marks: number | null = null,
+    qLimit: number | null = null,
+    aMin: number | null = null,
+    aMax: number | null = null
+  ): FormGroup {
+    const finalQ = qLimit !== null && qLimit !== undefined ? qLimit : 350;
+    const finalMax = aMax !== null && aMax !== undefined ? aMax : 550;
+    const finalMin = aMin !== null && aMin !== undefined ? aMin : Math.round(finalMax * 0.75);
+    return this.fb.group({
+      marks: [marks, [Validators.required, Validators.min(1)]],
+      question_character_limit: [finalQ, [Validators.required, Validators.min(20)]],
+      answer_min_character_limit: [finalMin, [Validators.required, Validators.min(10)]],
+      answer_max_character_limit: [finalMax, [Validators.required, Validators.min(20)]],
+    });
+  }
+
+  addQaLimitRow(
+    marks: number | null = null,
+    qLimit: number | null = null,
+    aMin: number | null = null,
+    aMax: number | null = null
+  ): void {
+    this.qaCharacterLimits.push(this.createQaLimitGroup(marks, qLimit, aMin, aMax));
   }
 
   removeQaLimitRow(index: number): void {
@@ -712,7 +729,11 @@ export class InstituteRegisterComponent {
               this.qaCharacterLimits.removeAt(0);
             }
             limits.forEach((item: any) => {
-              this.addQaLimitRow(Number(item.marks), Number(item.character_limit));
+              const m = Number(item.marks) || 2;
+              const qLimit = item.question_character_limit !== undefined && item.question_character_limit !== null ? Number(item.question_character_limit) : (m <= 2 ? 350 : (m <= 5 ? 500 : 700));
+              const aMax = item.answer_max_character_limit !== undefined && item.answer_max_character_limit !== null ? Number(item.answer_max_character_limit) : (item.character_limit !== undefined ? Number(item.character_limit) : (m <= 2 ? 550 : (m <= 5 ? 1100 : 1800)));
+              const aMin = item.answer_min_character_limit !== undefined && item.answer_min_character_limit !== null ? Number(item.answer_min_character_limit) : Math.round(aMax * 0.75);
+              this.addQaLimitRow(m, qLimit, aMin, aMax);
             });
           }
         } catch (e) {

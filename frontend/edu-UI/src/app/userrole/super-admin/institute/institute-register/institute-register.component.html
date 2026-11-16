@@ -420,22 +420,34 @@
                 <mat-icon class="section-icon">psychology</mat-icon>
                 <div>
                   <h2 class="section-heading">AI Question & Answer Generation Limits</h2>
-                  <p class="section-desc">Define maximum character limits for AI-generated questions and answers based on marks.</p>
+                  <p class="section-desc">Define character limits for AI-generated questions and minimum/maximum character ranges for answers based on marks.</p>
                 </div>
               </div>
 
               <div formArrayName="qa_character_limits">
-                <div class="field-row" style="align-items: center; display: flex; gap: 16px; margin-bottom: 8px;" *ngFor="let limitGroup of qaCharacterLimits.controls; let i = index" [formGroupName]="i">
-                  <mat-form-field appearance="outline" style="flex: 1;">
+                <div class="field-row" style="align-items: center; display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: wrap;" *ngFor="let limitGroup of qaCharacterLimits.controls; let i = index" [formGroupName]="i">
+                  <mat-form-field appearance="outline" style="flex: 0.8; min-width: 100px;">
                     <mat-label>Marks</mat-label>
                     <mat-icon matPrefix>grade</mat-icon>
                     <input matInput type="number" formControlName="marks" placeholder="e.g. 2" min="1" required />
                   </mat-form-field>
 
-                  <mat-form-field appearance="outline" style="flex: 1;">
-                    <mat-label>Character Limit</mat-label>
+                  <mat-form-field appearance="outline" style="flex: 1.1; min-width: 140px;">
+                    <mat-label>Question Limit</mat-label>
+                    <mat-icon matPrefix>help_outline</mat-icon>
+                    <input matInput type="number" formControlName="question_character_limit" placeholder="e.g. 350" min="20" required />
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" style="flex: 1.1; min-width: 140px;">
+                    <mat-label>Answer Min</mat-label>
+                    <mat-icon matPrefix>format_align_left</mat-icon>
+                    <input matInput type="number" formControlName="answer_min_character_limit" placeholder="e.g. 450" min="10" required />
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline" style="flex: 1.1; min-width: 140px;">
+                    <mat-label>Answer Max</mat-label>
                     <mat-icon matPrefix>format_size</mat-icon>
-                    <input matInput type="number" formControlName="character_limit" placeholder="e.g. 450" min="10" required />
+                    <input matInput type="number" formControlName="answer_max_character_limit" placeholder="e.g. 550" min="20" required />
                   </mat-form-field>
 
                   <div style="padding-bottom: 1.25em;">

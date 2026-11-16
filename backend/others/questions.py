@@ -1538,8 +1538,31 @@ def create_question_using_llm(request):
         }, 400
     question_mark = int(gv("marks_per_question", 2) or 2)
 
-    # Dynamic character limit lookup from institute configuration
-    character_count = None
+    # Dynamic character limit lookup: Separate question limit and answer range (min/max)
+    question_char_limit = None
+    answer_min_char_limit = None
+    answer_max_char_limit = None
+
+    req_q_limit = gv("question_character_limit")
+    req_a_min = gv("answer_min_character_limit")
+    req_a_max = gv("answer_max_character_limit")
+
+    try:
+        if req_q_limit:
+            question_char_limit = int(req_q_limit)
+    except Exception:
+        pass
+    try:
+        if req_a_min:
+            answer_min_char_limit = int(req_a_min)
+    except Exception:
+        pass
+    try:
+        if req_a_max:
+            answer_max_char_limit = int(req_a_max)
+    except Exception:
+        pass
+
     target_inst_id = institute_id
     if not target_inst_id and user_id:
         try:
@@ -1553,7 +1576,7 @@ def create_question_using_llm(request):
         except Exception:
             pass
 
-    if target_inst_id:
+    if target_inst_id and (not question_char_limit or not answer_min_char_limit or not answer_max_char_limit):
         try:
             db_inst = SQLiteDB()
             sess_inst = db_inst.connect()
@@ -1561,56 +1584,72 @@ def create_question_using_llm(request):
                 inst_rec = sess_inst.query(Institute).filter_by(institute_id=target_inst_id).first()
                 if inst_rec and getattr(inst_rec, "qa_character_limits", None):
                     raw_cfg = json.loads(inst_rec.qa_character_limits) if isinstance(inst_rec.qa_character_limits, str) else inst_rec.qa_character_limits
-                    exact_match = next((item for item in raw_cfg if int(item.get("marks", 0)) == question_mark), None)
-                    if exact_match:
-                        character_count = int(exact_match.get("character_limit", 500))
-                    elif raw_cfg:
-                        closest = min(raw_cfg, key=lambda x: abs(int(x.get("marks", 0)) - question_mark))
-                        character_count = int(closest.get("character_limit", 500))
+                    match = next((item for item in raw_cfg if int(item.get("marks", 0)) == question_mark), None)
+                    if not match and raw_cfg:
+                        match = min(raw_cfg, key=lambda x: abs(int(x.get("marks", 0)) - question_mark))
+                    if match:
+                        if not question_char_limit:
+                            question_char_limit = int(match.get("question_character_limit", 0) or 0)
+                        if not answer_max_char_limit:
+                            answer_max_char_limit = int(match.get("answer_max_character_limit", 0) or match.get("character_limit", 0) or 0)
+                        if not answer_min_char_limit:
+                            answer_min_char_limit = int(match.get("answer_min_character_limit", 0) or 0)
                 sess_inst.close()
         except Exception as e:
             print(f"Error reading institute qa_character_limits: {e}")
 
-    if not character_count:
-        if question_mark <= 2:
-            character_count = 450
-        elif question_mark <= 5:
-            character_count = 1000
-        else:
-            character_count = 1500
+    # Fallback defaults if still unspecified
+    if not question_char_limit:
+        question_char_limit = 350 if question_mark <= 2 else (500 if question_mark <= 5 else 700)
 
-    est_words = max(character_count // 6, 5)
-    recommended_words_count = f"{int(est_words * 0.85)}-{int(est_words * 1.15)} words"
+    if not answer_max_char_limit:
+        if question_mark <= 2:
+            answer_max_char_limit = 550
+        elif question_mark <= 5:
+            answer_max_char_limit = 1100
+        else:
+            answer_max_char_limit = 1800
+
+    if not answer_min_char_limit:
+        if question_mark <= 2:
+            answer_min_char_limit = 450
+        elif question_mark <= 5:
+            answer_min_char_limit = 800
+        else:
+            answer_min_char_limit = 1300
+
+    if answer_min_char_limit > answer_max_char_limit:
+        answer_min_char_limit = int(answer_max_char_limit * 0.8)
 
     if type == "fill":
-        recommended_words_count = "1-3 words (only the missing word/phrase)"
-        character_count = min(character_count, 100)
+        answer_min_char_limit = 1
+        answer_max_char_limit = 100
+        question_char_limit = min(question_char_limit, 200)
 
+    # Combined variable for backward compatibility in token calculations
+    character_count = question_char_limit + answer_max_char_limit
     aimodel = 2 if question_mark < 5 else 1
 
     openai_client_instance = openai_client()
 
     # Dynamically scale token estimate to match configured character count
-    total_tokens_estimate = max((number_of_questions * character_count // 4) + 1500, 3000)
+    total_tokens_estimate = max((number_of_questions * (question_char_limit + answer_max_char_limit) // 4) + 1500, 3500)
 
-    system_message = """You are an expert academic examination setter and evaluator for school and college curricula. Your task is to generate high-quality examination questions and authoritative, well-structured model answers based on the provided source text and parameters.
+    system_message = f"""You are an expert academic examination setter and evaluator for school and college curricula. Your primary objective is to generate academically authoritative, scientifically accurate examination questions and comprehensive model answers based on the provided source text and parameters.
 
 Academic Marking & Depth Standards:
-- The assigned marks determine the expected academic depth and answer length:
-  * 1–2 marks: Short, direct answers covering essential definitions, facts, or statements.
-  * 3–5 marks: Well-developed answers with clear explanations, supporting points, relevant examples, and reasoning.
-  * 8–10+ marks: Comprehensive academic examination answers with detailed explanations, clear headings, numbered stages, core principles, underlying mechanisms, relevant examples, and balanced chemical or mathematical equations wherever applicable.
-- Avoid Undue Compression: Do not stop after mentioning basic points when important academic explanations are still required. Explain each major concept, stage, mechanism, and reaction sufficiently to demonstrate understanding.
-- Meaningful Answer Expansion: When the available character budget permits, expand the answer by explaining the purpose, working principles, causes, effects, mechanisms, examples, applications, and significance of relevant concepts. Prefer meaningful academic details over unnecessarily short answers.
-- Crisp Academic Writing: Keep sentences precise, well-structured, and relevant. Avoid repetition, unnecessary introductions, generic conclusions, and unrelated background information. More detail must improve academic completeness, not create filler.
-- Grounded Knowledge: Use the provided source text as the primary factual reference while explaining the scientific principles, mechanisms, and equations inherent to the subject. Do not invent unverified facts or add irrelevant filler.
-- Dynamic Ceiling Constraint: The institute-configured character limit is a strict upper ceiling per question (question and answer combined). Never exceed this limit.
+- Academic Completeness: The answer must provide full academic coverage appropriate for {question_mark} marks, including core definitions, underlying principles, mechanisms, and balanced reactions/equations wherever applicable.
+- Contextual Expansion (Minimum Threshold): If the core answer is shorter than the configured minimum of {answer_min_char_limit} characters, expand it meaningfully using related academic details (such as operating conditions, industrial purpose, reaction details, or examples). Do NOT add irrelevant filler, repetitive phrases, or generic intros/outros.
+- Strict Upper Ceilings:
+  * The question text ('question_text') must strictly not exceed {question_char_limit} characters.
+  * The model answer ('answer_text' and 'correct_answer') must strictly not exceed {answer_max_char_limit} characters.
+- Grounded Knowledge: Base all facts on the provided source text and standard curriculum principles. Do not invent unverified facts.
 
 Question Type Specifications:
 - 'fill': Fill-in-the-blanks (use '______' in question_text, and provide ONLY the exact missing word/phrase in correct_answer and answer_text without repeating the full sentence).
 - 'choose': Multiple choice single answer with concise, plausible options.
 - 'multi': Multiple choice multiple answers with concise options.
-- 'descriptive': Subjective examination question. The model answer ('answer_text' and 'correct_answer') must provide a complete, deeply detailed model answer with academic depth matching the assigned marks.
+- 'descriptive': Subjective examination question. The model answer ('answer_text' and 'correct_answer') must provide an academically complete model answer matching the assigned marks.
 """
     user_message = f"""Using the following parameters, generate {number_of_questions} question(s) along with their correct model answer(s):
 - Language: {language}
@@ -1625,25 +1664,17 @@ Question Type Specifications:
 - Source Text: {source_text}
 - Additional Instructions: {additional_instructions}
 - Assigned Marks: {question_mark} marks per question
-- Maximum Character Limit: {character_count} characters per question (question_text + answer_text combined)
+- Question Character Ceiling: Maximum {question_char_limit} characters for "question_text"
+- Model Answer Character Range: Minimum {answer_min_char_limit} characters to Maximum {answer_max_char_limit} characters for "answer_text"
 
 Instructions for Question and Model Answer Generation:
-1. Mark-Appropriate Academic Depth (for Descriptive Questions):
-   - For 1–2 marks: Keep answers brief, direct, and focused on essential definitions.
-   - For 3–5 marks: Provide a thorough explanation with key points and reasons.
-   - For 8–10+ marks: Provide an exhaustive, long-form academic model answer. Break the answer down into distinct numbered sections with clear headings. Fully explain the theoretical principles, raw materials, process mechanisms, individual reaction zones/stages, balanced chemical/mathematical equations, and industrial/practical relevance in depth. Do NOT summarize or condense a 10-mark answer into brief 1-sentence points; write comprehensive explanatory paragraphs for each stage to reflect a true full-mark essay response.
-2. Dynamic Character Limit Utilization:
-   - The configured {character_count} characters represent the maximum available capacity, not a target that must be reached exactly.
-   - Use the available character budget effectively. Do not generate unnecessarily short answers when additional relevant academic explanations are required.
-   - For descriptive questions, provide sufficient detail for the assigned marks. Expand important concepts, principles, mechanisms, stages, reactions, and examples wherever academically relevant.
-   - Before completing an answer, ensure that all important aspects required by the question have been adequately explained.
-   - Do not prematurely stop after covering only the basic points when meaningful academic details remain unexplained.
-   - Maintain crisp, precise academic writing without repetition or artificial expansion.
-   - Strictly ensure that question_text + answer_text never exceeds {character_count} characters.
-3. Source Text Fidelity: Use the provided source text as the primary factual reference. Do not invent facts or unsupported details. If the source does not contain sufficient information, generate only what can be reliably supported.
-4. Question Type Restraint: Keep objective questions ('choose', 'multi', 'fill') crisp and direct. Detailed structural explanations apply only to descriptive questions.
-5. Character Limit Calculation: The maximum limit of {character_count} characters applies to the question text and model answer combined (question_text + answer_text). Do not count duplicate answer fields against this limit.
-6. Clean Formatting: Do NOT include mark annotations (such as "({question_mark} marks)", "[{question_mark} Marks]") inside "question_text". Marks belong exclusively in the "mark" field.
+1. Academic Depth & Accuracy:
+   - Provide complete scientific explanations, conditions, and reactions matching {question_mark} marks.
+   - If the definition alone is shorter than {answer_min_char_limit} characters, expand it with relevant academic details (such as purpose, reaction conditions, or industrial significance) to satisfy the minimum length naturally.
+2. Strict Character Bounds:
+   - "question_text" must be <= {question_char_limit} characters.
+   - "answer_text" must be between {answer_min_char_limit} and {answer_max_char_limit} characters.
+3. Clean Formatting: Do NOT include mark annotations (such as "({question_mark} marks)", "[{question_mark} Marks]") inside "question_text". Marks belong exclusively in the "mark" field.
 
 Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
 [
@@ -1687,7 +1718,7 @@ If only a single question is requested, returning a single JSON object is also a
             if isinstance(error, dict):
                 error = error.get("message", str(error))
             return {"status": False, "error": error}, response.status_code
-        response_tracker(response_json, institute_id, user_id)
+        response_tracker(response_json, target_inst_id, user_id, endpoint="/create-question-using-ai")
         result_text = response_json["choices"][0]["message"]["content"].strip()
         # Remove markdown code blocks if present
         if result_text.startswith("```"):
@@ -1710,7 +1741,58 @@ If only a single question is requested, returning a single JSON object is also a
         for q_item in questions_list:
             if isinstance(q_item, dict) and "question_text" in q_item and isinstance(q_item["question_text"], str):
                 q_item["question_text"] = re.sub(r'\s*[\(\[]\s*\d+\s*(?:marks?|pts?|points?)\s*[\)\]]\s*$', '', q_item["question_text"], flags=re.IGNORECASE).strip()
-        avg_tokens_per_q = (completion_tokens / num_questions) if num_questions else completion_tokens
+
+        # =========================================================================
+        # PYTHON VALIDATION: ENFORCE CONFIGURED CHARACTER LIMITS (LAYER 2 & 3)
+        # =========================================================================
+        if type == "descriptive":
+            for q_item in questions_list:
+                if not isinstance(q_item, dict):
+                    continue
+
+                ans = q_item.get("answer_text", "") or q_item.get("correct_answer", "")
+                ans_len = len(ans)
+
+                # Validation Rule 1: Below minimum threshold -> Request Contextual Expansion
+                if ans_len < answer_min_char_limit:
+                    expand_prompt = f"""The following model answer has {ans_len} characters, which is below the required minimum of {answer_min_char_limit} characters.
+Question: {q_item.get('question_text')}
+Current Answer: {ans}
+
+Task: Expand the answer by adding essential scientific/academic details, underlying mechanisms, operating conditions, or relevant examples related to the topic so that the total answer length is at least {answer_min_char_limit} characters and does not exceed {answer_max_char_limit} characters. Do NOT add irrelevant filler or repeat sentences. Return ONLY the improved model answer text."""
+
+                    expand_res = openai_client_instance.chat_completion(
+                        "You are an expert academic evaluator. Provide only the expanded, academically complete model answer with no surrounding text or markdown.",
+                        expand_prompt,
+                        aimodel=aimodel,
+                        max_tokens=max(answer_max_char_limit, 1000)
+                    )
+                    if expand_res.status_code == 200:
+                        new_ans = expand_res.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                        if len(new_ans) >= answer_min_char_limit:
+                            q_item["answer_text"] = new_ans
+                            q_item["correct_answer"] = new_ans
+
+                # Validation Rule 2: Above maximum ceiling -> Request Concise Rewrite
+                elif ans_len > answer_max_char_limit:
+                    trim_prompt = f"""The following model answer has {ans_len} characters, which exceeds the maximum ceiling of {answer_max_char_limit} characters.
+Question: {q_item.get('question_text')}
+Current Answer: {ans}
+
+Task: Rewrite the model answer more concisely while preserving all essential academic facts, formulas, and points so that its total length does NOT exceed {answer_max_char_limit} characters (and is at least {answer_min_char_limit} characters). Return ONLY the tightened model answer text."""
+
+                    trim_res = openai_client_instance.chat_completion(
+                        "You are an expert academic evaluator. Provide only the concise model answer with no surrounding text or markdown.",
+                        trim_prompt,
+                        aimodel=aimodel,
+                        max_tokens=max(answer_max_char_limit, 1000)
+                    )
+                    if trim_res.status_code == 200:
+                        trimmed = trim_res.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+                        if len(trimmed) <= answer_max_char_limit:
+                            q_item["answer_text"] = trimmed
+                            q_item["correct_answer"] = trimmed
+
 
         # ============================================
         # ACTUAL API TOKEN USAGE
@@ -1750,7 +1832,7 @@ If only a single question is requested, returning a single JSON object is also a
     return result, 200
 
 
-def response_tracker(response_json, institute_id=None, user_id=None):
+def response_tracker(response_json, institute_id=None, user_id=None, endpoint="/create-question-using-ai"):
     if not isinstance(response_json, dict):
         return
     choices = response_json.get("choices")
@@ -1761,8 +1843,16 @@ def response_tracker(response_json, institute_id=None, user_id=None):
         db = SQLiteDB()
         session = db.connect()
 
+        # If institute_id is missing, look up from user_id to ensure tokens are always tracked per institute
+        if not institute_id and user_id:
+            try:
+                u_rec = session.query(User).filter_by(user_id=user_id).first()
+                if u_rec and u_rec.institute_id:
+                    institute_id = u_rec.institute_id
+            except Exception:
+                pass
+
         id = response_json.get("id", None)
-        object_type = response_json.get("object", None)
         model = response_json.get("model", None)
         usage = response_json.get("usage") or {}
         service_tier = response_json.get("service_tier", None)
@@ -1779,7 +1869,7 @@ def response_tracker(response_json, institute_id=None, user_id=None):
 
         insert_record = openai_requests(
             id=id,
-            # object_type=object_type,
+            endpoint=endpoint,
             model=model,
             service_tier=service_tier,
             system_fingerprint=system_fingerprint,
@@ -1857,7 +1947,7 @@ def fine_tune_questions_using_llm(request):
                 error = error.get("message", str(error))
             return {"status": False, "error": error}, response.status_code
 
-        response_tracker(response_json, institute_id, user_id)
+        response_tracker(response_json, institute_id, user_id, endpoint="/fine-tune-question")
 
         choices = response_json.get("choices") or []
         if not choices:

@@ -1,4 +1,4 @@
-﻿from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City, Subject
+from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City, Subject
 from db.db import SQLiteDB
 from datetime import datetime
 from sqlalchemy import func, or_
@@ -57,6 +57,44 @@ def _ensure_institute_registration_schema(session):
             ))
         session.commit()
         _institute_schema_ready = True
+
+
+def normalize_qa_character_limits(raw_limits):
+    default_limits = [
+        {"marks": 2, "question_character_limit": 350, "answer_min_character_limit": 450, "answer_max_character_limit": 550},
+        {"marks": 5, "question_character_limit": 500, "answer_min_character_limit": 800, "answer_max_character_limit": 1100},
+        {"marks": 10, "question_character_limit": 700, "answer_min_character_limit": 1300, "answer_max_character_limit": 1800}
+    ]
+    if not raw_limits:
+        return default_limits
+    try:
+        limits = json.loads(raw_limits) if isinstance(raw_limits, str) else raw_limits
+        if not isinstance(limits, list) or not limits:
+            return default_limits
+        normalized = []
+        for item in limits:
+            if not isinstance(item, dict):
+                continue
+            marks = int(item.get("marks", 2) or 2)
+            q_limit = item.get("question_character_limit")
+            a_min = item.get("answer_min_character_limit")
+            a_max = item.get("answer_max_character_limit")
+            legacy = item.get("character_limit")
+            if not q_limit:
+                q_limit = 350 if marks <= 2 else (500 if marks <= 5 else 700)
+            if not a_max:
+                a_max = legacy if legacy else (550 if marks <= 2 else (1100 if marks <= 5 else 1800))
+            if not a_min:
+                a_min = int(a_max * 0.75) if a_max else (450 if marks <= 2 else (800 if marks <= 5 else 1300))
+            normalized.append({
+                "marks": marks,
+                "question_character_limit": int(q_limit),
+                "answer_min_character_limit": int(a_min),
+                "answer_max_character_limit": int(a_max)
+            })
+        return normalized if normalized else default_limits
+    except Exception as e:
+        return default_limits
 
 
 def _extract_id(val, id_keys=('id', 'country_id', 'state_id', 'city_id', '_id')):
@@ -135,7 +173,7 @@ def insert_institute(data):
     elif isinstance(qa_character_limits_val, str) and qa_character_limits_val.strip():
         qa_character_limits = qa_character_limits_val.strip()
     else:
-        qa_character_limits = '[{"marks": 2, "character_limit": 450}, {"marks": 5, "character_limit": 1000}, {"marks": 10, "character_limit": 1500}]'
+        qa_character_limits = '[{"marks": 2, "question_character_limit": 350, "answer_min_character_limit": 450, "answer_max_character_limit": 550}, {"marks": 5, "question_character_limit": 500, "answer_min_character_limit": 800, "answer_max_character_limit": 1100}, {"marks": 10, "question_character_limit": 700, "answer_min_character_limit": 1300, "answer_max_character_limit": 1800}]'
 
     missing_fields = [field for field, value in (("name", name), ("short_name", short_name))
                       if value is None or not str(value).strip()]
@@ -875,11 +913,7 @@ def get_institute_details(request):
             "users_count": users_count,
             "subscription_start": inst.subscription_start,
             "subscription_end": inst.subscription_end,
-            "qa_character_limits": json.loads(inst.qa_character_limits) if getattr(inst, "qa_character_limits", None) else [
-                {"marks": 2, "character_limit": 450},
-                {"marks": 5, "character_limit": 1000},
-                {"marks": 10, "character_limit": 1500}
-            ],
+            "qa_character_limits": normalize_qa_character_limits(getattr(inst, "qa_character_limits", None)),
             "active_status": True if inst.active_status else False,
             "departments": dept_list,
             "teams": team_list,
@@ -961,11 +995,7 @@ def get_institute_list(current_user=None, request=None):
             "short_name": inst.short_name,
             "industry_type": inst.industry_type or '',
             "industry_sector": inst.industry_sector or '',
-            "qa_character_limits": json.loads(inst.qa_character_limits) if getattr(inst, "qa_character_limits", None) else [
-                {"marks": 2, "character_limit": 450},
-                {"marks": 5, "character_limit": 1000},
-                {"marks": 10, "character_limit": 1500}
-            ]
+            "qa_character_limits": normalize_qa_character_limits(getattr(inst, "qa_character_limits", None))
         })
     json_data = {
         "statusMessage": "Active institutes retrieved successfully",
