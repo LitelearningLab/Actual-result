@@ -982,7 +982,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       sessionStorage.removeItem('edit_exam');
     } catch (e) {}
     this.saveTestsReturnState();
-    const inst = this.selectedInstitute || (this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes[0] : '');
+    const inst = this.isSuperAdmin
+      ? undefined
+      : (this.selectedInstitute || (this.selectedInstitutes && this.selectedInstitutes.length ? this.selectedInstitutes[0] : ''));
     this.router.navigate(['/create-question-paper'], {
       queryParams: { mode: 'publish', institute_id: inst || undefined },
     });

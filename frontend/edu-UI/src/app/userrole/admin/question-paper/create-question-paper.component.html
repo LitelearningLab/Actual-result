@@ -65,7 +65,7 @@
                                 style="background: #f8fafc; cursor: pointer;"
                                 (click)="openFilterPaperOverlay(); $event.stopPropagation()" />
                             <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
-                                Choose an institute in Filter Paper to unlock fields.
+                                {{ selectedInstituteName ? 'Institute associated with this question paper.' : 'Choose an institute in Filter Paper to unlock fields.' }}
                             </span>
                         </div>
 
@@ -1237,6 +1237,59 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- ═══ Post-Save Action Popup ═══ -->
+    <div
+      *ngIf="showPostSavePopup"
+      class="post-save-modal-backdrop"
+      (click)="onClosePostSave()"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="post-save-modal-title"
+    >
+      <div class="post-save-modal-card" (click)="$event.stopPropagation()">
+        <div class="post-save-header">
+          <div class="post-save-icon-circle">
+            <mat-icon>check_circle</mat-icon>
+          </div>
+          <h3 id="post-save-modal-title" class="post-save-title">{{ postSaveTitle }}</h3>
+          <p class="post-save-subtitle">{{ postSaveSubtitle }}</p>
+        </div>
+
+        <div class="post-save-actions">
+          <button
+            type="button"
+            mat-flat-button
+            color="primary"
+            class="post-save-btn btn-create-test"
+            (click)="onPostSavePrimaryAction()"
+          >
+            <mat-icon>{{ postSaveIsDraft ? 'edit' : (postSaveIsPublished ? 'event_available' : 'publish') }}</mat-icon>
+            <span>{{ postSaveIsDraft ? 'Continue Editing' : (postSaveIsPublished ? 'View Published Tests' : 'Publish Test') }}</span>
+          </button>
+
+          <button
+            type="button"
+            mat-stroked-button
+            class="post-save-btn btn-preview"
+            (click)="onPostSavePreview()"
+          >
+            <mat-icon>visibility</mat-icon>
+            <span>Preview</span>
+          </button>
+
+          <button
+            type="button"
+            mat-button
+            class="post-save-btn btn-close"
+            (click)="onClosePostSave()"
+          >
+            <mat-icon>close</mat-icon>
+            <span>Close</span>
+          </button>
+        </div>
+      </div>
     </div>
 
 </div>

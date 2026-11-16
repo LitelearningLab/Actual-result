@@ -382,6 +382,15 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   paginatedPaperPages: PaperPage[] = [];
   paginatedGuidePages: PaperPage[] = [];
 
+  // ── Post-Save Action Popup ──
+  showPostSavePopup = false;
+  savedExamId: string | null = null;
+  postSaveTab: 'drafts' | 'published' = 'drafts';
+  postSaveIsDraft = false;
+  postSaveIsPublished = false;
+  postSaveTitle = 'Question Paper Saved Successfully';
+  postSaveSubtitle = 'Your question paper has been successfully saved. Please choose an action below:';
+
   // ── Unsaved changes tracking ──
   isDirty = false;
   isSavedOrSubmitted = false;
@@ -1052,7 +1061,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           'Select a created question paper and assign candidates to publish.'
         );
       }
-      if (!this.publishedScheduleName) {
+      if (this.editingScheduleId && !this.publishedScheduleName) {
         this.publishedScheduleName = this.formatSchedulerDateTime();
       }
     } else if (this.readOnly || this.isPublished || modeParam === 'view') {
@@ -1071,9 +1080,22 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     }
     this.isDirty = false;
 
+    const queryTemplate = this.route?.snapshot?.queryParams
+      ? this.route.snapshot.queryParams['template_id']
+      : null;
     const queryInst = this.route?.snapshot?.queryParams ? this.route.snapshot.queryParams['institute_id'] : null;
-    if (queryInst && !this.institute) {
+    if (queryInst && !this.institute && (!this.isSuperAdmin || queryTemplate)) {
       this.institute = String(queryInst);
+    }
+
+    if (this.formMode === 'publish' && !queryTemplate && !this.editingScheduleId) {
+      if (this.isSuperAdmin) {
+        this.institute = '';
+        this.selectedInstituteName = '';
+        this.filterPaperInstituteId = '';
+      }
+      this.publishedScheduleName = '';
+      this.selectedQuestionPaperTitle = '';
     }
 
     // load institutes and ensure institute selection is reconciled
@@ -1455,6 +1477,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
             if (found) {
               this.institute = String(found.id);
+              if (!this.selectedInstituteName && found.name && (this.selectedQuestionPaperTemplateId || this.editingScheduleId || !this.isSuperAdmin)) {
+                this.selectedInstituteName = found.name;
+              }
               this.onInstituteChange(this.institute);
               return;
             }
@@ -1467,21 +1492,25 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
         // Fallback: try reading user's institute from sessionStorage
         try {
-          const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
-          if (raw) {
-            const u = JSON.parse(raw);
-            const instId =
-              sessionStorage.getItem('global_institute_id') ||
-              u?.institute_id ||
-              u?.instituteId ||
-              (u?.institute && (u.institute.institute_id || u.institute.id || u.institute)) ||
-              u?.institute ||
-              '';
-            if (instId) {
-              const found = this.institutes.find((x) => String(x.id) === String(instId));
-              if (found) {
-                this.institute = String(found.id);
-                this.onInstituteChange(this.institute);
+          if (this.formMode === 'publish' && this.isSuperAdmin && !this.selectedQuestionPaperTemplateId && !this.editingScheduleId) {
+            // Keep institute empty for Super Admin until selected via Filter Paper
+          } else {
+            const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+            if (raw) {
+              const u = JSON.parse(raw);
+              const instId =
+                sessionStorage.getItem('global_institute_id') ||
+                u?.institute_id ||
+                u?.instituteId ||
+                (u?.institute && (u.institute.institute_id || u.institute.id || u.institute)) ||
+                u?.institute ||
+                '';
+              if (instId) {
+                const found = this.institutes.find((x) => String(x.id) === String(instId));
+                if (found) {
+                  this.institute = String(found.id);
+                  this.onInstituteChange(this.institute);
+                }
               }
             }
           }
@@ -5449,8 +5478,14 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         }
         const instRaw = item.institute;
         const itemInst = (instRaw && (instRaw.institute_id || instRaw.id)) || item.institute_id || (typeof instRaw === 'string' ? instRaw : '');
-        if (itemInst && (!this.institute || this.institute !== String(itemInst))) {
+        if (itemInst) {
           this.institute = String(itemInst);
+          this.filterPaperInstituteId = this.institute;
+          const matchInst = this.institutes?.find((i) => String(i.id) === String(this.institute));
+          const instName = matchInst?.name || this.instituteNameDisplay || (typeof instRaw === 'object' ? (instRaw.name || instRaw.institute_name) : '') || item.institute_name || '';
+          if (instName) {
+            this.selectedInstituteName = instName;
+          }
           this.loadDepartments(this.institute);
           this.loadTeams(this.institute);
           this.loadSubjects(this.institute);
@@ -5793,14 +5828,20 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
             notify(msg, ok ? 'success' : 'error');
           } catch (e) {}
-          try {
-            sessionStorage.setItem('question_papers_return_state', 'true');
-            sessionStorage.removeItem('edit_exam');
-          } catch (e) {}
           this.isSavedOrSubmitted = true;
-          this.router.navigate(['/question-papers'], {
-            queryParams: { tab: targetTab },
-          });
+          this.isDirty = false;
+          this.savedExamId = this.editExamId;
+          this.postSaveTab = targetTab;
+          this.postSaveIsDraft = isDraft;
+          this.postSaveIsPublished = false;
+          this.postSaveTitle = isDraft
+            ? 'Draft Updated Successfully'
+            : 'Question Paper Updated Successfully';
+          this.postSaveSubtitle = isDraft
+            ? 'Your question paper draft has been updated. Please choose an action below:'
+            : 'Your question paper has been successfully updated. Please choose an action below:';
+          this.showPostSavePopup = true;
+          this.loader.hide();
         },
         error: (err) => {
           console.error('Failed to update exam', err);
@@ -5837,14 +5878,20 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
             notify(msg, ok ? 'success' : 'error');
           } catch (e) {}
-          try {
-            sessionStorage.setItem('question_papers_return_state', 'true');
-            sessionStorage.removeItem('edit_exam');
-          } catch (e) {}
           this.isSavedOrSubmitted = true;
-          this.router.navigate(['/question-papers'], {
-            queryParams: { tab: 'published' },
-          });
+          this.isDirty = false;
+          this.savedExamId = this.selectedQuestionPaperTemplateId || this.editExamId || null;
+          this.postSaveTab = 'published';
+          this.postSaveIsDraft = false;
+          this.postSaveIsPublished = true;
+          this.postSaveTitle = isEditing
+            ? 'Schedule Updated Successfully'
+            : 'Question Paper Published Successfully';
+          this.postSaveSubtitle = isEditing
+            ? 'The scheduled test has been successfully updated. Please choose an action below:'
+            : 'Your question paper has been successfully scheduled and published. Please choose an action below:';
+          this.showPostSavePopup = true;
+          this.loader.hide();
         },
         error: (err) => {
           console.error('Failed to save paper schedule', err);
@@ -5877,14 +5924,24 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           const ok = typeof res?.status === 'undefined' ? true : !!res.status;
           notify(msg, ok ? 'success' : 'error');
         } catch (e) {}
-        try {
-          sessionStorage.setItem('question_papers_return_state', 'true');
-          sessionStorage.removeItem('edit_exam');
-        } catch (e) {}
         this.isSavedOrSubmitted = true;
-        this.router.navigate(['/question-papers'], {
-          queryParams: { tab: targetTab },
-        });
+        this.isDirty = false;
+        this.savedExamId = res?.exam_id || null;
+        if (this.savedExamId) {
+          this.editExamId = this.savedExamId;
+          this.editMode = true;
+        }
+        this.postSaveTab = targetTab;
+        this.postSaveIsDraft = isDraft;
+        this.postSaveIsPublished = false;
+        this.postSaveTitle = isDraft
+          ? 'Draft Saved Successfully'
+          : 'Question Paper Saved Successfully';
+        this.postSaveSubtitle = isDraft
+          ? 'Your question paper draft has been saved. Please choose an action below:'
+          : 'Your question paper has been successfully saved. Please choose an action below:';
+        this.showPostSavePopup = true;
+        this.loader.hide();
       },
       error: (err) => {
         console.error('Failed to create exam', err);
@@ -5896,6 +5953,114 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       complete: () => {
         this.loader.hide();
       },
+    });
+  }
+
+  // ── Post-Save Action Handlers ──
+  onPostSavePrimaryAction(): void {
+    this.showPostSavePopup = false;
+    if (this.postSaveIsDraft) {
+      // Continue editing draft
+      this.isSavedOrSubmitted = false;
+      this.isDirty = false;
+    } else if (this.postSaveIsPublished) {
+      // View published schedule list
+      try {
+        sessionStorage.setItem('question_papers_return_state', 'true');
+        sessionStorage.removeItem('edit_exam');
+      } catch (e) {}
+      this.router.navigate(['/question-papers'], {
+        queryParams: { tab: 'published' },
+      });
+    } else {
+      // Transition directly to Publish Test mode with saved paper details
+      try {
+        sessionStorage.setItem('question_papers_return_state', 'true');
+        sessionStorage.removeItem('edit_exam');
+      } catch (e) {}
+      const examId = this.savedExamId || this.editExamId;
+      this.switchToPublishMode(examId);
+    }
+  }
+
+  switchToPublishMode(examId?: string | null): void {
+    const targetExamId = examId || this.savedExamId || this.editExamId;
+    this.showPostSavePopup = false;
+    this.formMode = 'publish';
+    this.readOnly = false;
+    this.isPublished = false;
+    this.editingScheduleId = null;
+    this.isSavedOrSubmitted = true;
+    this.isDirty = false;
+
+    this.pageMeta.setMeta(
+      'Publish Question Paper',
+      'Select a created question paper and assign candidates to publish.'
+    );
+
+    if (targetExamId) {
+      this.selectedQuestionPaperTemplateId = String(targetExamId);
+      if (this.title) {
+        this.selectedQuestionPaperTitle = this.title;
+        const dateTime = this.formatSchedulerDateTime(new Date());
+        const paperTitle = (this.title || '').trim();
+        this.publishedScheduleName = paperTitle ? `${paperTitle} - ${dateTime}` : dateTime;
+        this.scheduleNameManuallyEdited = false;
+      }
+      this.onQuestionPaperTemplateChange(String(targetExamId));
+    }
+
+    if (!this.examDate) {
+      const now = new Date();
+      this.examDate = now.toISOString().split('T')[0];
+    }
+
+    if (this.institute) {
+      this.filterPaperInstituteId = this.institute;
+      const matchInst = this.institutes?.find((i) => String(i.id) === String(this.institute));
+      const instName = matchInst?.name || this.instituteNameDisplay || '';
+      if (instName) {
+        this.selectedInstituteName = instName;
+      }
+      try {
+        this.loadDepartments(this.institute);
+        this.loadTeams(this.institute);
+        this.loadSubjects(this.institute);
+      } catch (e) {}
+    }
+
+    try {
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: {
+          mode: 'publish',
+          template_id: targetExamId ? String(targetExamId) : undefined,
+          institute_id: this.institute || undefined,
+        },
+        queryParamsHandling: 'merge',
+      });
+    } catch (e) {}
+
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {}
+
+    this.cdr.detectChanges();
+  }
+
+  onPostSavePreview(): void {
+    this.showPostSavePopup = false;
+    this.previewPaper();
+  }
+
+  onClosePostSave(): void {
+    this.showPostSavePopup = false;
+    try {
+      sessionStorage.setItem('question_papers_return_state', 'true');
+      sessionStorage.removeItem('edit_exam');
+    } catch (e) {}
+    this.router.navigate(['/question-papers'], {
+      queryParams: { tab: this.postSaveTab },
     });
   }
 
@@ -5988,6 +6153,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       sessionStorage.setItem('question_papers_return_state', 'true');
     } catch (e) {}
     this.router.navigate(['/question-papers']);
+  }
+
+  @HostListener('window:keydown.escape')
+  handleEscapeKey(): void {
+    if (this.showPostSavePopup) {
+      this.onClosePostSave();
+    }
   }
 
   @HostListener('window:beforeunload', ['$event'])
