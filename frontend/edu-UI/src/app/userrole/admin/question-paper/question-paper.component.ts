@@ -996,7 +996,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
     if (this.isMarksIncomplete(e)) {
       notify(
-        `Cannot publish "${e?.title || 'this paper'}": section marks (${this.getSelectedMarksCount(e)}) do not tally with Total Marks (${this.getTotalMarksCount(e)}).`,
+        `Cannot schedule test "${e?.title || 'this paper'}": section marks (${this.getSelectedMarksCount(e)}) do not tally with Total Marks (${this.getTotalMarksCount(e)}).`,
         'error'
       );
       return;

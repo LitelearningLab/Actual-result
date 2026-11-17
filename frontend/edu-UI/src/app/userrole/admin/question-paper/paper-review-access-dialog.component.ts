@@ -235,7 +235,7 @@ export function buildPaperReviewPayload(cfg: PaperReviewSettings): Record<string
             (ngModelChange)="emitChange()">
             Enable Review Access Now
           </mat-slide-toggle>
-          <span>You can also toggle Manual Review ON/OFF directly from the Published tab table.</span>
+          <span>You can also toggle Manual Review ON/OFF directly from the Schedule Test tab table.</span>
         </div>
       </div>
     </div>

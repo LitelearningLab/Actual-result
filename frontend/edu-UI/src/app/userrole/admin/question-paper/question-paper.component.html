@@ -28,9 +28,9 @@
                     <mat-icon>add</mat-icon>
                     <span>Create Question Paper</span>
                 </button>
-                <button *ngIf="activeTab === 'published'" type="button" class="btn-primary-blue" (click)="openPublishQuestionPaper()" aria-label="Publish question paper">
-                    <mat-icon>publish</mat-icon>
-                    <span>Publish Question Paper</span>
+                <button *ngIf="activeTab === 'published'" type="button" class="btn-primary-blue" (click)="openPublishQuestionPaper()" aria-label="Schedule test">
+                    <mat-icon>event_available</mat-icon>
+                    <span>Schedule Test</span>
                 </button>
             </div>
         </div>
@@ -58,7 +58,7 @@
         </button>
         <button type="button" class="tab-segment" [class.active]="activeTab === 'published'" (click)="setTab('published')"
             role="tab" [attr.aria-selected]="activeTab === 'published'">
-            <span class="tab-title">Published</span>
+            <span class="tab-title">Schedule Test</span>
             <span class="tab-badge" [class.badge-active]="activeTab === 'published'">{{ publishedCount }}</span>
         </button>
     </div>
@@ -325,7 +325,7 @@
             <div class="question-paper-loader-ring" aria-hidden="true"></div>
             <div class="question-paper-loader-copy">
                 <h5>Loading Question Papers</h5>
-                <p>Fetching your draft and published question papers...</p>
+                <p>Fetching your draft and scheduled tests...</p>
             </div>
         </div>
 
@@ -427,8 +427,8 @@
                             <div class="action-btn-group">
                                 <!-- ── Tab 1: Question Papers Actions ── -->
                                 <ng-container *ngIf="activeTab === 'drafts'">
-                                    <button type="button" class="action-btn action-btn-success" *ngIf="getPaperStatus(e) === 'ready_to_publish'" (click)="publishQuestionPaper(e)" matTooltip="Publish Question Paper" aria-label="Publish Question Paper">
-                                        <mat-icon>publish</mat-icon>
+                                    <button type="button" class="action-btn action-btn-success" *ngIf="getPaperStatus(e) === 'ready_to_publish'" (click)="publishQuestionPaper(e)" matTooltip="Schedule Test" aria-label="Schedule Test">
+                                        <mat-icon>schedule</mat-icon>
                                     </button>
                                     <button type="button" class="action-btn action-btn-blue" (click)="viewQuestionPaper(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
                                         <mat-icon>visibility</mat-icon>
@@ -484,7 +484,7 @@
                                     ? 'Apply filters to view question papers.'
                                     : (activeTab === 'drafts'
                                         ? 'No question papers found for the selected filters.'
-                                        : 'No published question papers found for the selected filters.') }}
+                                        : 'No scheduled tests found for the selected filters.') }}
                             </td>
                         </tr>
                     </tbody>

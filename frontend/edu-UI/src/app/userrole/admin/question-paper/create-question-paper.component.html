@@ -16,8 +16,8 @@
             <div class="qp-card" id="test-details-card">
                 <div class="qp-card-header" style="display: flex; justify-content: space-between; align-items: center;">
                     <div class="qp-card-title">
-                        <h2>{{ formMode === 'publish' ? 'Publish Question Paper' : 'Test Details' }}</h2>
-                        <p>{{ formMode === 'publish' ? 'Select a question paper and assign candidates to publish.' : 'Create the basic details of the written test.' }}</p>
+                        <h2>{{ formMode === 'publish' ? 'Schedule Test' : 'Test Details' }}</h2>
+                        <p>{{ formMode === 'publish' ? 'Select a question paper and assign candidates to schedule test.' : 'Create the basic details of the written test.' }}</p>
                     </div>
 
                     <!-- Filter Paper Button (Publish Mode Only) -->
@@ -33,7 +33,7 @@
                         class="draft-badge" 
                         [class.published-badge]="isPublished"
                         [class.finalized-badge]="readOnly && !isDraft">
-                        {{ isPublished ? 'Published' : (isDraft ? 'Draft' : 'Finalized') }}
+                        {{ isPublished ? 'Scheduled' : (isDraft ? 'Draft' : 'Finalized') }}
                     </span>
                 </div>
 
@@ -78,7 +78,7 @@
                                 [style.cursor]="editingScheduleId ? 'not-allowed' : 'pointer'"
                                 (click)="!editingScheduleId && openFilterPaperOverlay(); $event.stopPropagation()" />
                             <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
-                                {{ editingScheduleId ? 'Question paper is locked for published schedule' : (selectedQuestionPaperTitle ? 'Selected from Filter Paper' : 'Click Filter Paper button above to choose') }}
+                                {{ editingScheduleId ? 'Question paper is locked for scheduled test' : (selectedQuestionPaperTitle ? 'Selected from Filter Paper' : 'Click Filter Paper button above to choose') }}
                             </span>
                         </div>
                     </div>
@@ -196,7 +196,7 @@
                 <div *ngIf="isPublished && readOnly" class="running-test-banner"
                     style="margin-bottom: 1rem; border-radius: 0.5rem; border: 1px solid #fca5a5; background: #fff1f2; color: #991b1b; padding: 12px 16px; display: flex; align-items: center; gap: 8px;" role="status">
                     <mat-icon style="color: #dc2626;">warning</mat-icon>
-                    <span>This question paper is published. User assignment is not editable.</span>
+                    <span>This test is scheduled. User assignment is not editable.</span>
                 </div>
 
                 <div class="qp-card-header assignment-card-header">
@@ -624,7 +624,7 @@
                 <div class="qp-card-header">
                     <div class="qp-card-title">
                         <h2>Sections and Questions</h2>
-                        <p>Drag a section to reorder it. Marks are added up automatically.</p>
+                        <p *ngIf="!readOnly">Drag a section to reorder it. Marks are added up automatically.</p>
                     </div>
                     <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()" *ngIf="!readOnly && sections.length > 0" [disabled]="!subject_id">
                         <mat-icon>add</mat-icon>
@@ -789,8 +789,8 @@
 
                     <!-- Publish Question Paper (Publish mode only) -->
                     <button class="btn-sidebar-publish" type="button" (click)="save(true)" *ngIf="formMode === 'publish'" [disabled]="!canPublish" [class.disabled]="!canPublish" [matTooltip]="publishDisabledReason">
-                        <mat-icon>{{ editingScheduleId ? 'save' : 'publish' }}</mat-icon>
-                        <span>{{ editingScheduleId ? 'Update Schedule' : 'Publish Question Paper' }}</span>
+                        <mat-icon>{{ editingScheduleId ? 'save' : 'event_available' }}</mat-icon>
+                        <span>{{ editingScheduleId ? 'Update Schedule' : 'Schedule Test' }}</span>
                     </button>
 
                     <!-- Create Question Paper (Create mode only -> Finalized: isDraft = false) -->
@@ -1264,8 +1264,8 @@
             class="post-save-btn btn-create-test"
             (click)="onPostSavePrimaryAction()"
           >
-            <mat-icon>{{ postSaveIsDraft ? 'edit' : (postSaveIsPublished ? 'event_available' : 'publish') }}</mat-icon>
-            <span>{{ postSaveIsDraft ? 'Continue Editing' : (postSaveIsPublished ? 'View Published Tests' : 'Publish Test') }}</span>
+            <mat-icon>{{ postSaveIsDraft ? 'edit' : (postSaveIsPublished ? 'event_available' : 'schedule') }}</mat-icon>
+            <span>{{ postSaveIsDraft ? 'Continue Editing' : (postSaveIsPublished ? 'View Scheduled Tests' : 'Schedule Test') }}</span>
           </button>
 
           <button

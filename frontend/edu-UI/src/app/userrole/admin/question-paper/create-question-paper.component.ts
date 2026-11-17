@@ -1057,8 +1057,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         );
       } else {
         this.pageMeta.setMeta(
-          'Publish Question Paper',
-          'Select a created question paper and assign candidates to publish.'
+          'Schedule Test',
+          'Select a created question paper and assign candidates to schedule test.'
         );
       }
       if (this.editingScheduleId && !this.publishedScheduleName) {
@@ -5651,18 +5651,18 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     }
     if (this.isPublished) return 'Question paper is in read-only mode';
     if (this.formMode === 'publish') {
-      if (!this.selectedQuestionPaperTemplateId) return 'Please select a question paper to publish';
-      if (!this.publishedScheduleName || !this.publishedScheduleName.trim()) return 'Schedule name is required to publish';
+      if (!this.selectedQuestionPaperTemplateId) return 'Please select a question paper to schedule test';
+      if (!this.publishedScheduleName || !this.publishedScheduleName.trim()) return 'Schedule name is required to schedule test';
     } else {
-      if (!this.title || !this.title.trim()) return 'Title is required to publish';
+      if (!this.title || !this.title.trim()) return 'Title is required to schedule test';
     }
-    if (!this.institute) return 'Institute is required to publish';
-    if (!this.selectedDepartment) return `${this.terminology.deptLabel || 'Department'} is required to publish`;
-    if (!this.selectedTeam) return `${this.terminology.teamLabel || 'Year'} is required to publish`;
-    if (!this.subject_id) return 'Subject is required to publish';
-    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return 'Duration is required to publish';
-    if (!this.sections.length || this.totalPaperQuestionsCount === 0) return 'Add at least one section with questions to publish';
-    if (!this.selectedPaperUsers.length) return 'Assign at least one user to publish';
+    if (!this.institute) return 'Institute is required to schedule test';
+    if (!this.selectedDepartment) return `${this.terminology.deptLabel || 'Department'} is required to schedule test`;
+    if (!this.selectedTeam) return `${this.terminology.teamLabel || 'Year'} is required to schedule test`;
+    if (!this.subject_id) return 'Subject is required to schedule test';
+    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return 'Duration is required to schedule test';
+    if (!this.sections.length || this.totalPaperQuestionsCount === 0) return 'Add at least one section with questions to schedule test';
+    if (!this.selectedPaperUsers.length) return 'Assign at least one user to schedule test';
 
     const targetMarks =
       this.totalMarksOverride !== null &&
@@ -5872,7 +5872,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           try {
             const defaultMsg = isEditing
               ? 'Schedule updated successfully'
-              : 'Question paper published successfully';
+              : 'Test scheduled successfully';
             const msg = res?.statusMessage || res?.message || defaultMsg;
             const ok = typeof res?.status === 'undefined' ? true : !!res.status;
             notify(msg, ok ? 'success' : 'error');
@@ -5885,10 +5885,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           this.postSaveIsPublished = true;
           this.postSaveTitle = isEditing
             ? 'Schedule Updated Successfully'
-            : 'Question Paper Published Successfully';
+            : 'Test Scheduled Successfully';
           this.postSaveSubtitle = isEditing
             ? 'The scheduled test has been successfully updated. Please choose an action below:'
-            : 'Your question paper has been successfully scheduled and published. Please choose an action below:';
+            : 'Your test has been successfully scheduled. Please choose an action below:';
           this.showPostSavePopup = true;
           this.loader.hide();
         },
