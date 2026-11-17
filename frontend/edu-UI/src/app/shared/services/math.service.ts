@@ -19,7 +19,7 @@ export class MathService {
   }
 
   public isMathSubject(subject?: string): boolean {
-    if (!subject) return true;
+    if (!subject) return false;
     const s = subject.toLowerCase().trim();
     const nonMathKeywords = [
       'science', 'physics', 'chemistry', 'biology', 'botany', 'zoology',
@@ -88,12 +88,32 @@ export class MathService {
         mathPart = mathPart.substring(1, mathPart.length - 1).trim();
       }
 
+      // 1. If line contains '?', it is an English question/instruction, not an equation
+      if (mathPart.includes('?')) {
+        formattedLines.push(trimmed);
+        continue;
+      }
+
+      // 2. Strip programming tokens (C++, C#) and grades (A+, B+) before testing math operators
+      const cleanedForMathTokens = mathPart
+        .replace(/\b[A-Za-z]+(\+{1,2}|#)\b/g, '')
+        .replace(/\b[A-Z][+-]\b/g, '');
+
+      // 3. Detect common English sentence / question words
+      const commonWords = mathPart.match(
+        /\b(what|why|how|when|where|which|who|whom|whose|is|are|was|were|am|be|been|being|have|has|had|do|does|did|will|would|shall|should|can|could|may|might|must|and|or|not|the|a|an|in|on|at|to|for|of|with|from|by|about|as|into|like|through|after|over|between|out|against|during|without|before|under|around|among|explain|describe|define|state|write|discuss|illustrate|mention|list|differentiate|distinguish|compare|evaluate|calculate|solve|find|determine|prove|show|verify|given|that|this|these|those|used|using|use|uses)\b/gi
+      ) || [];
+
+      const allWords = mathPart.match(/\b[a-zA-Z]{2,}\b/g) || [];
+      const isDescriptiveText =
+        commonWords.length >= 1 ||
+        (allWords.length >= 3 && !mathPart.includes('=')) ||
+        allWords.length >= 4;
+
       const hasMathTokens =
-        /[=><\+\-\*/\^]/.test(mathPart) ||
-        /\b\d+\/\d+\b/.test(mathPart) ||
-        mathPart.includes('\\frac');
-      const longWords = mathPart.match(/\b[a-zA-Z]{4,}\b/g) || [];
-      const isDescriptiveText = longWords.length >= 4 && !mathPart.includes('=');
+        /[=><\+\-\*/\^]/.test(cleanedForMathTokens) ||
+        /\b\d+\/\d+\b/.test(cleanedForMathTokens) ||
+        cleanedForMathTokens.includes('\\frac');
 
       if (!hasMathTokens || isDescriptiveText || !mathPart) {
         formattedLines.push(trimmed);

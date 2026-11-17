@@ -750,29 +750,22 @@
               <div class="section-body">
                 <!-- VIEW FOR EDITING EXISTING INSTITUTE -->
                 <ng-container *ngIf="isEditing">
-                  <!-- 1. THREE SUMMARY CARDS -->
-                  <div class="credit-summary-grid">
-                    <!-- Card 1: Total Allocated -->
-                    <div class="summary-kpi-card">
-                      <span class="kpi-label">Total Allocated</span>
-                      <div class="kpi-value">{{ (form.get('allocated_credits')?.value || 0) | number }}</div>
-                      <span class="kpi-sub">Total credits granted</span>
-                    </div>
-
-                    <!-- Card 2: Total Consumed -->
-                    <div class="summary-kpi-card">
-                      <span class="kpi-label">Total Consumed</span>
-                      <div class="kpi-value text-slate">{{ usedCredits | number }}</div>
-                      <span class="kpi-sub">Total credits used</span>
-                    </div>
-
-                    <!-- Card 3: Available Balance -->
+                  <!-- 1. TWO KPI CARDS -->
+                  <div class="credit-summary-grid two-cards">
+                    <!-- Card 1: Available Tokens -->
                     <div class="summary-kpi-card" [ngClass]="getAvailableBalance() > 0 ? 'kpi-balance' : 'kpi-exhausted'">
-                      <span class="kpi-label">Available Balance</span>
+                      <span class="kpi-label">Available Tokens</span>
                       <div class="kpi-value" [ngClass]="getAvailableBalance() > 0 ? 'text-emerald' : 'text-amber'">
                         {{ getAvailableBalance() | number }}
                       </div>
-                      <span class="kpi-sub">{{ getAvailableBalance() > 0 ? 'Ready for use' : 'No credits remaining' }}</span>
+                      <span class="kpi-sub">Current usable token balance</span>
+                    </div>
+
+                    <!-- Card 2: Consumed Tokens -->
+                    <div class="summary-kpi-card">
+                      <span class="kpi-label">Consumed Tokens</span>
+                      <div class="kpi-value text-slate">{{ getActiveConsumedCredits() | number }}</div>
+                      <span class="kpi-sub">Total tokens consumed</span>
                     </div>
                   </div>
 
@@ -783,9 +776,9 @@
                         <span class="status-title">Credit Utilization: <strong>{{ getUtilizationPercentage() }}%</strong></span>
                         <span class="status-sub">({{ Math.max(0, 100 - getUtilizationPercentage()) | number:'1.0-2' }}% remaining)</span>
                       </div>
-                      <div class="status-badge" [ngClass]="getAvailableBalance() > 0 ? 'badge-success' : 'badge-danger'">
-                        <mat-icon>{{ getAvailableBalance() > 0 ? 'check_circle' : 'warning' }}</mat-icon>
-                        <span>{{ getAvailableBalance() > 0 ? 'Within Quota • AI Operations Available' : 'Quota Exhausted • AI Operations Blocked' }}</span>
+                      <div class="status-badge" [ngClass]="getStatusBadgeClass()">
+                        <mat-icon>{{ getStatusBadgeIcon() }}</mat-icon>
+                        <span>{{ getStatusBadgeText() }}</span>
                       </div>
                     </div>
 
@@ -819,17 +812,69 @@
 
                   <!-- 4. CREDIT TRANSACTION HISTORY TABLE -->
                   <div class="transaction-history-section">
-                    <div class="history-header">
+                    <!-- Top Bar: Title & Count Badge -->
+                    <div class="history-top-bar">
                       <h4 class="history-title">Credit Transaction History</h4>
-                      <mat-form-field appearance="outline" class="type-filter-field">
-                        <mat-label>Filter by Type</mat-label>
-                        <mat-select [(value)]="selectedTxType" (selectionChange)="loadTransactions()">
-                          <mat-option value="ALL">All Transactions</mat-option>
-                          <mat-option value="INITIAL">Initial Setup</mat-option>
-                          <mat-option value="ADDITION">Additions</mat-option>
-                          <mat-option value="DEDUCTION">Deductions</mat-option>
-                        </mat-select>
-                      </mat-form-field>
+                      <span class="tx-count-pill">{{ filteredTransactionsList.length }} Transactions</span>
+                    </div>
+
+                    <!-- Toolbar: Search Box & Filters -->
+                    <div class="history-toolbar">
+                      <div class="toolbar-search-box">
+                        <mat-icon class="search-icon">search</mat-icon>
+                        <input
+                          type="text"
+                          [(ngModel)]="txSearchQuery"
+                          [ngModelOptions]="{standalone: true}"
+                          (input)="onTxSearchChange()"
+                          placeholder="Search transactions"
+                          class="tx-search-input"
+                        />
+                        <mat-icon *ngIf="txSearchQuery" class="clear-icon" (click)="clearTxSearch()">close</mat-icon>
+                      </div>
+
+                      <div class="toolbar-filters-group">
+                        <!-- Date Range Trigger Button (Opens DateRangePickerDialogComponent) -->
+                        <div class="filter-btn-wrap">
+                          <button type="button" class="btn-toolbar-dropdown" (click)="openTxDateRangePicker()">
+                            <span>{{ getTxDateRangeDisplay() || 'Date range' }}</span>
+                            <mat-icon>keyboard_arrow_down</mat-icon>
+                          </button>
+                          <button *ngIf="txStartDate || txEndDate" type="button" class="btn-clear-filter" (click)="clearTxDateFilter($event)" title="Clear date filter">
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+
+                        <!-- Transaction Type Dropdown Button (Matches Date Range Exactly) -->
+                        <div class="filter-btn-wrap">
+                          <button type="button" class="btn-toolbar-dropdown" [matMenuTriggerFor]="typeMenu">
+                            <span>{{ getSelectedTxTypeDisplay() }}</span>
+                            <mat-icon>keyboard_arrow_down</mat-icon>
+                          </button>
+                          <button *ngIf="selectedTxType && selectedTxType !== 'ALL'" type="button" class="btn-clear-filter" (click)="clearTxTypeFilter($event)" title="Clear type filter">
+                            <mat-icon>close</mat-icon>
+                          </button>
+                        </div>
+
+                        <mat-menu #typeMenu="matMenu">
+                          <button mat-menu-item (click)="selectTxType('ALL')">
+                            <mat-icon *ngIf="selectedTxType === 'ALL'" color="primary">check</mat-icon>
+                            <span>All Types</span>
+                          </button>
+                          <button mat-menu-item (click)="selectTxType('INITIAL')">
+                            <mat-icon *ngIf="selectedTxType === 'INITIAL'" color="primary">check</mat-icon>
+                            <span>Initial Setup</span>
+                          </button>
+                          <button mat-menu-item (click)="selectTxType('ADDITION')">
+                            <mat-icon *ngIf="selectedTxType === 'ADDITION'" color="primary">check</mat-icon>
+                            <span>Additions</span>
+                          </button>
+                          <button mat-menu-item (click)="selectTxType('DEDUCTION')">
+                            <mat-icon *ngIf="selectedTxType === 'DEDUCTION'" color="primary">check</mat-icon>
+                            <span>Deductions</span>
+                          </button>
+                        </mat-menu>
+                      </div>
                     </div>
 
                     <div class="table-responsive tx-table-wrap">
@@ -846,28 +891,78 @@
                           </tr>
                         </thead>
                         <tbody>
-                          <tr *ngFor="let tx of transactionsList">
-                            <td>{{ tx.created_date | date:'dd MMM yyyy, HH:mm' }}</td>
+                          <tr *ngFor="let tx of paginatedTransactionsList">
+                            <td>{{ tx.created_date ? (tx.created_date | date:'dd MMM yyyy, HH:mm') : '—' }}</td>
                             <td>
-                              <span class="badge" [ngClass]="tx.transaction_type.toLowerCase()">
+                              <span class="badge" [ngClass]="(tx.transaction_type || '').toLowerCase()">
                                 {{ tx.transaction_type }}
                               </span>
                             </td>
-                            <td [ngClass]="tx.credits > 0 ? 'text-green' : 'text-red'">
-                              {{ tx.credits > 0 ? '+' : '' }}{{ tx.credits | number }}
+                            <td [ngClass]="tx.credits >= 0 ? 'text-green' : 'text-red'">
+                              {{ tx.credits >= 0 ? '+' : '' }}{{ tx.credits | number }}
                             </td>
                             <td>{{ tx.previous_balance | number }}</td>
-                            <td>{{ tx.new_balance | number }}</td>
+                            <td class="font-semibold">{{ tx.new_balance | number }}</td>
                             <td>{{ tx.reason || '—' }}</td>
-                            <td>{{ tx.performed_by }}</td>
+                            <td>{{ tx.performed_by || 'Super Admin' }}</td>
                           </tr>
-                          <tr *ngIf="transactionsList.length === 0">
+                          <tr *ngIf="paginatedTransactionsList.length === 0">
                             <td colspan="7" class="empty-tx-cell">
-                              No transaction history found for this institute.
+                              No transaction history found matching your filters.
                             </td>
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+
+                    <!-- 5. PAGINATION CONTROLS -->
+                    <div class="tx-pagination-bar" *ngIf="filteredTransactionsList.length > 0">
+                      <div class="pagination-info-row">
+                        <span class="pagination-count-label">
+                          Showing {{ getTxPageStart() }}–{{ getTxPageEnd() }} of {{ filteredTransactionsList.length }} transactions
+                        </span>
+                        <div class="rows-per-page-group">
+                          <span class="rows-label">Rows per page</span>
+                          <select class="rows-select" [value]="txPageSize" (change)="onTxPageSizeChange($event)">
+                            <option *ngFor="let sz of txPageSizeOptions" [value]="sz">{{ sz }}</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div class="pagination-controls-row">
+                        <button
+                          type="button"
+                          class="btn-page-nav"
+                          [disabled]="txCurrentPage <= 1"
+                          (click)="changeTxPage(txCurrentPage - 1)"
+                        >
+                          <mat-icon>chevron_left</mat-icon> Previous
+                        </button>
+
+                        <div class="page-numbers-list">
+                          <ng-container *ngFor="let p of getTxPageNumbers()">
+                            <span *ngIf="p === '...'" class="page-ellipsis">...</span>
+                            <button
+                              *ngIf="p !== '...'"
+                              type="button"
+                              class="page-num-btn"
+                              [class.active]="p === txCurrentPage"
+                              (click)="changeTxPage(+p)"
+                            >
+                              {{ p }}
+                            </button>
+                          </ng-container>
+                        </div>
+
+                        <button
+                          type="button"
+                          class="btn-page-nav"
+                          [disabled]="txCurrentPage >= getTxTotalPages()"
+                          (click)="changeTxPage(txCurrentPage + 1)"
+                        >
+                          Next <mat-icon>chevron_right</mat-icon>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </ng-container>

@@ -23,6 +23,8 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatStepper, MatStepperModule } from '@angular/material/stepper';
 import { MatChipInputEvent } from '@angular/material/chips';
@@ -32,6 +34,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
+import {
+  DateRangePickerDialogComponent,
+  DateRangeDialogResult,
+} from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 export interface DepartmentItem {
   id?: string;
@@ -93,6 +99,8 @@ const headOfficeOrCampusRequiredValidator: ValidatorFn = (
     MatCheckboxModule,
     MatStepperModule,
     MatDatepickerModule,
+    MatDialogModule,
+    MatMenuModule,
     RouterModule,
   ],
   templateUrl: './institute-register.component.html',
@@ -107,7 +115,17 @@ export class InstituteRegisterComponent {
   remainingCredits: number = 0;
   Math = Math;
   transactionsList: any[] = [];
+  allTransactionsList: any[] = [];
+  filteredTransactionsList: any[] = [];
+  paginatedTransactionsList: any[] = [];
+  txSearchQuery: string = '';
   selectedTxType: string = 'ALL';
+  selectedTxDate: string = 'ALL';
+  txStartDate: Date | null = null;
+  txEndDate: Date | null = null;
+  txCurrentPage: number = 1;
+  txPageSize: number = 10;
+  txPageSizeOptions: number[] = [5, 10, 20, 50];
   isTxLoading: boolean = false;
   showAddModal: boolean = false;
   showDeductModal: boolean = false;
@@ -482,7 +500,8 @@ export class InstituteRegisterComponent {
     private cd: ChangeDetectorRef,
     private locationService: LocationService,
     private pageMetaService: PageMetaService,
-    private router: Router
+    private router: Router,
+    private dialog: MatDialog
   ) {}
 
   preventSignedMaxUsersInput(event: KeyboardEvent): void {
@@ -1764,6 +1783,24 @@ export class InstituteRegisterComponent {
     if (!input.value || !input.value.trim()) input.value = (this.teamList || []).join(', ');
   }
 
+  getActiveConsumedCredits(): number {
+    const currentAvailable = this.getAvailableBalance();
+    const sourceList = this.allTransactionsList.length ? this.allTransactionsList : this.transactionsList;
+
+    if (sourceList && sourceList.length > 0) {
+      // Find the most recent transaction (which established the latest usable balance upon top-up/setup)
+      const latestTx = sourceList[0];
+      const baselineBalance = Number(latestTx.new_balance || 0);
+      if (baselineBalance > 0) {
+        // Consumption resets to 0 upon adding new tokens, and counts up from 0 as tokens are consumed
+        return Math.max(0, baselineBalance - currentAvailable);
+      }
+    }
+
+    const allocated = Number(this.form.get('allocated_credits')?.value || 0);
+    return Math.max(0, allocated - currentAvailable);
+  }
+
   getAvailableBalance(): number {
     const allocated = Number(this.form.get('allocated_credits')?.value || 0);
     const consumed = Number(this.usedCredits || 0);
@@ -1777,14 +1814,44 @@ export class InstituteRegisterComponent {
   }
 
   getUtilizationPercentage(): number {
-    const allocated = Number(this.form.get('allocated_credits')?.value || 0);
-    const consumed = Number(this.usedCredits || 0);
-    if (!allocated || allocated <= 0) return consumed > 0 ? 100 : 0;
-    return Number(((consumed / allocated) * 100).toFixed(2));
+    const available = this.getAvailableBalance();
+    const consumed = this.getActiveConsumedCredits();
+    const total = available + consumed;
+    if (total <= 0) return 0;
+    return Number(((consumed / total) * 100).toFixed(2));
   }
 
   getUsagePercentage(): number {
     return Math.min(100, Math.round(this.getUtilizationPercentage()));
+  }
+
+  isLowBalance(): boolean {
+    const available = this.getAvailableBalance();
+    if (available <= 0) return false;
+    const remainingPct = Math.max(0, 100 - this.getUtilizationPercentage());
+    const threshold = Number(this.form.get('credit_alert_threshold')?.value || 10);
+    return remainingPct <= threshold;
+  }
+
+  getStatusBadgeClass(): string {
+    if (this.getAvailableBalance() <= 0) return 'badge-danger';
+    if (this.isLowBalance()) return 'badge-warning';
+    return 'badge-success';
+  }
+
+  getStatusBadgeIcon(): string {
+    if (this.getAvailableBalance() <= 0) return 'warning';
+    if (this.isLowBalance()) return 'notification_important';
+    return 'check_circle';
+  }
+
+  getStatusBadgeText(): string {
+    if (this.getAvailableBalance() <= 0) return 'Quota Exhausted • AI Operations Blocked';
+    if (this.isLowBalance()) {
+      const threshold = Number(this.form.get('credit_alert_threshold')?.value || 10);
+      return `Low Balance Alert (≤ ${threshold}% remaining) • Top-up Recommended`;
+    }
+    return 'Within Quota • AI Operations Available';
   }
 
   loadTransactions(): void {
@@ -1793,16 +1860,191 @@ export class InstituteRegisterComponent {
     const token = sessionStorage.getItem('token');
     const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-    this.http.get<any>(`${API_BASE}/institutes/credit-transactions?institute_id=${this.editingInstituteId}&type=${this.selectedTxType}`, { headers })
+    this.http.get<any>(`${API_BASE}/institutes/credit-transactions?institute_id=${this.editingInstituteId}&type=ALL`, { headers })
       .subscribe({
         next: (res) => {
           this.isTxLoading = false;
           if (res && res.status) {
-            this.transactionsList = res.data || [];
+            this.allTransactionsList = res.data || [];
+            this.applyTxFilters();
           }
         },
         error: () => { this.isTxLoading = false; }
       });
+  }
+
+  openTxDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.txStartDate,
+        endDate: this.txEndDate,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.txStartDate = res.startDate;
+        this.txEndDate = res.endDate;
+        this.applyTxFilters();
+      }
+    });
+  }
+
+  clearTxDateFilter(event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.txStartDate = null;
+    this.txEndDate = null;
+    this.applyTxFilters();
+  }
+
+  getTxDateRangeDisplay(): string {
+    if (!this.txStartDate && !this.txEndDate) return '';
+    const format = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    const s = format(this.txStartDate);
+    const e = format(this.txEndDate);
+    if (s && e) return `${s} - ${e}`;
+    if (s) return `From ${s}`;
+    if (e) return `Until ${e}`;
+    return '';
+  }
+
+  getSelectedTxTypeDisplay(): string {
+    switch (this.selectedTxType) {
+      case 'INITIAL': return 'Initial Setup';
+      case 'ADDITION': return 'Additions';
+      case 'DEDUCTION': return 'Deductions';
+      default: return 'Transaction type';
+    }
+  }
+
+  selectTxType(type: string): void {
+    this.selectedTxType = type;
+    this.txCurrentPage = 1;
+    this.applyTxFilters();
+  }
+
+  clearTxTypeFilter(event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.selectedTxType = 'ALL';
+    this.txCurrentPage = 1;
+    this.applyTxFilters();
+  }
+
+  onTxSearchChange(): void {
+    this.txCurrentPage = 1;
+    this.applyTxFilters();
+  }
+
+  clearTxSearch(): void {
+    this.txSearchQuery = '';
+    this.onTxSearchChange();
+  }
+
+  onTxPageSizeChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    if (select) {
+      this.txPageSize = Number(select.value) || 10;
+      this.txCurrentPage = 1;
+      this.updatePagination();
+    }
+  }
+
+  changeTxPage(page: number): void {
+    const totalPages = this.getTxTotalPages();
+    if (page >= 1 && page <= totalPages) {
+      this.txCurrentPage = page;
+      this.updatePagination();
+    }
+  }
+
+  getTxTotalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredTransactionsList.length / this.txPageSize));
+  }
+
+  getTxPageStart(): number {
+    if (this.filteredTransactionsList.length === 0) return 0;
+    return (this.txCurrentPage - 1) * this.txPageSize + 1;
+  }
+
+  getTxPageEnd(): number {
+    return Math.min(this.txCurrentPage * this.txPageSize, this.filteredTransactionsList.length);
+  }
+
+  getTxPageNumbers(): (number | string)[] {
+    const total = this.getTxTotalPages();
+    const current = this.txCurrentPage;
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 4) {
+      return [1, 2, 3, 4, 5, '...', total];
+    }
+    if (current >= total - 3) {
+      return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    }
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  }
+
+  updatePagination(): void {
+    const start = (this.txCurrentPage - 1) * this.txPageSize;
+    const end = start + this.txPageSize;
+    this.paginatedTransactionsList = this.filteredTransactionsList.slice(start, end);
+    this.transactionsList = this.paginatedTransactionsList;
+  }
+
+  applyTxFilters(): void {
+    let list = [...this.allTransactionsList];
+
+    // 1. Text Search (matches reason, performed_by, type, credits)
+    if (this.txSearchQuery && this.txSearchQuery.trim()) {
+      const q = this.txSearchQuery.toLowerCase().trim();
+      list = list.filter(t =>
+        (t.reason || '').toLowerCase().includes(q) ||
+        (t.performed_by || '').toLowerCase().includes(q) ||
+        (t.transaction_type || '').toLowerCase().includes(q) ||
+        String(t.credits || '').includes(q)
+      );
+    }
+
+    // 2. Filter by Type
+    if (this.selectedTxType && this.selectedTxType !== 'ALL') {
+      list = list.filter(t => (t.transaction_type || '').toUpperCase() === this.selectedTxType.toUpperCase());
+    }
+
+    // 3. Filter by Custom Date Range from DateRangePickerDialogComponent
+    if (this.txStartDate || this.txEndDate) {
+      list = list.filter(t => {
+        if (!t.created_date) return false;
+        const d = new Date(t.created_date);
+        if (isNaN(d.getTime())) return false;
+
+        if (this.txStartDate) {
+          const s = new Date(this.txStartDate);
+          s.setHours(0, 0, 0, 0);
+          if (d < s) return false;
+        }
+
+        if (this.txEndDate) {
+          const e = new Date(this.txEndDate);
+          e.setHours(23, 59, 59, 999);
+          if (d > e) return false;
+        }
+
+        return true;
+      });
+    }
+
+    this.filteredTransactionsList = list;
+    this.updatePagination();
   }
 
   openAddCreditsDialog(): void {
