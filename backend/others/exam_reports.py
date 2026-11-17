@@ -2493,6 +2493,31 @@ def get_descriptive_ai_analysis(request):
     mode = ctx.get('mode', 'schedule') if (ctx and ctx.get('status')) else 'schedule'
     exam_id = ctx.get('exam_id') if (ctx and ctx.get('status')) else None
 
+    # Upfront AI Credit Check: Stop immediately if credits are exhausted
+    rep_inst_id = args.get('institute_id')
+    from others.ai_credits import check_institute_ai_access
+    has_ai_access, credit_err_msg, _ = check_institute_ai_access(
+        institute_id=rep_inst_id,
+        request_obj=request
+    )
+    if not has_ai_access:
+        session.close()
+        return {
+            "status": True,
+            "has_ai_access": False,
+            "statusMessage": credit_err_msg or "AI credit quota exhausted. Please contact your Super Admin to allocate more credits.",
+            "data": {
+                "has_ai_access": False,
+                "credit_error_message": credit_err_msg or "AI credit quota exhausted. Please contact your Super Admin to allocate more credits.",
+                "category_id": str(category_id) if category_id else None,
+                "category_name": category_name if 'category_name' in locals() else "",
+                "total_questions": 0,
+                "total_answers_analyzed": 0,
+                "answer_quality_analysis": None,
+                "subtopic_performance": []
+            }
+        }, 200
+
     try:
         # 1. Enforce exam scoping: find all categories and questions mapped to this exam
         exam_cat_ids = set()
@@ -2720,8 +2745,10 @@ def get_descriptive_ai_analysis(request):
             q_text = q.question_text or ""
             qid_str = str(q.question_id).strip()
 
-            # Retrieve subtopic using normalized key
-            raw_subtopic = ai_subtopic_map.get(qid_str) or _infer_subtopic_dynamic(q_text, category_name)
+            # Retrieve subtopic using normalized key (pure AI, no regex fallback)
+            raw_subtopic = ai_subtopic_map.get(qid_str)
+            if not raw_subtopic:
+                continue
             if raw_subtopic and raw_subtopic.endswith('...'):
                 raw_subtopic = raw_subtopic[:-3].rstrip()
             full_subtopic_name = _format_subtopic_name(raw_subtopic, truncate=False)
@@ -2795,7 +2822,9 @@ def get_descriptive_ai_analysis(request):
         return {
             "statusMessage": "Descriptive AI Analysis generated",
             "status": True,
+            "has_ai_access": True,
             "data": {
+                "has_ai_access": True,
                 "category_id": str(category_id) if category_id else None,
                 "category_name": category_name,
                 "total_questions": len(q_objs),

@@ -30,13 +30,14 @@ import { LocalizedDatePipe } from './pipes/localized-date.pipe';
 import { MathRenderComponent } from './components/math-render/math-render.component';
 import { MathRenderPipe } from './pipes/math.pipe';
 import { MathQuickToolsComponent } from './components/math-quick-tools/math-quick-tools.component';
+import { AiCreditAlertComponent } from './components/ai-credits-alert/ai-credit-alert.component';
 
 @NgModule({
   imports: [
-    CommonModule, HttpClientModule, RouterModule, MatChipsModule, MatSnackBarModule, MatDialogModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, FormsModule, DirectivesModule, IconModule, MathRenderComponent, MathRenderPipe, MathQuickToolsComponent
+    CommonModule, HttpClientModule, RouterModule, MatChipsModule, MatSnackBarModule, MatDialogModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, FormsModule, DirectivesModule, IconModule, MathRenderComponent, MathRenderPipe, MathQuickToolsComponent,AiCreditAlertComponent
   ],
   exports: [
-    MatChipsModule, MatIconModule, MatSnackBarModule, MatDialogModule, HttpClientModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, FormsModule, DirectivesModule, UnauthorizedComponent, DateRangePickerDialogComponent, LocalizedDatePipe, MathRenderComponent, MathRenderPipe, MathQuickToolsComponent
+    MatChipsModule, MatIconModule, MatSnackBarModule, MatDialogModule, HttpClientModule, MatPaginatorModule, HeadingComponent, LoaderComponent, NavbarMainComponent, SideNavComponent, TopStickyComponent, MatFormFieldModule, MatInputModule, MatButtonModule, MatTableModule, MatSelectModule, MatSlideToggleModule, MatSortModule, FormsModule, DirectivesModule, UnauthorizedComponent, DateRangePickerDialogComponent, LocalizedDatePipe, MathRenderComponent, MathRenderPipe, MathQuickToolsComponent,AiCreditAlertComponent
   ],
   declarations: [UnauthorizedComponent, ConfirmDialogComponent, DateRangePickerDialogComponent, LocalizedDatePipe],
   providers: [PermissionGuard]

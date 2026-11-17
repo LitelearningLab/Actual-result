@@ -18,6 +18,7 @@ import { LoaderService } from 'src/app/shared/services/loader.service';
 import { API_BASE, resolveMediaUrl } from 'src/app/shared/api.config';
 import { notify } from 'src/app/shared/global-notify';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
+import { AiCreditAlertService } from 'src/app/shared/services/ai-credit-alert.service';
 import { Subscription, forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
@@ -372,7 +373,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     private vcr: ViewContainerRef,
     private sanitizer: DomSanitizer,
     private route: ActivatedRoute,
-    private confirmService: ConfirmService
+    private confirmService: ConfirmService,
+    private aiCreditAlert: AiCreditAlertService
   ) {
     this.detectUserRole();
   }
@@ -1504,8 +1506,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           this.loadEvaluationDetails(this.selectedExamId, student.user_id!);
         },
         error: (err) => {
+          this.isLoadingEvaluation = false;
           console.error('Error auto-uploading matched sheet:', err);
-          notify(err?.error?.statusMessage || 'Failed to upload answer sheet for evaluation.', 'error');
+          if (!this.aiCreditAlert.handleAiError(err, 'Paper Evaluation')) {
+            notify(err?.error?.statusMessage || 'Failed to upload answer sheet for evaluation.', 'error');
+          }
           this.loadEvaluationDetails(this.selectedExamId, student.user_id!);
         }
       });
@@ -2640,7 +2645,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         if (activeQ) activeQ.status = 'Failed';
         this.cdr.detectChanges();
         console.error('Error uploading answer sheet:', err);
-        notify(err?.error?.statusMessage || 'Error uploading answer sheet.', 'error');
+        if (!this.aiCreditAlert.handleAiError(err, 'Paper Evaluation')) {
+          notify(err?.error?.statusMessage || 'Error uploading answer sheet.', 'error');
+        }
       }
     });
   }
@@ -3028,7 +3035,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       error: (err) => {
         this.isUploading = false;
         console.error('Error saving scanned pages:', err);
-        notify(err?.error?.statusMessage || 'Error saving scanned pages.', 'error');
+        if (!this.aiCreditAlert.handleAiError(err, 'Answer Sheet Scanning')) {
+          notify(err?.error?.statusMessage || 'Error saving scanned pages.', 'error');
+        }
         this.closeScanModal();
       }
     });
@@ -3606,19 +3615,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             err?.error?.error ||
             err?.error?.message ||
             'Failed to enqueue bulk answer sheets.';
-          if (
-            err?.status === 403 ||
-            String(errMsg).toLowerCase().includes('super admin') ||
-            String(errMsg).toLowerCase().includes('ai access')
-          ) {
-            this.confirmService.confirm({
-              title: 'AI Access Restricted',
-              message: errMsg,
-              confirmText: 'Understood',
-              cancelText: '',
-            });
+          if (!this.aiCreditAlert.handleAiError(err, 'Bulk Evaluation')) {
+            notify(errMsg, 'error');
           }
-          notify(errMsg, 'error');
         }
       });
     } else {

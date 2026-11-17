@@ -33,6 +33,7 @@ import { notify } from 'src/app/shared/global-notify';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { ConfirmService } from 'src/app/shared/services/confirm.service';
+import { AiCreditAlertService } from 'src/app/shared/services/ai-credit-alert.service';
 import { forkJoin, Subscription } from 'rxjs';
 import {
   getInstituteTerminology,
@@ -378,7 +379,8 @@ export class AdminQuestionsComponent {
     private dialog: MatDialog,
     private overlay: Overlay,
     private vcr: ViewContainerRef,
-    private confirmService: ConfirmService
+    private confirmService: ConfirmService,
+    private aiCreditAlert: AiCreditAlertService
   ) {
     // infer super-admin role and default institute from session data when available
     try {
@@ -1253,21 +1255,11 @@ export class AdminQuestionsComponent {
           err?.error?.error ||
           err?.error?.message ||
           'AI generation failed';
-        if (
-          err?.status === 403 ||
-          String(errMsg).toLowerCase().includes('super admin') ||
-          String(errMsg).toLowerCase().includes('ai access')
-        ) {
-          this.confirmService.confirm({
-            title: 'AI Access Restricted',
-            message: errMsg,
-            confirmText: 'Understood',
-            cancelText: '',
-          });
+        if (!this.aiCreditAlert.handleAiError(err, 'Question Generation')) {
+          try {
+            notify(errMsg, 'error');
+          } catch (e) {}
         }
-        try {
-          notify(errMsg, 'error');
-        } catch (e) {}
         this.loader.hide();
       },
     });
@@ -3588,21 +3580,11 @@ export class AdminQuestionsComponent {
             err?.error?.error ||
             err?.error?.message ||
             'Fine-tune failed';
-          if (
-            err?.status === 403 ||
-            String(errMsg).toLowerCase().includes('super admin') ||
-            String(errMsg).toLowerCase().includes('ai access')
-          ) {
-            this.confirmService.confirm({
-              title: 'AI Access Restricted',
-              message: errMsg,
-              confirmText: 'Understood',
-              cancelText: '',
-            });
+          if (!this.aiCreditAlert.handleAiError(err, 'AI Fine-Tuning')) {
+            try {
+              notify(errMsg, 'error');
+            } catch (e) {}
           }
-          try {
-            notify(errMsg, 'error');
-          } catch (e) {}
         },
       });
     } catch (e) {

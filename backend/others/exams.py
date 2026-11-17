@@ -5676,12 +5676,26 @@ def process_single_student_answer_sheet(
 
                 client = openai_client()
                 auth_inst_id = str(getattr(exam_obj, "institute_id", "") or (getattr(current_user, "institute_id", "") if current_user else "")).strip() or None
+                eff_exam_id = str(exam_obj.exam_id) if exam_obj else str(exam_id)
+                eff_sched_id = str(ps.schedule_id) if ps else str(target_sched_id or schedule_id or exam_id)
 
                 # Phase 1: Visually detect physically written question numbers
                 detection_result = vision_detect_question_anchors(
                     client, ai_page_inputs, exam_question_numbers=all_exam_q_nums,
-                    institute_id=auth_inst_id, feature_name="Question Anchor Detection", endpoint="/test-evaluation/upload-answer-sheet"
+                    institute_id=auth_inst_id, feature_name="Question Anchor Detection", endpoint="/test-evaluation/upload-answer-sheet",
+                    exam_id=eff_exam_id, schedule_id=eff_sched_id, test_type="paper"
                 )
+
+                if detection_result and not detection_result.get("status"):
+                    det_err = detection_result.get("error") or ""
+                    if any(term in det_err.lower() for term in ("credit", "quota", "super admin", "ai access")):
+                        session.rollback()
+                        session.close()
+                        return {
+                            "status": False,
+                            "statusMessage": det_err,
+                            "error": det_err,
+                        }, 403
 
                 uncertain_q_nums_set = set()
                 if detection_result and detection_result.get("status"):
@@ -5730,15 +5744,27 @@ def process_single_student_answer_sheet(
                 if not eval_sections:
                     eval_sections = rubric_sections
                 eval_rubric = {
-                    "exam_id": str(exam_id),
+                    "exam_id": eff_exam_id,
+                    "schedule_id": eff_sched_id,
                     "subject_name": str(getattr(exam_obj, "subject_name", "") or getattr(exam_obj, "title", "") or ""),
                     "is_math": is_math_exam,
                     "sections": eval_sections,
                 }
                 ai_eval_result = vision_evaluate_answersheet(
                     client, eval_rubric, ai_page_inputs,
-                    institute_id=auth_inst_id, feature_name="Paper Evaluation", endpoint="/test-evaluation/upload-answer-sheet"
+                    institute_id=auth_inst_id, feature_name="Paper Evaluation", endpoint="/test-evaluation/upload-answer-sheet",
+                    exam_id=eff_exam_id, schedule_id=eff_sched_id, test_type="paper"
                 )
+                if ai_eval_result and not ai_eval_result.get("status"):
+                    eval_err = ai_eval_result.get("error") or ""
+                    if any(term in eval_err.lower() for term in ("credit", "quota", "super admin", "ai access")):
+                        session.rollback()
+                        session.close()
+                        return {
+                            "status": False,
+                            "statusMessage": eval_err,
+                            "error": eval_err,
+                        }, 403
                 if ai_eval_result and ai_eval_result.get("status"):
                     for ev in ai_eval_result.get("evaluations", []):
                         if ev.get("question_id"):
@@ -6305,6 +6331,8 @@ def identify_student_from_answer_sheet(request, current_user=None):
                     request.form.get("institute_id")
                     or (getattr(current_user, "institute_id", None) if current_user else None)
                 )
+                target_exam_id = request.form.get("exam_id") or request.form.get("schedule_id")
+                target_sched_id = request.form.get("schedule_id") or request.form.get("exam_id")
                 response = client.chat_completion(
                     system_message=system_prompt,
                     InputData=user_content,
@@ -6313,7 +6341,10 @@ def identify_student_from_answer_sheet(request, current_user=None):
                     temperature=0.1,
                     institute_id=target_inst_id,
                     feature_name="Student Identification",
-                    endpoint="/test-evaluation/identify-student"
+                    endpoint="/test-evaluation/identify-student",
+                    exam_id=target_exam_id,
+                    schedule_id=target_sched_id,
+                    test_type="paper"
                 )
 
                 if response.status_code == 200:
@@ -6756,6 +6787,8 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                     request.form.get("institute_id")
                     or (getattr(current_user, "institute_id", None) if current_user else None)
                 )
+                split_exam_id = request.form.get("exam_id") or request.form.get("schedule_id")
+                split_sched_id = request.form.get("schedule_id") or request.form.get("exam_id")
                 resp = client.chat_completion(
                     system_message=system_prompt,
                     InputData=user_content,
@@ -6764,7 +6797,10 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                     temperature=0.1,
                     institute_id=split_inst_id,
                     feature_name="PDF Sheet Splitting",
-                    endpoint="/test-evaluation/split-multi-student-pdf"
+                    endpoint="/test-evaluation/split-multi-student-pdf",
+                    exam_id=split_exam_id,
+                    schedule_id=split_sched_id,
+                    test_type="paper"
                 )
                 if resp.status_code == 200:
                     choices = resp.json().get("choices", [])

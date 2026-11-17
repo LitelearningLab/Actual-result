@@ -345,7 +345,224 @@
     </div>
   </div>
 
-  <!-- SECTION 5: Token Consumption Bar Charts (Trends) -->
+  <!-- SECTION 5: Test & Paper Evaluation AI Usage -->
+  <div class="section-card test-usage-card">
+    <div class="card-header-clean">
+      <div class="card-title-group">
+        <mat-icon class="section-icon">quiz</mat-icon>
+        <div>
+          <h3>Test & Paper Evaluation AI Usage</h3>
+          <p class="chart-subtitle">Track AI credits consumed for each physical paper evaluation and online test</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Summary Badges -->
+    <div class="category-summary-grid">
+      <div class="category-summary-pill pill-paper">
+        <span class="cat-icon">📄</span>
+        <div class="cat-meta">
+          <span class="cat-label">Paper Tests Consumed</span>
+          <span class="cat-value">{{ paperCreditsTotal | number }} credits</span>
+        </div>
+      </div>
+      <div class="category-summary-pill pill-online">
+        <span class="cat-icon">💻</span>
+        <div class="cat-meta">
+          <span class="cat-label">Online Tests Consumed</span>
+          <span class="cat-value">{{ onlineCreditsTotal | number }} credits</span>
+        </div>
+      </div>
+      <div class="category-summary-pill pill-standalone">
+        <span class="cat-icon">💡</span>
+        <div class="cat-meta">
+          <span class="cat-label">Question Bank & Standalone</span>
+          <span class="cat-value">{{ standaloneCreditsTotal | number }} credits</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters & Controls Bar -->
+    <div class="test-controls-bar">
+      <div class="type-filter-group">
+        <button
+          type="button"
+          class="test-filter-btn"
+          [class.active]="testTypeFilter === 'all'"
+          (click)="testTypeFilter = 'all'; loadTestUsageData()"
+        >
+          All Tests ({{ testUsageList.length }})
+        </button>
+        <button
+          type="button"
+          class="test-filter-btn"
+          [class.active]="testTypeFilter === 'paper'"
+          (click)="testTypeFilter = 'paper'; loadTestUsageData()"
+        >
+          📄 Paper Tests
+        </button>
+        <button
+          type="button"
+          class="test-filter-btn"
+          [class.active]="testTypeFilter === 'online'"
+          (click)="testTypeFilter = 'online'; loadTestUsageData()"
+        >
+          💻 Online Tests
+        </button>
+      </div>
+
+      <div class="view-mode-toggle">
+        <button
+          type="button"
+          class="mode-btn"
+          [class.active]="viewMode === 'test'"
+          (click)="viewMode = 'test'"
+        >
+          <mat-icon>list_alt</mat-icon> By Test
+        </button>
+        <button
+          type="button"
+          class="mode-btn"
+          [class.active]="viewMode === 'date'"
+          (click)="viewMode = 'date'"
+        >
+          <mat-icon>calendar_today</mat-icon> By Date
+        </button>
+      </div>
+
+      <div class="test-search-box">
+        <mat-icon class="search-box-icon">search</mat-icon>
+        <input
+          type="text"
+          placeholder="Search test name or subject..."
+          [(ngModel)]="testSearchTerm"
+          (input)="loadTestUsageData()"
+        />
+      </div>
+    </div>
+
+    <!-- VIEW 1: Test-wise Table -->
+    <div class="table-responsive" *ngIf="viewMode === 'test'">
+      <table class="ai-table test-data-table">
+        <thead>
+          <tr>
+            <th>Test Name & Subject</th>
+            <th>Type</th>
+            <th>Total Credits</th>
+            <th>Tokens (In / Out)</th>
+            <th>Evaluations</th>
+            <th>Last Activity</th>
+            <th class="text-center">Detailed Breakdown</th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let test of paginatedTests">
+            <tr class="test-row-item" [class.expanded-highlight]="test.expanded" (click)="toggleTestExpand(test)">
+              <td class="test-title-cell">
+                <strong>{{ test.title }}</strong>
+                <span class="sub-label-text">{{ test.subject }}</span>
+              </td>
+              <td>
+                <span class="test-badge" [class.badge-paper]="test.test_type === 'paper'" [class.badge-online]="test.test_type === 'online'">
+                  {{ test.test_type === 'paper' ? '📄 Paper Test' : '💻 Online Test' }}
+                </span>
+              </td>
+              <td class="credits-bold-cell">
+                {{ test.total_credits | number }}
+              </td>
+              <td class="tokens-split-cell">
+                <span class="tok-in">In: {{ test.prompt_tokens | number }}</span>
+                <span class="tok-out">Out: {{ test.completion_tokens | number }}</span>
+              </td>
+              <td>{{ test.operations_count }} operations</td>
+              <td class="small-muted">{{ test.last_activity || 'N/A' }}</td>
+              <td class="text-center">
+                <button
+                  mat-stroked-button
+                  class="breakdown-toggle-btn"
+                  (click)="$event.stopPropagation(); toggleTestExpand(test)"
+                >
+                  {{ test.expanded ? 'Hide Breakdown' : 'View Breakdown' }}
+                  <mat-icon>{{ test.expanded ? 'expand_less' : 'expand_more' }}</mat-icon>
+                </button>
+              </td>
+            </tr>
+
+            <!-- Expanded Details Sub-Row -->
+            <tr *ngIf="test.expanded" class="expandable-detail-row">
+              <td colspan="7">
+                <div class="expanded-detail-box">
+                  <div class="detail-box-header">
+                    <mat-icon>insights</mat-icon>
+                    <h4>AI Operation Breakdown for: {{ test.title }}</h4>
+                  </div>
+                  <div class="detail-features-grid">
+                    <div class="feature-detail-tile" *ngFor="let fKey of getFeatureKeys(test.features)">
+                      <div class="tile-header">
+                        <span class="tile-name">{{ fKey }}</span>
+                        <span class="tile-calls">{{ test.features[fKey].count }} calls</span>
+                      </div>
+                      <div class="tile-credits">
+                        {{ test.features[fKey].credits | number }} <small>credits</small>
+                      </div>
+                      <div class="tile-tokens">
+                        In: {{ test.features[fKey].prompt_tokens | number }} | Out: {{ test.features[fKey].completion_tokens | number }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+
+          <tr *ngIf="testUsageList.length === 0">
+            <td colspan="7" class="empty-test-state">
+              <mat-icon>inbox</mat-icon>
+              <p>No tests recorded with AI consumption for this institute scope.</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Paginator -->
+      <mat-paginator
+        *ngIf="testUsageList.length > testPageSizeOptions[0]"
+        [length]="testUsageList.length"
+        [pageIndex]="testPageIndex"
+        [pageSize]="testPageSize"
+        [pageSizeOptions]="testPageSizeOptions"
+        (page)="onTestPageChange($event)"
+        showFirstLastButtons
+        class="custom-paginator"
+        aria-label="Select test page"
+      ></mat-paginator>
+    </div>
+
+    <!-- VIEW 2: Date-wise Daily Timeline -->
+    <div class="daily-timeline-box" *ngIf="viewMode === 'date'">
+      <div class="daily-timeline-card" *ngFor="let day of dailyTimeline">
+        <div class="day-card-header">
+          <div class="day-label-group">
+            <mat-icon>event</mat-icon>
+            <strong>{{ day.label }}</strong>
+          </div>
+          <div class="day-metrics-group">
+            <span class="day-credits-badge">{{ day.total_credits | number }} credits</span>
+            <span class="day-tokens-text">
+              In: {{ day.prompt_tokens | number }} | Out: {{ day.completion_tokens | number }} ({{ day.operations }} operations)
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="dailyTimeline.length === 0" class="empty-test-state">
+        <mat-icon>event_busy</mat-icon>
+        <p>No daily timeline records found for this scope.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 6: Token Consumption Bar Charts (Trends) -->
   <div class="section-card chart-card">
     <div class="chart-header">
       <div class="card-title-group">

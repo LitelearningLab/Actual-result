@@ -74,6 +74,9 @@ class openai_client:
         institute_id=None,
         feature_name=None,
         endpoint=None,
+        exam_id=None,
+        schedule_id=None,
+        test_type=None,
     ):
         if not self.api_key:
             return _ErrorResponse(
@@ -178,7 +181,10 @@ class openai_client:
                         institute_id=institute_id,
                         user_id=user_name,
                         feature_name=inferred_feature,
-                        endpoint=endpoint or "chat_completion"
+                        endpoint=endpoint or "chat_completion",
+                        exam_id=exam_id,
+                        schedule_id=schedule_id,
+                        test_type=test_type
                     )
                 except Exception as _track_err:
                     print(f"[TOKEN AUDIT] Automatic tracking error: {_track_err}", flush=True)
@@ -194,7 +200,7 @@ class openai_client:
 
 
 def descriptive_evaluation(
-    api_client, question_mark, expected_answer, student_answer, question_text="", user_name=None, institute_id=None, endpoint=None
+    api_client, question_mark, expected_answer, student_answer, question_text="", user_name=None, institute_id=None, endpoint=None, exam_id=None, test_type="online"
 ):
     system_message = """You are an expert academic evaluator. Evaluate the student's descriptive
 answer fairly and accurately against the supplied question, expected answer,
@@ -361,7 +367,9 @@ working, or text outside the JSON object."""
             user_name=user_name,
             institute_id=institute_id,
             feature_name="AI Evaluation",
-            endpoint=endpoint or "/validate-answers"
+            endpoint=endpoint or "/validate-answers",
+            exam_id=exam_id,
+            test_type=test_type or "online"
         )
         response_json = response.json()
         if response.status_code != 200:
@@ -653,7 +661,7 @@ CRITICAL RULES:
 
 
 def vision_detect_question_anchors(
-    api_client, page_images, exam_question_numbers=None, timeout=45.0, institute_id=None, user_name=None, feature_name="Question Anchor Detection", endpoint="/test-evaluation/upload-answer-sheet"
+    api_client, page_images, exam_question_numbers=None, timeout=45.0, institute_id=None, user_name=None, feature_name="Question Anchor Detection", endpoint="/test-evaluation/upload-answer-sheet", exam_id=None, schedule_id=None, test_type="paper"
 ):
     """
     Phase 1: Question Detection Engine.
@@ -831,7 +839,10 @@ OUTPUT ONLY THIS JSON:
             institute_id=institute_id,
             user_name=user_name,
             feature_name=feature_name or "Question Anchor Detection",
-            endpoint=endpoint or "/test-evaluation/upload-answer-sheet"
+            endpoint=endpoint or "/test-evaluation/upload-answer-sheet",
+            exam_id=exam_id,
+            schedule_id=schedule_id,
+            test_type=test_type or "paper"
         )
 
         if not response or getattr(response, "status_code", None) != 200:
@@ -927,7 +938,19 @@ OUTPUT ONLY THIS JSON:
         }
 
 
-def vision_evaluate_answersheet(api_client, exam_rubric, page_images, timeout=60.0, user_name=None, institute_id=None, feature_name="Paper Evaluation", endpoint="/test-evaluation/upload-answer-sheet"):
+def vision_evaluate_answersheet(
+    api_client,
+    exam_rubric,
+    page_images,
+    timeout=60.0,
+    user_name=None,
+    institute_id=None,
+    feature_name="Paper Evaluation",
+    endpoint="/test-evaluation/upload-answer-sheet",
+    exam_id=None,
+    schedule_id=None,
+    test_type="paper"
+):
     """
     Evaluates student handwritten answer sheet page images directly using OpenAI Vision API.
     Does NOT use OCR or text extraction as an intermediate step.
@@ -1172,6 +1195,7 @@ OUTPUT JSON STRUCTURE:
 
     t_vision_eval_start = time.perf_counter()
     try:
+        effective_exam_id = exam_id or (exam_rubric.get("exam_id") if isinstance(exam_rubric, dict) else None)
         response = api_client.chat_completion(
             system_message=system_prompt,
             InputData=user_content,
@@ -1183,7 +1207,10 @@ OUTPUT JSON STRUCTURE:
             institute_id=institute_id,
             user_name=user_name,
             feature_name=feature_name or "Paper Evaluation",
-            endpoint=endpoint or "/test-evaluation/upload-answer-sheet"
+            endpoint=endpoint or "/test-evaluation/upload-answer-sheet",
+            exam_id=effective_exam_id,
+            schedule_id=schedule_id,
+            test_type=test_type or "paper"
         )
 
         if not response or getattr(response, "status_code", None) != 200:

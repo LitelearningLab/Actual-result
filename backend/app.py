@@ -8,7 +8,7 @@ from werkzeug.datastructures import ImmutableMultiDict
 from werkzeug.exceptions import HTTPException
 
 from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, delete_institute, manage_institute, update_institute, update_institute_credits
-from others.ai_credits import get_ai_credits_summary_api, get_ai_feature_breakdown_api, get_ai_analytics_api, get_all_institutes_overview_api
+from others.ai_credits import get_ai_credits_summary_api, get_ai_feature_breakdown_api, get_ai_analytics_api, get_all_institutes_overview_api, get_test_ai_usage_api
 from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details, delete_user
 from others.exams import add_exam, autosave_exam_answers, get_active_exam_status, get_exam_details, get_exam_list, launch_exam_details, submit_exam_answers,get_user_exam_details
 from others.examschedule import add_exam_schedule, get_exam_schedule_details, delete_exam_schedule
@@ -288,6 +288,11 @@ def ai_credits_analytics_route():
 @admin_required
 def ai_credits_institutes_overview_route():
     return get_all_institutes_overview_api()
+
+@edu_blueprint.route('/ai-credits/test-usage', methods=['GET'])
+@admin_required
+def ai_credits_test_usage_route():
+    return get_test_ai_usage_api()
 
 @edu_blueprint.route('/get-institutes', methods=['GET'])
 @super_admin_required
@@ -655,8 +660,17 @@ def finalize_student_evaluation_route():
 @edu_blueprint.route('/test-evaluation/upload-answer-sheet', methods=['POST'])
 @admin_required
 def upload_answer_sheet_route():
-    from others.exams import upload_answer_sheet
     current_user = get_current_user_from_request()
+
+    from others.ai_credits import check_institute_ai_access
+    has_access, err_msg, err_code = check_institute_ai_access(
+        user_id=current_user,
+        request_obj=request
+    )
+    if not has_access:
+        return jsonify({"status": False, "statusMessage": err_msg, "error": err_msg, "message": err_msg}), err_code
+
+    from others.exams import upload_answer_sheet
     response_data, status_code = upload_answer_sheet(request, current_user)
     return jsonify(response_data), status_code
 

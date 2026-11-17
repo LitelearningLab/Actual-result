@@ -1925,6 +1925,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   descriptiveAiLoading: boolean = false;
   descriptiveQualitySummary: any = null;
   subtopicPerformanceList: any[] = [];
+  descriptiveAiAccessDenied: boolean = false;
+  descriptiveAiCreditError: string = '';
 
   get isDescriptiveCategoryActive(): boolean {
     const descTypes = ['descriptive', 'subjective', 'essay', 'paragraph', 'long_answer', 'description'];
@@ -1948,6 +1950,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.descriptiveAiLoading = false;
     this.descriptiveQualitySummary = null;
     this.subtopicPerformanceList = [];
+    this.descriptiveAiAccessDenied = false;
+    this.descriptiveAiCreditError = '';
     this._activeCategoryId = null;
     this.selectedCategoryFilterName = '';
     this.selectedCategoryType = '';
@@ -1996,6 +2000,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.descriptiveAiLoading = true;
     this.descriptiveQualitySummary = null;
     this.subtopicPerformanceList = [];
+    this.descriptiveAiAccessDenied = false;
+    this.descriptiveAiCreditError = '';
 
     const params: any = { category_id: categoryId };
     if (this.selectedInstituteId || this.userFilters.institute_id) {
@@ -2022,6 +2028,16 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.http.get<any>(`${API_BASE}/get-descriptive-ai-analysis`, { params }).subscribe({
       next: (res: any) => {
         this.descriptiveAiLoading = false;
+        if (res?.data?.has_ai_access === false || res?.has_ai_access === false) {
+          this.descriptiveAiAccessDenied = true;
+          this.descriptiveAiCreditError = res?.data?.credit_error_message || res?.statusMessage || 'AI credit quota exhausted. Please contact your Super Admin to allocate more credits.';
+          this.descriptiveQualitySummary = null;
+          this.subtopicPerformanceList = [];
+          return;
+        }
+
+        this.descriptiveAiAccessDenied = false;
+        this.descriptiveAiCreditError = '';
         if (res && res.status && res.data) {
           this.descriptiveQualitySummary = res.data.answer_quality_analysis || null;
           this.subtopicPerformanceList = (res.data.subtopic_performance || []).slice(0, 6).map((item: any) => ({
@@ -2033,6 +2049,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
       },
       error: (err: any) => {
         this.descriptiveAiLoading = false;
+        this.descriptiveAiAccessDenied = false;
+        this.descriptiveAiCreditError = '';
         console.warn('Failed to load descriptive AI analysis', err);
         this.descriptiveQualitySummary = null;
         this.subtopicPerformanceList = [];
@@ -2046,6 +2064,8 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     this.selectedCategoryType = '';
     this.descriptiveQualitySummary = null;
     this.subtopicPerformanceList = [];
+    this.descriptiveAiAccessDenied = false;
+    this.descriptiveAiCreditError = '';
     this._pendingCategoryFilter = null;
     this._activeCategoryId = null;
     this.questionCurrentPage = 1;

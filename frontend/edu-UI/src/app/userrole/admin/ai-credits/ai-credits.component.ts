@@ -95,6 +95,37 @@ export interface InstituteOption {
   short_name?: string;
 }
 
+export interface TestFeatureItem {
+  credits: number;
+  count: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+}
+
+export interface TestUsageItem {
+  exam_id: string;
+  schedule_id?: string;
+  title: string;
+  subject: string;
+  test_type: 'paper' | 'online' | 'general';
+  total_credits: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  operations_count: number;
+  last_activity?: string;
+  features: { [key: string]: TestFeatureItem };
+  expanded?: boolean;
+}
+
+export interface DailyUsageItem {
+  date: string;
+  label: string;
+  total_credits: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  operations: number;
+}
+
 @Component({
   selector: 'app-ai-credits',
   standalone: true,
@@ -167,6 +198,32 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Test & Paper Usage state
+  testsLoading = false;
+  testUsageList: TestUsageItem[] = [];
+  dailyTimeline: DailyUsageItem[] = [];
+  paperCreditsTotal = 0;
+  onlineCreditsTotal = 0;
+  standaloneCreditsTotal = 0;
+
+  testTypeFilter: 'all' | 'paper' | 'online' = 'all';
+  viewMode: 'test' | 'date' = 'test';
+  testSearchTerm = '';
+
+  testPageIndex = 0;
+  testPageSize = 10;
+  testPageSizeOptions = [5, 10, 25, 50];
+
+  get paginatedTests(): TestUsageItem[] {
+    const start = this.testPageIndex * this.testPageSize;
+    return this.testUsageList.slice(start, start + this.testPageSize);
+  }
+
+  onTestPageChange(event: PageEvent): void {
+    this.testPageIndex = event.pageIndex;
+    this.testPageSize = event.pageSize;
+  }
+
   // Bar Chart state
   selectedPeriod: 'today' | 'weekly' | 'monthly' = 'weekly';
   chartBars: ChartBar[] = [];
@@ -211,6 +268,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.loadSummary();
     this.loadBreakdown();
     this.loadAnalytics(this.selectedPeriod);
+    this.loadTestUsageData();
   }
 
   onInstituteChange(instId: string): void {
@@ -361,6 +419,58 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
           console.error('Error fetching analytics:', err);
         },
       });
+  }
+
+  loadTestUsageData(): void {
+    this.testsLoading = true;
+    let url = `${API_BASE}/ai-credits/test-usage?test_type=${this.testTypeFilter}`;
+    if (this.selectedInstituteId) {
+      url += `&institute_id=${encodeURIComponent(this.selectedInstituteId)}`;
+    }
+    if (this.testSearchTerm.trim()) {
+      url += `&search=${encodeURIComponent(this.testSearchTerm.trim())}`;
+    }
+
+    this.http
+      .get<{
+        status: boolean;
+        data: {
+          summary: {
+            total_paper_credits: number;
+            total_online_credits: number;
+            total_standalone_credits: number;
+            grand_total: number;
+          };
+          tests: TestUsageItem[];
+          daily_timeline: DailyUsageItem[];
+        };
+      }>(url, { headers: this.getAuthHeaders() })
+      .subscribe({
+        next: (res) => {
+          this.testsLoading = false;
+          if (res && res.status && res.data) {
+            this.testUsageList = res.data.tests || [];
+            this.dailyTimeline = res.data.daily_timeline || [];
+            this.testPageIndex = 0;
+            const s = res.data.summary || {};
+            this.paperCreditsTotal = s.total_paper_credits || 0;
+            this.onlineCreditsTotal = s.total_online_credits || 0;
+            this.standaloneCreditsTotal = s.total_standalone_credits || 0;
+          }
+        },
+        error: (err) => {
+          this.testsLoading = false;
+          console.error('Error loading test usage data:', err);
+        },
+      });
+  }
+
+  toggleTestExpand(test: TestUsageItem): void {
+    test.expanded = !test.expanded;
+  }
+
+  getFeatureKeys(features: { [key: string]: TestFeatureItem }): string[] {
+    return Object.keys(features || {});
   }
 
   buildChartBars(

@@ -1143,14 +1143,29 @@
                   <!-- Descriptive Question Bank AI Analysis Section (Renders ONLY for Descriptive QB) -->
                   <div
                     class="descriptive-ai-container"
-                    *ngIf="isDescriptiveCategoryActive && (descriptiveQualitySummary || subtopicPerformanceList?.length || descriptiveAiLoading)"
+                    *ngIf="isDescriptiveCategoryActive && (descriptiveQualitySummary || subtopicPerformanceList?.length || descriptiveAiLoading || descriptiveAiAccessDenied)"
                   >
                     <div *ngIf="descriptiveAiLoading" class="descriptive-ai-loading">
                       <mat-icon class="rotating-spinner">sync</mat-icon>
                       <span>Generating Descriptive AI Analysis...</span>
                     </div>
 
-                    <div class="descriptive-ai-grid" *ngIf="!descriptiveAiLoading">
+                    <!-- AI Credits Exhausted State (Replaces AI cards when credits are gone) -->
+                    <div class="ai-credits-exhausted-card" *ngIf="descriptiveAiAccessDenied && !descriptiveAiLoading">
+                      <div class="exhausted-icon-wrap">
+                        <mat-icon>lock</mat-icon>
+                      </div>
+                      <div class="exhausted-content">
+                        <h3>AI Analysis Unavailable — AI Credits Exhausted</h3>
+                        <p>{{ descriptiveAiCreditError || 'Your institute has exhausted its allocated AI credits. Please contact your Super Admin to allocate more credits.' }}</p>
+                      </div>
+                      <a mat-flat-button class="btn-get-credits" routerLink="/admin/ai-credits">
+                        <mat-icon>add_circle_outline</mat-icon>
+                        <span>View / Allocate AI Credits</span>
+                      </a>
+                    </div>
+
+                    <div class="descriptive-ai-grid" *ngIf="!descriptiveAiLoading && !descriptiveAiAccessDenied">
                       <!-- Left Card: Answer Quality Analysis -->
                       <div class="descriptive-ai-card quality-card">
                         <div class="card-header">

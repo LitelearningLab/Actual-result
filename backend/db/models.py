@@ -615,6 +615,9 @@ class openai_requests(Base):
      feature_name = Column(String(100))
      credits_consumed = Column(Integer, default=0)
      institute_id = Column(String)
+     exam_id = Column(String(64), nullable=True)
+     schedule_id = Column(String(64), nullable=True)
+     test_type = Column(String(32), nullable=True)
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.now)
 

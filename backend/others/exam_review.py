@@ -1109,7 +1109,9 @@ def _validate_answers_impl(attempt_id):
                         user_name=user_name,
                         institute_id=auth_inst_id,
                         feature_name="AI Evaluation",
-                        endpoint=f"/validate-answers/{attempt_id}"
+                        endpoint=f"/validate-answers/{attempt_id}",
+                        exam_id=getattr(attempt_rec, "exam_id", None),
+                        test_type="online"
                     )
                 else:
                     evaluation = descriptive_evaluation(
@@ -1120,7 +1122,9 @@ def _validate_answers_impl(attempt_id):
                         question_text=question.question_text if question else "",
                         user_name=user_name,
                         institute_id=auth_inst_id,
-                        endpoint=f"/validate-answers/{attempt_id}"
+                        endpoint=f"/validate-answers/{attempt_id}",
+                        exam_id=getattr(attempt_rec, "exam_id", None),
+                        test_type="online"
                     )
 
                 if not evaluation.get("status", False):

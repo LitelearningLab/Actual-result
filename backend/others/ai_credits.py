@@ -1,9 +1,9 @@
 import datetime
 from datetime import timedelta
 from flask import jsonify, request, g
-from sqlalchemy import func, cast, Date, desc, or_
+from sqlalchemy import func, cast, Date, desc, or_, text
 from db.db import SQLiteDB
-from db.models import Institute, openai_requests, User
+from db.models import Institute, openai_requests, User, Exam, PaperSchedule, ExamSchedule
 
 
 def resolve_institute_id(request_obj=None, explicit_inst_id=None, user_id=None):
@@ -92,9 +92,107 @@ def check_institute_ai_access(institute_id=None, user_id=None, request_obj=None)
         return False, "AI access has not been granted by the Super Admin. Please contact your Super Admin to allocate AI credits.", 403
 
 
-def record_ai_usage(response_json, institute_id=None, user_id=None, feature_name="Question Generation", endpoint=None):
+def infer_test_type(r_test_type, r_feature_name):
+    """Safely infers 'paper', 'online', or 'general' from test_type or feature_name."""
+    if r_test_type and str(r_test_type).strip():
+        return str(r_test_type).strip().lower()
+    fn = str(r_feature_name or '').lower()
+    if any(k in fn for k in ["paper", "anchor", "student identification", "student id", "pdf sheet", "splitting"]):
+        return "paper"
+    elif any(k in fn for k in ["evaluation", "evaluat", "validate"]):
+        return "online"
+    return "general"
+
+
+def ensure_openai_requests_columns(session):
     """
-    Centralized function to log token usage and feature categorization into openai_requests.
+    Safely adds exam_id, schedule_id, and test_type to openai_requests table if they do not exist,
+    and backfills test_type for existing records.
+    """
+    try:
+        session.execute(text("""
+            IF COL_LENGTH('openai_requests', 'exam_id') IS NULL
+            BEGIN
+                ALTER TABLE openai_requests ADD exam_id NVARCHAR(64) NULL;
+            END;
+
+            IF COL_LENGTH('openai_requests', 'schedule_id') IS NULL
+            BEGIN
+                ALTER TABLE openai_requests ADD schedule_id NVARCHAR(64) NULL;
+            END;
+
+            IF COL_LENGTH('openai_requests', 'test_type') IS NULL
+            BEGIN
+                ALTER TABLE openai_requests ADD test_type NVARCHAR(32) NULL;
+            END;
+
+            UPDATE openai_requests
+            SET test_type = 'paper'
+            WHERE (test_type IS NULL OR test_type = '')
+              AND (
+                  feature_name LIKE '%Paper%'
+                  OR feature_name LIKE '%Anchor%'
+                  OR feature_name LIKE '%Student%'
+                  OR feature_name LIKE '%Split%'
+              );
+
+            UPDATE openai_requests
+            SET test_type = 'online'
+            WHERE (test_type IS NULL OR test_type = '')
+              AND (
+                  feature_name LIKE '%Evaluation%'
+                  OR feature_name LIKE '%Validate%'
+              );
+        """))
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        # Fallback for SQLite in local test environments
+        try:
+            session.execute(text("ALTER TABLE openai_requests ADD COLUMN exam_id VARCHAR(64)"))
+            session.commit()
+        except Exception:
+            pass
+        try:
+            session.execute(text("ALTER TABLE openai_requests ADD COLUMN schedule_id VARCHAR(64)"))
+            session.commit()
+        except Exception:
+            pass
+        try:
+            session.execute(text("ALTER TABLE openai_requests ADD COLUMN test_type VARCHAR(32)"))
+            session.commit()
+        except Exception:
+            pass
+        try:
+            session.execute(text("""
+                UPDATE openai_requests
+                SET test_type = 'paper'
+                WHERE (test_type IS NULL OR test_type = '')
+                  AND (
+                      feature_name LIKE '%Paper%'
+                      OR feature_name LIKE '%Anchor%'
+                      OR feature_name LIKE '%Student%'
+                      OR feature_name LIKE '%Split%'
+                  )
+            """))
+            session.commit()
+        except Exception:
+            pass
+
+
+def record_ai_usage(
+    response_json,
+    institute_id=None,
+    user_id=None,
+    feature_name="Question Generation",
+    endpoint=None,
+    exam_id=None,
+    schedule_id=None,
+    test_type=None
+):
+    """
+    Centralized function to log token usage and feature categorization into openai_requests,
+    stamping exam_id, schedule_id, and test_type when present.
     """
     if not isinstance(response_json, dict):
         return
@@ -106,6 +204,7 @@ def record_ai_usage(response_json, institute_id=None, user_id=None, feature_name
     try:
         db = SQLiteDB()
         session = db.connect()
+        ensure_openai_requests_columns(session)
 
         # Idempotency check: prevent duplicate logging of the same OpenAI completion
         req_id = response_json.get("id")
@@ -140,6 +239,15 @@ def record_ai_usage(response_json, institute_id=None, user_id=None, feature_name
             else:
                 feature_name = "AI Question Generation"
 
+        # Determine test_type if not explicitly supplied
+        if not test_type:
+            if feature_name in ["Paper Evaluation", "Question Anchor Detection", "Student Identification", "PDF Sheet Splitting"]:
+                test_type = "paper"
+            elif feature_name in ["AI Evaluation"]:
+                test_type = "online"
+            else:
+                test_type = "general"
+
         msg = choices[0].get("message") or {}
         role = msg.get("role", None)
         content = msg.get("content", None)
@@ -165,6 +273,9 @@ def record_ai_usage(response_json, institute_id=None, user_id=None, feature_name
             feature_name=feature_name,
             credits_consumed=total_tokens,
             institute_id=resolved_inst,
+            exam_id=str(exam_id).strip() if exam_id else None,
+            schedule_id=str(schedule_id).strip() if schedule_id else None,
+            test_type=test_type,
             created_by=user_id,
             created_date=datetime.datetime.utcnow()
         )
@@ -692,3 +803,243 @@ def get_all_institutes_overview_api():
     except Exception as e:
         session.close()
         return jsonify({"status": False, "statusMessage": f"Error fetching institutes overview: {str(e)}"}), 500
+
+
+def get_test_ai_usage_api():
+    """
+    GET /edu/api/ai-credits/test-usage
+    Returns itemized AI credits consumption per test and daily timeline.
+    Query parameters:
+      - institute_id: 'all' or specific institute ID
+      - test_type: 'all' | 'paper' | 'online'
+      - start_date, end_date: ISO date strings (optional)
+      - search: string to match test title (optional)
+    """
+    inst_id = resolve_institute_id(request)
+    if not inst_id:
+        return jsonify({"status": False, "statusMessage": "Institute scope is required"}), 400
+
+    test_type_filter = (request.args.get('test_type') or 'all').lower().strip()
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    search_term = (request.args.get('search') or '').strip().lower()
+
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return jsonify({"status": False, "statusMessage": "Database connection error"}), 500
+
+    try:
+        ensure_openai_requests_columns(session)
+
+        base_q = session.query(openai_requests)
+        if str(inst_id).lower() != 'all':
+            base_q = base_q.filter(openai_requests.institute_id == str(inst_id))
+
+        if start_date_str:
+            try:
+                sd = datetime.datetime.fromisoformat(start_date_str.replace('Z', ''))
+                base_q = base_q.filter(openai_requests.created_date >= sd)
+            except Exception:
+                pass
+
+        if end_date_str:
+            try:
+                ed = datetime.datetime.fromisoformat(end_date_str.replace('Z', ''))
+                base_q = base_q.filter(openai_requests.created_date <= ed)
+            except Exception:
+                pass
+
+        all_records = base_q.order_by(desc(openai_requests.created_date)).all()
+
+        # Build comprehensive Test & Schedule lookup cache across PaperSchedule, ExamSchedule, and Exams
+        all_candidate_ids = list(set(
+            [str(r.exam_id).strip() for r in all_records if r.exam_id and str(r.exam_id).strip()] +
+            [str(r.schedule_id).strip() for r in all_records if r.schedule_id and str(r.schedule_id).strip()]
+        ))
+
+        titles_cache = {}
+        linked_exam_ids = set()
+
+        if all_candidate_ids:
+            # 1. Look up PaperSchedules (both schedule_id and exam_id)
+            try:
+                found_paper_scheds = session.query(PaperSchedule).filter(
+                    or_(
+                        PaperSchedule.schedule_id.in_(all_candidate_ids),
+                        PaperSchedule.exam_id.in_(all_candidate_ids)
+                    )
+                ).all()
+                for ps in found_paper_scheds:
+                    ps_meta = {
+                        "title": ps.title or "Paper Test",
+                        "subject": "Paper Test",
+                        "mode": "paper",
+                        "exam_id": str(ps.exam_id) if ps.exam_id else None
+                    }
+                    titles_cache[str(ps.schedule_id)] = ps_meta
+                    if ps.exam_id:
+                        linked_exam_ids.add(str(ps.exam_id))
+                        titles_cache.setdefault(str(ps.exam_id), ps_meta)
+            except Exception as _ps_err:
+                print(f"[get_test_ai_usage_api] PaperSchedule cache lookup error: {_ps_err}")
+
+            # 2. Look up ExamSchedules (both schedule_id and exam_id)
+            try:
+                found_exam_scheds = session.query(ExamSchedule).filter(
+                    or_(
+                        ExamSchedule.schedule_id.in_(all_candidate_ids),
+                        ExamSchedule.exam_id.in_(all_candidate_ids)
+                    )
+                ).all()
+                for es in found_exam_scheds:
+                    es_meta = {
+                        "title": es.title or getattr(es, "name", None) or "Online Test",
+                        "subject": "Online Test",
+                        "mode": "online",
+                        "exam_id": str(es.exam_id) if es.exam_id else None
+                    }
+                    titles_cache[str(es.schedule_id)] = es_meta
+                    if es.exam_id:
+                        linked_exam_ids.add(str(es.exam_id))
+                        titles_cache.setdefault(str(es.exam_id), es_meta)
+            except Exception as _es_err:
+                print(f"[get_test_ai_usage_api] ExamSchedule cache lookup error: {_es_err}")
+
+            # 3. Look up master Exams
+            exam_lookup_ids = list(set(all_candidate_ids + list(linked_exam_ids)))
+            try:
+                found_exams = session.query(Exam).filter(Exam.exam_id.in_(exam_lookup_ids)).all()
+                for ex in found_exams:
+                    ex_id_str = str(ex.exam_id)
+                    subj = ex.subject_name or getattr(ex, "subject_id", "") or "General"
+                    # Enrich any schedule pointing to this exam with the proper subject name
+                    for k, v in titles_cache.items():
+                        if v.get("exam_id") == ex_id_str:
+                            v["subject"] = subj
+                    # If this exam is not already stored under a schedule's title, store it
+                    if ex_id_str not in titles_cache:
+                        titles_cache[ex_id_str] = {
+                            "title": ex.title or "Untitled Test",
+                            "subject": subj,
+                            "mode": ex.test_mode or "online"
+                        }
+                    elif titles_cache[ex_id_str].get("subject") in ("Paper Test", "Online Test"):
+                        titles_cache[ex_id_str]["subject"] = subj
+            except Exception as _ex_err:
+                print(f"[get_test_ai_usage_api] Exam cache lookup error: {_ex_err}")
+
+        # Category totals across all institute records
+        total_paper = 0
+        total_online = 0
+        total_standalone = 0
+
+        # Group by Test / Exam
+        tests_map = {}
+        daily_map = {}
+
+        for r in all_records:
+            ttype = infer_test_type(r.test_type, r.feature_name)
+            credits = int(r.total_tokens or r.credits_consumed or 0)
+
+            if ttype == 'paper':
+                total_paper += credits
+            elif ttype == 'online':
+                total_online += credits
+            else:
+                total_standalone += credits
+
+            # Filter for tests table by selected tab
+            if test_type_filter != 'all' and ttype != test_type_filter:
+                continue
+
+            # Resolve Test Metadata
+            sched_key = str(r.schedule_id).strip() if r.schedule_id else None
+            exam_key = str(r.exam_id).strip() if r.exam_id else None
+            meta = (titles_cache.get(sched_key) if sched_key else None) or (titles_cache.get(exam_key) if exam_key else None) or {}
+
+            # Primary group key: prefer schedule_id if present, else exam_id
+            group_key = sched_key or exam_key
+            if group_key:
+                if group_key not in tests_map:
+                    resolved_title = meta.get("title") or (f"Test ({group_key[:8]})")
+                    resolved_subj = meta.get("subject") or "General"
+                    tests_map[group_key] = {
+                        "exam_id": exam_key or group_key,
+                        "schedule_id": sched_key,
+                        "title": resolved_title,
+                        "subject": resolved_subj,
+                        "test_type": ttype,
+                        "total_credits": 0,
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "operations_count": 0,
+                        "last_activity": None,
+                        "features": {}
+                    }
+                t = tests_map[group_key]
+                t["total_credits"] += credits
+                t["prompt_tokens"] += int(r.prompt_tokens or 0)
+                t["completion_tokens"] += int(r.completion_tokens or 0)
+                t["operations_count"] += 1
+                dt_str = r.created_date.strftime("%Y-%m-%d %H:%M") if r.created_date else None
+                if dt_str and (not t["last_activity"] or dt_str > t["last_activity"]):
+                    t["last_activity"] = dt_str
+
+                # Per-feature breakdown inside this test
+                feat = r.feature_name or "AI Evaluation"
+                if feat not in t["features"]:
+                    t["features"][feat] = {"credits": 0, "count": 0, "prompt_tokens": 0, "completion_tokens": 0}
+                t["features"][feat]["credits"] += credits
+                t["features"][feat]["count"] += 1
+                t["features"][feat]["prompt_tokens"] += int(r.prompt_tokens or 0)
+                t["features"][feat]["completion_tokens"] += int(r.completion_tokens or 0)
+
+            # Daily timeline grouping
+            if r.created_date:
+                day_key = r.created_date.strftime("%Y-%m-%d")
+                day_label = r.created_date.strftime("%A, %b %d, %Y")
+                if day_key not in daily_map:
+                    daily_map[day_key] = {
+                        "date": day_key,
+                        "label": day_label,
+                        "total_credits": 0,
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "operations": 0
+                    }
+                d = daily_map[day_key]
+                d["total_credits"] += credits
+                d["prompt_tokens"] += int(r.prompt_tokens or 0)
+                d["completion_tokens"] += int(r.completion_tokens or 0)
+                d["operations"] += 1
+
+        # Flatten tests list & apply search filter
+        tests_list = list(tests_map.values())
+        if search_term:
+            tests_list = [
+                t for t in tests_list 
+                if search_term in t["title"].lower() or search_term in t["subject"].lower()
+            ]
+        tests_list.sort(key=lambda x: x["last_activity"] or "", reverse=True)
+
+        daily_list = sorted(daily_map.values(), key=lambda x: x["date"], reverse=True)
+
+        session.close()
+        return jsonify({
+            "status": True,
+            "data": {
+                "summary": {
+                    "total_paper_credits": total_paper,
+                    "total_online_credits": total_online,
+                    "total_standalone_credits": total_standalone,
+                    "grand_total": total_paper + total_online + total_standalone
+                },
+                "tests": tests_list,
+                "daily_timeline": daily_list
+            }
+        }), 200
+
+    except Exception as e:
+        session.close()
+        return jsonify({"status": False, "statusMessage": f"Error fetching test AI usage: {str(e)}"}), 500
