@@ -1,4 +1,4 @@
-from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City, Subject, openai_requests
+from db.models import Institute, InstituteCampus, InstituteDepartment, InstituteTeam, User, Country, State, City, Subject, openai_requests, InstituteCreditTransaction
 from db.db import SQLiteDB
 from datetime import datetime
 from sqlalchemy import func, or_
@@ -75,6 +75,25 @@ def _ensure_institute_registration_schema(session):
                     ))
                 except Exception:
                     pass
+
+        # Ensure Institute_Credit_Transactions table exists
+        try:
+            session.execute(text("""
+                IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='Institute_Credit_Transactions' AND xtype='U')
+                CREATE TABLE dbo.Institute_Credit_Transactions (
+                    transaction_id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+                    institute_id NVARCHAR(64) NOT NULL,
+                    transaction_type NVARCHAR(32) NOT NULL,
+                    credits BIGINT NOT NULL,
+                    previous_balance BIGINT NOT NULL DEFAULT 0,
+                    new_balance BIGINT NOT NULL DEFAULT 0,
+                    reason NVARCHAR(500) NULL,
+                    performed_by NVARCHAR(100) NULL,
+                    created_date DATETIME DEFAULT GETUTCDATE()
+                );
+            """))
+        except Exception:
+            pass
 
         session.commit()
         _institute_schema_ready = True
@@ -1146,4 +1165,130 @@ def update_institute_credits(request):
         session.rollback()
         session.close()
         return {"status": False, "statusMessage": f"Failed to update credits: {str(e)}"}, 500
+
+
+def add_or_deduct_institute_credits(request):
+    """POST /edu/api/institutes/credit-transaction"""
+    data = request.get_json(silent=True) or {}
+    institute_id = data.get("institute_id")
+    action = (data.get("action") or "").upper().strip()
+    credits_amt = data.get("credits")
+    reason = (data.get("reason") or "").strip()
+    performed_by = data.get("performed_by") or "Super Admin"
+
+    if not institute_id:
+        return {"status": False, "statusMessage": "institute_id is required"}, 400
+    if action not in ("ADD", "DEDUCT"):
+        return {"status": False, "statusMessage": "action must be ADD or DEDUCT"}, 400
+    try:
+        credits_amt = int(credits_amt)
+        if credits_amt <= 0:
+            return {"status": False, "statusMessage": "credits must be a positive integer"}, 400
+    except (TypeError, ValueError):
+        return {"status": False, "statusMessage": "Invalid credits amount"}, 400
+    if not reason:
+        return {"status": False, "statusMessage": "Reason is required for all credit transactions"}, 400
+
+    db = SQLiteDB()
+    session = db.connect()
+    try:
+        _ensure_institute_registration_schema(session)
+        inst = session.query(Institute).filter_by(institute_id=institute_id).first()
+        if not inst:
+            session.close()
+            return {"status": False, "statusMessage": "Institute not found"}, 404
+
+        current_allocated = int(inst.allocated_credits or 0)
+        used_credits = int(session.query(func.coalesce(func.sum(openai_requests.total_tokens), 0)).filter(
+            openai_requests.institute_id == str(institute_id)
+        ).scalar() or 0)
+        previous_available = max(0, current_allocated - used_credits)
+
+        if action == "DEDUCT":
+            if credits_amt > previous_available:
+                session.close()
+                return {"status": False, "statusMessage": f"Cannot deduct {credits_amt:,}. Maximum unused balance is {previous_available:,}."}, 400
+            new_allocated = current_allocated - credits_amt
+            new_available = previous_available - credits_amt
+            tx_type = "DEDUCTION"
+            signed_credits = -credits_amt
+        else:
+            new_allocated = current_allocated + credits_amt
+            new_available = previous_available + credits_amt
+            tx_type = "ADDITION"
+            signed_credits = credits_amt
+
+        inst.allocated_credits = new_allocated
+        inst.updated_date = datetime.utcnow()
+
+        tx = InstituteCreditTransaction(
+            institute_id=str(institute_id),
+            transaction_type=tx_type,
+            credits=signed_credits,
+            previous_balance=previous_available,
+            new_balance=new_available,
+            reason=reason,
+            performed_by=performed_by,
+            created_date=datetime.utcnow()
+        )
+        session.add(tx)
+        session.commit()
+        session.close()
+
+        return {
+            "status": True,
+            "statusMessage": f"Successfully {'added' if action == 'ADD' else 'deducted'} {credits_amt:,} credits.",
+            "data": {
+                "allocated_credits": new_allocated,
+                "used_credits": used_credits,
+                "remaining_credits": new_available
+            }
+        }, 200
+    except Exception as e:
+        session.rollback()
+        session.close()
+        return {"status": False, "statusMessage": f"Transaction failed: {str(e)}"}, 500
+
+
+def get_institute_credit_transactions(request):
+    """GET /edu/api/institutes/credit-transactions"""
+    inst_id = request.args.get("institute_id")
+    if not inst_id:
+        return {"status": False, "statusMessage": "institute_id is required"}, 400
+
+    tx_type = request.args.get("type")
+    page = int(request.args.get("page", 1))
+    page_size = int(request.args.get("page_size", 10))
+
+    db = SQLiteDB()
+    session = db.connect()
+    try:
+        _ensure_institute_registration_schema(session)
+        from sqlalchemy import desc
+        q = session.query(InstituteCreditTransaction).filter(
+            InstituteCreditTransaction.institute_id == str(inst_id)
+        )
+        if tx_type and tx_type.upper() != "ALL":
+            q = q.filter(InstituteCreditTransaction.transaction_type == tx_type.upper())
+
+        total_count = q.count()
+        records = q.order_by(desc(InstituteCreditTransaction.created_date)).offset((page - 1) * page_size).limit(page_size).all()
+
+        items = [{
+            "transaction_id": str(r.transaction_id),
+            "transaction_type": r.transaction_type,
+            "credits": r.credits,
+            "previous_balance": r.previous_balance,
+            "new_balance": r.new_balance,
+            "reason": r.reason,
+            "performed_by": r.performed_by,
+            "created_date": r.created_date.isoformat() if r.created_date else None
+        } for r in records]
+
+        session.close()
+        return {"status": True, "total_count": total_count, "data": items}, 200
+    except Exception as e:
+        session.close()
+        return {"status": False, "statusMessage": str(e)}, 500
+
 

@@ -1,6 +1,6 @@
 import uuid
 from sqlalchemy import (
-     Column, Date, String, Integer, Boolean, DateTime, ForeignKey, Text, CheckConstraint, UniqueConstraint, Float
+     Column, Date, String, Integer, Boolean, DateTime, ForeignKey, Text, CheckConstraint, UniqueConstraint, Float, BigInteger
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
@@ -704,4 +704,17 @@ class Subject(Base):
     updated_date = Column(DateTime)
     active_status = Column(Integer, default=1)
     is_deleted = Column(Boolean, default=0)
+
+class InstituteCreditTransaction(Base):
+    __tablename__ = 'Institute_Credit_Transactions'
+    transaction_id = Column(UNIQUEIDENTIFIER, primary_key=True, default=generate_uuid)
+    institute_id = Column(String(64), nullable=False, index=True)
+    transaction_type = Column(String(32), nullable=False)  # 'ADDITION', 'DEDUCTION'
+    credits = Column(BigInteger, nullable=False)           # +credits for ADD, -credits for DEDUCT
+    previous_balance = Column(BigInteger, default=0)
+    new_balance = Column(BigInteger, default=0)
+    reason = Column(String(500), nullable=True)
+    performed_by = Column(String(100), default='Super Admin')
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
+
 

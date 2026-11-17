@@ -105,6 +105,15 @@ export class InstituteRegisterComponent {
   editingInstituteId: string | null = null;
   usedCredits: number = 0;
   remainingCredits: number = 0;
+  Math = Math;
+  transactionsList: any[] = [];
+  selectedTxType: string = 'ALL';
+  isTxLoading: boolean = false;
+  showAddModal: boolean = false;
+  showDeductModal: boolean = false;
+  modalTxAmount: number | null = null;
+  modalTxReason: string = '';
+  isSubmittingTx: boolean = false;
   headOfficeCampusId: string | null = null;
   // index of the expansion panel that should be expanded (helps open newly added campus)
   expandedIndex: number | null = null;
@@ -714,6 +723,9 @@ export class InstituteRegisterComponent {
 
         this.usedCredits = obj.used_credits || 0;
         this.remainingCredits = obj.remaining_credits !== undefined ? obj.remaining_credits : (obj.allocated_credits || 0);
+        if (this.editingInstituteId) {
+          this.loadTransactions();
+        }
 
         // If the stored institute has subscription dates, convert them to Date objects for the datepicker
         try {
@@ -1299,6 +1311,10 @@ export class InstituteRegisterComponent {
     )
       return;
 
+    if (this.isEditing) {
+      this.loadTransactions();
+    }
+
     stepper.next();
   }
 
@@ -1746,5 +1762,100 @@ export class InstituteRegisterComponent {
     const input = evt?.target as HTMLInputElement | null;
     if (!input) return;
     if (!input.value || !input.value.trim()) input.value = (this.teamList || []).join(', ');
+  }
+
+  getUsagePercentage(): number {
+    const allocated = this.form.get('allocated_credits')?.value || 0;
+    if (!allocated || allocated <= 0) return 0;
+    return Math.min(100, Math.round((this.usedCredits / allocated) * 100));
+  }
+
+  loadTransactions(): void {
+    if (!this.editingInstituteId) return;
+    this.isTxLoading = true;
+    const token = sessionStorage.getItem('token');
+    const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    this.http.get<any>(`${API_BASE}/institutes/credit-transactions?institute_id=${this.editingInstituteId}&type=${this.selectedTxType}`, { headers })
+      .subscribe({
+        next: (res) => {
+          this.isTxLoading = false;
+          if (res && res.status) {
+            this.transactionsList = res.data || [];
+          }
+        },
+        error: () => { this.isTxLoading = false; }
+      });
+  }
+
+  openAddCreditsDialog(): void {
+    this.modalTxAmount = 25000;
+    this.modalTxReason = '';
+    this.showAddModal = true;
+    this.showDeductModal = false;
+  }
+
+  openDeductCreditsDialog(): void {
+    this.modalTxAmount = Math.min(10000, this.remainingCredits);
+    this.modalTxReason = '';
+    this.showDeductModal = true;
+    this.showAddModal = false;
+  }
+
+  closeModals(): void {
+    this.showAddModal = false;
+    this.showDeductModal = false;
+    this.modalTxAmount = null;
+    this.modalTxReason = '';
+    this.isSubmittingTx = false;
+  }
+
+  submitCreditTx(action: 'ADD' | 'DEDUCT'): void {
+    if (!this.editingInstituteId) {
+      this._snack.open('Cannot resolve institute ID', 'Close', { duration: 3500 });
+      return;
+    }
+    const amt = Number(this.modalTxAmount);
+    if (!amt || isNaN(amt) || amt <= 0) {
+      this._snack.open('Please enter a valid positive credit number.', 'Close', { duration: 3500 });
+      return;
+    }
+    if (action === 'DEDUCT' && amt > this.remainingCredits) {
+      this._snack.open(`Cannot deduct more than available balance (${this.remainingCredits.toLocaleString()})`, 'Close', { duration: 3500 });
+      return;
+    }
+    if (!this.modalTxReason || !this.modalTxReason.trim()) {
+      this._snack.open('Reason is required for this credit transaction.', 'Close', { duration: 3500 });
+      return;
+    }
+
+    this.isSubmittingTx = true;
+    const token = sessionStorage.getItem('token');
+    const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    this.http.post<any>(`${API_BASE}/institutes/credit-transaction`, {
+      institute_id: this.editingInstituteId,
+      action,
+      credits: amt,
+      reason: this.modalTxReason.trim(),
+      performed_by: 'Super Admin'
+    }, { headers }).subscribe({
+      next: (res) => {
+        this.isSubmittingTx = false;
+        if (res && res.status) {
+          this._snack.open(res.statusMessage, 'Close', { duration: 3500 });
+          this.form.patchValue({ allocated_credits: res.data.allocated_credits });
+          this.remainingCredits = res.data.remaining_credits;
+          this.closeModals();
+          this.loadTransactions();
+        } else {
+          this._snack.open(res?.statusMessage || 'Transaction failed', 'Close', { duration: 4000 });
+        }
+      },
+      error: (err) => {
+        this.isSubmittingTx = false;
+        this._snack.open(err?.error?.statusMessage || 'Error executing transaction', 'Close', { duration: 4000 });
+      }
+    });
   }
 }

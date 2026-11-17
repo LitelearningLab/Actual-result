@@ -7,7 +7,11 @@ from configparser import ConfigParser
 from werkzeug.datastructures import ImmutableMultiDict
 from werkzeug.exceptions import HTTPException
 
-from others.institute import insert_institute, get_institute_details, get_institute_list, get_campus_list, delete_institute, manage_institute, update_institute, update_institute_credits
+from others.institute import (
+    insert_institute, get_institute_details, get_institute_list, get_campus_list,
+    delete_institute, manage_institute, update_institute, update_institute_credits,
+    add_or_deduct_institute_credits, get_institute_credit_transactions
+)
 from others.ai_credits import get_ai_credits_summary_api, get_ai_feature_breakdown_api, get_ai_analytics_api, get_all_institutes_overview_api, get_test_ai_usage_api
 from others.users import insert_user, get_user_page_access, get_user_details, get_user_list, get_user_limit, user_bulk_upload, update_user_details, delete_user
 from others.exams import add_exam, autosave_exam_answers, get_active_exam_status, get_exam_details, get_exam_list, launch_exam_details, submit_exam_answers,get_user_exam_details
@@ -267,6 +271,18 @@ def update_institute_route():
 @super_admin_required
 def update_institute_credits_route():
     response_data, status_code = update_institute_credits(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/institutes/credit-transaction', methods=['POST'])
+@super_admin_required
+def credit_transaction_route():
+    response_data, status_code = add_or_deduct_institute_credits(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/institutes/credit-transactions', methods=['GET'])
+@super_admin_required
+def credit_transactions_list_route():
+    response_data, status_code = get_institute_credit_transactions(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/ai-credits/summary', methods=['GET'])

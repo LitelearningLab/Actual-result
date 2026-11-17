@@ -743,38 +743,223 @@
                 <mat-icon class="section-icon">toll</mat-icon>
                 <div>
                   <h3 class="section-heading">AI Credits & Token Allocation</h3>
-                  <p class="section-desc">Configure the AI token and credit quota for this institute.</p>
+                  <p class="section-desc">Manage credit quota, perform additions/deductions, and review audit history.</p>
                 </div>
               </div>
 
               <div class="section-body">
-                <!-- Usage stats banner (shown when editing an existing institute) -->
-                <div *ngIf="isEditing" style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
-                  <div style="flex: 1; min-width: 200px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px;">
-                    <div style="font-size: 12px; color: #64748b; font-weight: 500;">Tokens Burned to Date</div>
-                    <div style="font-size: 22px; font-weight: 700; color: #0f172a; margin-top: 4px;">{{ usedCredits | number }}</div>
+                <!-- VIEW FOR EDITING EXISTING INSTITUTE -->
+                <ng-container *ngIf="isEditing">
+                  <!-- 1. THREE SUMMARY CARDS -->
+                  <div class="credit-summary-grid">
+                    <div class="summary-kpi-card">
+                      <span class="kpi-label">Total Allocated Credits</span>
+                      <div class="kpi-value">{{ (form.get('allocated_credits')?.value || 0) | number }}</div>
+                      <span class="kpi-sub">Total quota granted</span>
+                    </div>
+
+                    <div class="summary-kpi-card">
+                      <span class="kpi-label">Total Consumed</span>
+                      <div class="kpi-value text-slate">{{ usedCredits | number }}</div>
+                      <span class="kpi-sub">{{ getUsagePercentage() }}% consumed to date</span>
+                    </div>
+
+                    <div class="summary-kpi-card kpi-balance">
+                      <span class="kpi-label">Available Balance</span>
+                      <div class="kpi-value text-emerald">{{ remainingCredits | number }}</div>
+                      <span class="kpi-sub">Ready for immediate use</span>
+                    </div>
                   </div>
-                  <div style="flex: 1; min-width: 200px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 16px;">
-                    <div style="font-size: 12px; color: #059669; font-weight: 500;">Current Remaining Balance</div>
-                    <div style="font-size: 22px; font-weight: 700; color: #065f46; margin-top: 4px;">{{ remainingCredits | number }}</div>
+
+                  <!-- Quota Progress Bar -->
+                  <div class="quota-progress-container">
+                    <div class="progress-bar-track">
+                      <div class="progress-bar-fill" [style.width.%]="getUsagePercentage()"></div>
+                    </div>
+                    <div class="progress-labels">
+                      <span>{{ getUsagePercentage() }}% Used</span>
+                      <span>{{ 100 - getUsagePercentage() }}% Remaining</span>
+                    </div>
+                  </div>
+
+                  <!-- 2. CREDIT ACTIONS & ALERT CONFIGURATION -->
+                  <div class="credit-actions-bar">
+                    <div class="action-buttons-group">
+                      <button type="button" mat-flat-button color="primary" class="btn-action-add" (click)="openAddCreditsDialog()">
+                        <mat-icon>add_circle</mat-icon>
+                        <span>Add Credits</span>
+                      </button>
+                      <button type="button" mat-stroked-button class="btn-action-deduct" (click)="openDeductCreditsDialog()">
+                        <mat-icon>remove_circle_outline</mat-icon>
+                        <span>Deduct Credits</span>
+                      </button>
+                    </div>
+
+                    <div class="alert-threshold-field">
+                      <mat-form-field appearance="outline" class="threshold-input">
+                        <mat-label>Low Balance Alert (%)</mat-label>
+                        <mat-icon matPrefix>notifications_active</mat-icon>
+                        <input matInput type="number" min="1" max="50" formControlName="credit_alert_threshold" placeholder="10" />
+                        <mat-hint>Warning threshold percentage</mat-hint>
+                      </mat-form-field>
+                    </div>
+                  </div>
+
+                  <!-- 3. CREDIT TRANSACTION HISTORY TABLE -->
+                  <div class="transaction-history-section">
+                    <div class="history-header">
+                      <h4 class="history-title">Credit Transaction History</h4>
+                      <mat-form-field appearance="outline" class="type-filter-field">
+                        <mat-label>Filter by Type</mat-label>
+                        <mat-select [(value)]="selectedTxType" (selectionChange)="loadTransactions()">
+                          <mat-option value="ALL">All Transactions</mat-option>
+                          <mat-option value="ADDITION">Additions</mat-option>
+                          <mat-option value="DEDUCTION">Deductions</mat-option>
+                        </mat-select>
+                      </mat-form-field>
+                    </div>
+
+                    <div class="table-responsive tx-table-wrap">
+                      <table class="transaction-table">
+                        <thead>
+                          <tr>
+                            <th>Date & Time</th>
+                            <th>Transaction Type</th>
+                            <th>Credits</th>
+                            <th>Balance Impact</th>
+                            <th>Reason / Description</th>
+                            <th>Performed By</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr *ngFor="let tx of transactionsList">
+                            <td>{{ tx.created_date | date:'dd MMM yyyy, HH:mm' }}</td>
+                            <td>
+                              <span class="badge" [ngClass]="tx.transaction_type.toLowerCase()">
+                                {{ tx.transaction_type }}
+                              </span>
+                            </td>
+                            <td [ngClass]="tx.credits > 0 ? 'text-green' : 'text-red'">
+                              {{ tx.credits > 0 ? '+' : '' }}{{ tx.credits | number }}
+                            </td>
+                            <td>{{ tx.previous_balance | number }} → {{ tx.new_balance | number }}</td>
+                            <td>{{ tx.reason || '—' }}</td>
+                            <td>{{ tx.performed_by }}</td>
+                          </tr>
+                          <tr *ngIf="transactionsList.length === 0">
+                            <td colspan="6" class="empty-tx-cell">
+                              No transaction history found for this institute.
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </ng-container>
+
+                <!-- VIEW FOR NEW INSTITUTE REGISTRATION -->
+                <ng-container *ngIf="!isEditing">
+                  <div class="field-row">
+                    <mat-form-field appearance="outline" class="field-half">
+                      <mat-label>Allocated AI Credits / Tokens</mat-label>
+                      <mat-icon matPrefix>toll</mat-icon>
+                      <input matInput type="number" min="0" step="10000" formControlName="allocated_credits" placeholder="e.g. 500000" />
+                      <mat-hint>Total credits/tokens this institute can consume for question generation and evaluation</mat-hint>
+                      <mat-error *ngIf="form.controls['allocated_credits'].hasError('min')">Value must be 0 or more</mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="field-half">
+                      <mat-label>Low Balance Alert Threshold (%)</mat-label>
+                      <mat-icon matPrefix>notifications_active</mat-icon>
+                      <input matInput type="number" min="1" max="50" formControlName="credit_alert_threshold" placeholder="10" />
+                      <mat-hint>Trigger warning alert when remaining quota falls below this percentage</mat-hint>
+                    </mat-form-field>
+                  </div>
+                </ng-container>
+              </div>
+            </div>
+
+            <!-- MODAL: ADD CREDITS -->
+            <div class="credit-modal-overlay" *ngIf="showAddModal">
+              <div class="credit-modal-card">
+                <div class="credit-modal-header">
+                  <h3>Add Additional Credits</h3>
+                  <button type="button" class="close-btn" (click)="closeModals()">✕</button>
+                </div>
+                <div class="credit-modal-body">
+                  <div class="modal-info-row">
+                    <span>Current Available Balance:</span>
+                    <strong>{{ remainingCredits | number }} credits</strong>
+                  </div>
+                  <mat-form-field appearance="outline" class="modal-field">
+                    <mat-label>Credits to Add</mat-label>
+                    <mat-icon matPrefix>add_circle</mat-icon>
+                    <input matInput type="number" min="1" [(ngModel)]="modalTxAmount" [ngModelOptions]="{standalone: true}" placeholder="e.g. 25000" />
+                  </mat-form-field>
+
+                  <div class="quick-chip-group">
+                    <span class="quick-chip-label">Quick Add:</span>
+                    <button type="button" class="quick-chip" (click)="modalTxAmount = 10000">+10k</button>
+                    <button type="button" class="quick-chip" (click)="modalTxAmount = 25000">+25k</button>
+                    <button type="button" class="quick-chip" (click)="modalTxAmount = 50000">+50k</button>
+                    <button type="button" class="quick-chip" (click)="modalTxAmount = 100000">+100k</button>
+                  </div>
+
+                  <mat-form-field appearance="outline" class="modal-field">
+                    <mat-label>Reason / Justification *</mat-label>
+                    <textarea matInput rows="3" [(ngModel)]="modalTxReason" [ngModelOptions]="{standalone: true}" placeholder="e.g. Upcoming examination requirements"></textarea>
+                  </mat-form-field>
+
+                  <div class="projected-balance-card">
+                    <span>Projected New Balance:</span>
+                    <strong>{{ (remainingCredits + (modalTxAmount || 0)) | number }} credits</strong>
                   </div>
                 </div>
+                <div class="credit-modal-actions">
+                  <button type="button" mat-button (click)="closeModals()">Cancel</button>
+                  <button type="button" mat-flat-button color="primary" [disabled]="!modalTxAmount || modalTxAmount <= 0 || !modalTxReason.trim() || isSubmittingTx" (click)="submitCreditTx('ADD')">
+                    <span *ngIf="!isSubmittingTx">Confirm & Add Credits</span>
+                    <span *ngIf="isSubmittingTx">Processing...</span>
+                  </button>
+                </div>
+              </div>
+            </div>
 
-                <div class="field-row">
-                  <mat-form-field appearance="outline" class="field-half">
-                    <mat-label>Allocated AI Credits / Tokens</mat-label>
-                    <mat-icon matPrefix>toll</mat-icon>
-                    <input matInput type="number" min="0" step="10000" formControlName="allocated_credits" placeholder="e.g. 500000" />
-                    <mat-hint>Total credits/tokens this institute can consume for question generation and evaluation</mat-hint>
-                    <mat-error *ngIf="form.controls['allocated_credits'].hasError('min')">Value must be 0 or more</mat-error>
+            <!-- MODAL: DEDUCT CREDITS -->
+            <div class="credit-modal-overlay" *ngIf="showDeductModal">
+              <div class="credit-modal-card">
+                <div class="credit-modal-header">
+                  <h3>Deduct Unused Credits</h3>
+                  <button type="button" class="close-btn" (click)="closeModals()">✕</button>
+                </div>
+                <div class="credit-modal-body">
+                  <div class="modal-info-row">
+                    <span>Current Available Balance:</span>
+                    <strong>{{ remainingCredits | number }} credits</strong>
+                  </div>
+                  <mat-form-field appearance="outline" class="modal-field">
+                    <mat-label>Credits to Deduct</mat-label>
+                    <mat-icon matPrefix>remove_circle_outline</mat-icon>
+                    <input matInput type="number" min="1" [max]="remainingCredits" [(ngModel)]="modalTxAmount" [ngModelOptions]="{standalone: true}" placeholder="e.g. 10000" />
+                    <mat-hint>Cannot exceed available balance (Max: {{ remainingCredits | number }})</mat-hint>
                   </mat-form-field>
 
-                  <mat-form-field appearance="outline" class="field-half">
-                    <mat-label>Low Balance Alert Threshold (%)</mat-label>
-                    <mat-icon matPrefix>notifications_active</mat-icon>
-                    <input matInput type="number" min="1" max="50" formControlName="credit_alert_threshold" placeholder="10" />
-                    <mat-hint>Trigger warning alert when remaining quota falls below this percentage</mat-hint>
+                  <mat-form-field appearance="outline" class="modal-field" style="margin-top: 12px;">
+                    <mat-label>Reason for Deduction *</mat-label>
+                    <textarea matInput rows="3" [(ngModel)]="modalTxReason" [ngModelOptions]="{standalone: true}" placeholder="e.g. Allocation correction"></textarea>
                   </mat-form-field>
+
+                  <div class="projected-balance-card deduct-projected">
+                    <span>Projected New Balance:</span>
+                    <strong>{{ Math.max(0, remainingCredits - (modalTxAmount || 0)) | number }} credits</strong>
+                  </div>
+                </div>
+                <div class="credit-modal-actions">
+                  <button type="button" mat-button (click)="closeModals()">Cancel</button>
+                  <button type="button" mat-flat-button color="warn" [disabled]="!modalTxAmount || modalTxAmount <= 0 || modalTxAmount > remainingCredits || !modalTxReason.trim() || isSubmittingTx" (click)="submitCreditTx('DEDUCT')">
+                    <span *ngIf="!isSubmittingTx">Confirm Deduction</span>
+                    <span *ngIf="isSubmittingTx">Processing...</span>
+                  </button>
                 </div>
               </div>
             </div>
