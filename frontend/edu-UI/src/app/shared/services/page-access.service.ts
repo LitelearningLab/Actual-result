@@ -29,6 +29,8 @@ export class PageAccessService {
     'tests': 'Create/Edit Test',
     'manage test': 'Create/Edit Test',
     'create/edit test': 'Create/Edit Test',
+    'create/edit paper test': 'Create/Edit Test',
+    'paper test': 'Create/Edit Test',
     'create question paper': 'Create/Edit Test',
     'question paper': 'Create/Edit Test',
     'question papers': 'Create/Edit Test',

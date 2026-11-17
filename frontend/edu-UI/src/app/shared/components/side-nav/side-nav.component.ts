@@ -96,8 +96,8 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/admin/exam-reports': 'Test Reports',
     '/user/exam/run': 'Test Inbox',
     '/user/paper-test-results': 'Paper Test Results',
-    '/question-papers': 'Paper Question',
-    '/create-question-paper': 'Paper Question',
+    '/question-papers': 'Create/Edit Paper Test',
+    '/create-question-paper': 'Create/Edit Paper Test',
     '/test-evaluation': 'Paper Evaluation',
     '/admin/ai-credits': 'AI Credits',
   };
@@ -245,7 +245,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
 
     if (role === 'admin' || role === 'super_admin' || role === 'super-admin') {
       // Separate Question Paper module placed after Test Inbox
-      this.menus.push({ label: 'Paper Question', path: '/question-papers', icon: 'exam' });
+      this.menus.push({ label: 'Create/Edit Paper Test', path: '/question-papers', icon: 'exam' });
       this.menus.push({ label: 'Paper Evalution', path: '/test-evaluation', icon: 'assignment' });
     }
 

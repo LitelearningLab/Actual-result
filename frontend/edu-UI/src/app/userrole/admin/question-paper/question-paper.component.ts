@@ -2298,7 +2298,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   ngOnInit(): void {
-    this.pageMeta.setMeta('Create Question Paper');
+    this.pageMeta.setMeta('Create/Edit Paper Test');
     this.loadCountries();
     this.loadInstitutes();
     this.loadTestOptions(this.selectedInstitute);

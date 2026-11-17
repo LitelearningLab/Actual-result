@@ -1076,7 +1076,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         'Update the exam details and click Update to save changes.'
       );
     } else {
-      this.pageMeta.setMeta('Create Question Paper', 'Fill required fields and save the exam.');
+      this.pageMeta.setMeta('Create/Edit Paper Test', 'Fill required fields and save the exam.');
     }
     this.isDirty = false;
 

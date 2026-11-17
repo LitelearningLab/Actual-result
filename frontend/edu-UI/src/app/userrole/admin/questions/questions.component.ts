@@ -365,6 +365,20 @@ export class AdminQuestionsComponent {
     return getInstituteTerminology(industry);
   }
 
+  get isSchoolOrCollege(): boolean {
+    return !!(this.terminology.isSchool || this.terminology.isCollege);
+  }
+
+  get topicLabel(): string {
+    return this.isSchoolOrCollege ? 'Subject or Chapter title' : 'Topic or Subtopic';
+  }
+
+  get topicPlaceholder(): string {
+    return this.isSchoolOrCollege
+      ? 'Enter the Subject or Chapter title'
+      : 'Enter the Topic or Subtopic';
+  }
+
   private apiUrl = `${API_BASE}/add-question`;
   // Use the rich institute endpoint so industry/sector/country/city filters can scope the dropdown.
   private institutesUrl = `${API_BASE}/get-institutes`;
