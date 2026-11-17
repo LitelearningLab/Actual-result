@@ -752,44 +752,56 @@
                 <ng-container *ngIf="isEditing">
                   <!-- 1. THREE SUMMARY CARDS -->
                   <div class="credit-summary-grid">
+                    <!-- Card 1: Total Allocated -->
                     <div class="summary-kpi-card">
-                      <span class="kpi-label">Total Allocated Credits</span>
+                      <span class="kpi-label">Total Allocated</span>
                       <div class="kpi-value">{{ (form.get('allocated_credits')?.value || 0) | number }}</div>
-                      <span class="kpi-sub">Total quota granted</span>
+                      <span class="kpi-sub">Total credits granted</span>
                     </div>
 
+                    <!-- Card 2: Total Consumed -->
                     <div class="summary-kpi-card">
                       <span class="kpi-label">Total Consumed</span>
                       <div class="kpi-value text-slate">{{ usedCredits | number }}</div>
-                      <span class="kpi-sub">{{ getUsagePercentage() }}% consumed to date</span>
+                      <span class="kpi-sub">Total credits used</span>
                     </div>
 
-                    <div class="summary-kpi-card kpi-balance">
+                    <!-- Card 3: Available Balance -->
+                    <div class="summary-kpi-card" [ngClass]="getAvailableBalance() > 0 ? 'kpi-balance' : 'kpi-exhausted'">
                       <span class="kpi-label">Available Balance</span>
-                      <div class="kpi-value text-emerald">{{ remainingCredits | number }}</div>
-                      <span class="kpi-sub">Ready for immediate use</span>
+                      <div class="kpi-value" [ngClass]="getAvailableBalance() > 0 ? 'text-emerald' : 'text-amber'">
+                        {{ getAvailableBalance() | number }}
+                      </div>
+                      <span class="kpi-sub">{{ getAvailableBalance() > 0 ? 'Ready for use' : 'No credits remaining' }}</span>
                     </div>
                   </div>
 
-                  <!-- Quota Progress Bar -->
+                  <!-- 2. QUOTA STATUS & UTILIZATION BAR -->
                   <div class="quota-progress-container">
-                    <div class="progress-bar-track">
-                      <div class="progress-bar-fill" [style.width.%]="getUsagePercentage()"></div>
+                    <div class="quota-status-row">
+                      <div class="status-left">
+                        <span class="status-title">Credit Utilization: <strong>{{ getUtilizationPercentage() }}%</strong></span>
+                        <span class="status-sub">({{ Math.max(0, 100 - getUtilizationPercentage()) | number:'1.0-2' }}% remaining)</span>
+                      </div>
+                      <div class="status-badge" [ngClass]="getAvailableBalance() > 0 ? 'badge-success' : 'badge-danger'">
+                        <mat-icon>{{ getAvailableBalance() > 0 ? 'check_circle' : 'warning' }}</mat-icon>
+                        <span>{{ getAvailableBalance() > 0 ? 'Within Quota • AI Operations Available' : 'Quota Exhausted • AI Operations Blocked' }}</span>
+                      </div>
                     </div>
-                    <div class="progress-labels">
-                      <span>{{ getUsagePercentage() }}% Used</span>
-                      <span>{{ 100 - getUsagePercentage() }}% Remaining</span>
+
+                    <div class="progress-bar-track">
+                      <div class="progress-bar-fill" [style.width.%]="Math.min(100, getUtilizationPercentage())"></div>
                     </div>
                   </div>
 
-                  <!-- 2. CREDIT ACTIONS & ALERT CONFIGURATION -->
+                  <!-- 3. CREDIT ACTIONS & ALERT CONFIGURATION -->
                   <div class="credit-actions-bar">
                     <div class="action-buttons-group">
                       <button type="button" mat-flat-button color="primary" class="btn-action-add" (click)="openAddCreditsDialog()">
                         <mat-icon>add_circle</mat-icon>
                         <span>Add Credits</span>
                       </button>
-                      <button type="button" mat-stroked-button class="btn-action-deduct" (click)="openDeductCreditsDialog()">
+                      <button type="button" mat-stroked-button class="btn-action-deduct" [disabled]="getAvailableBalance() <= 0" (click)="openDeductCreditsDialog()">
                         <mat-icon>remove_circle_outline</mat-icon>
                         <span>Deduct Credits</span>
                       </button>
@@ -805,7 +817,7 @@
                     </div>
                   </div>
 
-                  <!-- 3. CREDIT TRANSACTION HISTORY TABLE -->
+                  <!-- 4. CREDIT TRANSACTION HISTORY TABLE -->
                   <div class="transaction-history-section">
                     <div class="history-header">
                       <h4 class="history-title">Credit Transaction History</h4>
@@ -813,6 +825,7 @@
                         <mat-label>Filter by Type</mat-label>
                         <mat-select [(value)]="selectedTxType" (selectionChange)="loadTransactions()">
                           <mat-option value="ALL">All Transactions</mat-option>
+                          <mat-option value="INITIAL">Initial Setup</mat-option>
                           <mat-option value="ADDITION">Additions</mat-option>
                           <mat-option value="DEDUCTION">Deductions</mat-option>
                         </mat-select>
@@ -825,8 +838,9 @@
                           <tr>
                             <th>Date & Time</th>
                             <th>Transaction Type</th>
-                            <th>Credits</th>
-                            <th>Balance Impact</th>
+                            <th>Credits Added / Deducted</th>
+                            <th>Previous Available Balance</th>
+                            <th>New Available Balance</th>
                             <th>Reason / Description</th>
                             <th>Performed By</th>
                           </tr>
@@ -842,12 +856,13 @@
                             <td [ngClass]="tx.credits > 0 ? 'text-green' : 'text-red'">
                               {{ tx.credits > 0 ? '+' : '' }}{{ tx.credits | number }}
                             </td>
-                            <td>{{ tx.previous_balance | number }} → {{ tx.new_balance | number }}</td>
+                            <td>{{ tx.previous_balance | number }}</td>
+                            <td>{{ tx.new_balance | number }}</td>
                             <td>{{ tx.reason || '—' }}</td>
                             <td>{{ tx.performed_by }}</td>
                           </tr>
                           <tr *ngIf="transactionsList.length === 0">
-                            <td colspan="6" class="empty-tx-cell">
+                            <td colspan="7" class="empty-tx-cell">
                               No transaction history found for this institute.
                             </td>
                           </tr>

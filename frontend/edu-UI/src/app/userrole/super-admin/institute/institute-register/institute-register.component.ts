@@ -1764,10 +1764,27 @@ export class InstituteRegisterComponent {
     if (!input.value || !input.value.trim()) input.value = (this.teamList || []).join(', ');
   }
 
+  getAvailableBalance(): number {
+    const allocated = Number(this.form.get('allocated_credits')?.value || 0);
+    const consumed = Number(this.usedCredits || 0);
+    return Math.max(0, allocated - consumed);
+  }
+
+  getExcessUsage(): number {
+    const allocated = Number(this.form.get('allocated_credits')?.value || 0);
+    const consumed = Number(this.usedCredits || 0);
+    return Math.max(0, consumed - allocated);
+  }
+
+  getUtilizationPercentage(): number {
+    const allocated = Number(this.form.get('allocated_credits')?.value || 0);
+    const consumed = Number(this.usedCredits || 0);
+    if (!allocated || allocated <= 0) return consumed > 0 ? 100 : 0;
+    return Number(((consumed / allocated) * 100).toFixed(2));
+  }
+
   getUsagePercentage(): number {
-    const allocated = this.form.get('allocated_credits')?.value || 0;
-    if (!allocated || allocated <= 0) return 0;
-    return Math.min(100, Math.round((this.usedCredits / allocated) * 100));
+    return Math.min(100, Math.round(this.getUtilizationPercentage()));
   }
 
   loadTransactions(): void {
@@ -1796,7 +1813,12 @@ export class InstituteRegisterComponent {
   }
 
   openDeductCreditsDialog(): void {
-    this.modalTxAmount = Math.min(10000, this.remainingCredits);
+    const available = this.getAvailableBalance();
+    if (available <= 0) {
+      this._snack.open('Cannot deduct credits: available balance is 0.', 'Close', { duration: 3500 });
+      return;
+    }
+    this.modalTxAmount = Math.min(10000, available);
     this.modalTxReason = '';
     this.showDeductModal = true;
     this.showAddModal = false;
@@ -1820,8 +1842,9 @@ export class InstituteRegisterComponent {
       this._snack.open('Please enter a valid positive credit number.', 'Close', { duration: 3500 });
       return;
     }
-    if (action === 'DEDUCT' && amt > this.remainingCredits) {
-      this._snack.open(`Cannot deduct more than available balance (${this.remainingCredits.toLocaleString()})`, 'Close', { duration: 3500 });
+    const available = this.getAvailableBalance();
+    if (action === 'DEDUCT' && amt > available) {
+      this._snack.open(`Cannot deduct more than available balance (${available.toLocaleString()})`, 'Close', { duration: 3500 });
       return;
     }
     if (!this.modalTxReason || !this.modalTxReason.trim()) {

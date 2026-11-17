@@ -289,6 +289,22 @@ def insert_institute(data):
         session.flush()
         institute_id = new_inst.institute_id
 
+        if allocated_credits > 0:
+            try:
+                init_tx = InstituteCreditTransaction(
+                    institute_id=str(institute_id),
+                    transaction_type="INITIAL",
+                    credits=allocated_credits,
+                    previous_balance=0,
+                    new_balance=allocated_credits,
+                    reason="Initial institute quota setup",
+                    performed_by=created_by or "Super Admin",
+                    created_date=datetime.utcnow()
+                )
+                session.add(init_tx)
+            except Exception:
+                pass
+
         operation = "insert_locations"
         head_office_data = data.get('headOffice') or {}
         address = head_office_data.get('address', None)
@@ -1264,6 +1280,31 @@ def get_institute_credit_transactions(request):
     session = db.connect()
     try:
         _ensure_institute_registration_schema(session)
+
+        # Auto-seed baseline initial allocation if not already logged
+        try:
+            inst = session.query(Institute).filter_by(institute_id=inst_id).first()
+            if inst and inst.allocated_credits and int(inst.allocated_credits) > 0:
+                total_logged = session.query(func.coalesce(func.sum(InstituteCreditTransaction.credits), 0)).filter(
+                    InstituteCreditTransaction.institute_id == str(inst_id)
+                ).scalar() or 0
+                if total_logged < int(inst.allocated_credits):
+                    diff = int(inst.allocated_credits) - int(total_logged)
+                    init_tx = InstituteCreditTransaction(
+                        institute_id=str(inst_id),
+                        transaction_type="INITIAL",
+                        credits=diff,
+                        previous_balance=0,
+                        new_balance=diff,
+                        reason="Initial institute quota setup",
+                        performed_by="Super Admin",
+                        created_date=inst.created_date or datetime.utcnow()
+                    )
+                    session.add(init_tx)
+                    session.commit()
+        except Exception:
+            session.rollback()
+
         from sqlalchemy import desc
         q = session.query(InstituteCreditTransaction).filter(
             InstituteCreditTransaction.institute_id == str(inst_id)
