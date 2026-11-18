@@ -1095,7 +1095,7 @@ def get_test_ai_usage_api():
                     subj_id = str(ex.subject_id).strip() if getattr(ex, "subject_id", None) else ""
                     if subj_id:
                         subject_ids_to_lookup.add(subj_id)
-                    subj = (ex.subject_name or "").strip() or subj_id or "General"
+                    subj = (ex.subject_name or "").strip() or subj_id or ""
                     cb = str(ex.created_by).strip() if getattr(ex, "created_by", None) else ""
                     if cb:
                         creator_raw_ids.add(cb)
@@ -1277,7 +1277,8 @@ def get_test_ai_usage_api():
             if group_key:
                 if group_key not in tests_map:
                     resolved_title = meta.get("title") or (f"Test ({group_key[:8]})")
-                    resolved_subj = meta.get("subject") or "General"
+                    raw_subj = (meta.get("subject") or "").strip()
+                    resolved_subj = "" if raw_subj.lower() in ("general", "paper test", "online test") else raw_subj
                     tests_map[group_key] = {
                         "id": group_key,
                         "exam_id": exam_key or group_key,
@@ -1347,7 +1348,15 @@ def get_test_ai_usage_api():
                 "scheduled_end": t["scheduled_end"],
             }
 
-        # Supplement dropdown options with institute's active schedules for the selected tab
+        # Supplement both the tests table (0-credit tests) and dropdown options with institute's active schedules
+        existing_sched_and_exam_ids = set(tests_meta_by_id.keys())
+        for _tm in tests_meta_by_id.values():
+            if _tm.get("schedule_id"):
+                existing_sched_and_exam_ids.add(str(_tm["schedule_id"]))
+            if _tm.get("exam_id"):
+                existing_sched_and_exam_ids.add(str(_tm["exam_id"]))
+
+        extra_test_entries = []
         try:
             if test_type_filter == 'paper':
                 ps_q = session.query(PaperSchedule).filter(
@@ -1355,7 +1364,11 @@ def get_test_ai_usage_api():
                 )
                 if str(inst_id).lower() != 'all':
                     ps_q = ps_q.filter(PaperSchedule.institute_id == str(inst_id))
-                extra_ps = [ps for ps in ps_q.all() if str(ps.schedule_id) not in tests_meta_by_id]
+                extra_ps = [
+                    ps for ps in ps_q.all()
+                    if str(ps.schedule_id) not in existing_sched_and_exam_ids
+                    and (not ps.exam_id or str(ps.exam_id) not in existing_sched_and_exam_ids)
+                ]
 
                 if extra_ps:
                     extra_sids = [str(ps.schedule_id) for ps in extra_ps]
@@ -1389,6 +1402,7 @@ def get_test_ai_usage_api():
                                         ps_campus_map.setdefault(sid, set()).add(str(u_row.campus_id).strip())
 
                     ex_subj_map = {}
+                    ex_creator_map = {}
                     if extra_eids:
                         ex_rows = session.query(Exam).filter(Exam.exam_id.in_(extra_eids)).all()
                         extra_subj_ids = {str(ex.subject_id).strip() for ex in ex_rows if getattr(ex, "subject_id", None)}
@@ -1398,15 +1412,19 @@ def get_test_ai_usage_api():
                                 extra_subj_names[str(sb.subject_id).strip()] = (sb.subject_name or "").strip()
                         for ex in ex_rows:
                             s_id = str(ex.subject_id or "").strip()
-                            s_name = extra_subj_names.get(s_id) or (ex.subject_name or "").strip() or "General"
+                            raw_s_name = extra_subj_names.get(s_id) or (ex.subject_name or "").strip()
+                            s_name = "" if raw_s_name.lower() in ("general", "paper test", "online test") else raw_s_name
                             ex_subj_map[str(ex.exam_id)] = (s_id, s_name)
+                            if getattr(ex, "created_by", None):
+                                ex_creator_map[str(ex.exam_id)] = str(ex.created_by).strip()
 
                     for ps in extra_ps:
                         sid = str(ps.schedule_id)
                         eid = str(ps.exam_id) if ps.exam_id else sid
-                        s_id, s_name = ex_subj_map.get(eid, ("", "General"))
+                        s_id, s_name = ex_subj_map.get(eid, ("", ""))
+                        cb_raw = str(ps.created_by or "").strip() or ex_creator_map.get(eid, "")
                         dt = ps.created_date or ps.start_time
-                        tests_meta_by_id[sid] = {
+                        extra_test_entries.append({
                             "id": sid,
                             "exam_id": eid,
                             "schedule_id": sid,
@@ -1417,12 +1435,18 @@ def get_test_ai_usage_api():
                             "department_ids": sorted(list(ps_dept_map.get(sid, set()))),
                             "team_ids": sorted(list(ps_team_map.get(sid, set()))),
                             "campus_ids": sorted(list(ps_campus_map.get(sid, set()))),
-                            "created_by_id": str(ps.created_by or "").strip(),
-                            "created_by_name": str(ps.created_by or "").strip(),
+                            "created_by_id": cb_raw,
+                            "created_by_name": cb_raw,
                             "created_date": dt.strftime("%Y-%m-%d") if isinstance(dt, (datetime.datetime, datetime.date)) else "",
                             "scheduled_start": ps.start_time.strftime("%Y-%m-%d") if isinstance(ps.start_time, (datetime.datetime, datetime.date)) else "",
                             "scheduled_end": ps.end_time.strftime("%Y-%m-%d") if isinstance(ps.end_time, (datetime.datetime, datetime.date)) else "",
-                        }
+                            "total_credits": 0,
+                            "prompt_tokens": 0,
+                            "completion_tokens": 0,
+                            "operations_count": 0,
+                            "last_activity": None,
+                            "features": {},
+                        })
 
             elif test_type_filter == 'online':
                 es_q = session.query(ExamSchedule).filter(
@@ -1430,10 +1454,15 @@ def get_test_ai_usage_api():
                 )
                 if str(inst_id).lower() != 'all':
                     es_q = es_q.filter(ExamSchedule.institute_id == str(inst_id))
-                extra_es = [es for es in es_q.all() if str(es.schedule_id) not in tests_meta_by_id]
+                extra_es = [
+                    es for es in es_q.all()
+                    if str(es.schedule_id) not in existing_sched_and_exam_ids
+                    and (not es.exam_id or str(es.exam_id) not in existing_sched_and_exam_ids)
+                ]
 
                 if extra_es:
                     extra_sids = [str(es.schedule_id) for es in extra_es]
+                    extra_eids = list({str(es.exam_id) for es in extra_es if es.exam_id})
                     es_dept_map, es_team_map, es_campus_map, es_user_links = {}, {}, {}, {}
                     es_uid_set = set()
                     for m in session.query(ExamScheduleMapping).filter(ExamScheduleMapping.schedule_id.in_(extra_sids)).all():
@@ -1462,11 +1491,18 @@ def get_test_ai_usage_api():
                                     if getattr(u_row, "campus_id", None):
                                         es_campus_map.setdefault(sid, set()).add(str(u_row.campus_id).strip())
 
+                    ex_creator_map = {}
+                    if extra_eids:
+                        for ex in session.query(Exam).filter(Exam.exam_id.in_(extra_eids)).all():
+                            if getattr(ex, "created_by", None):
+                                ex_creator_map[str(ex.exam_id)] = str(ex.created_by).strip()
+
                     for es in extra_es:
                         sid = str(es.schedule_id)
                         eid = str(es.exam_id) if es.exam_id else sid
+                        cb_raw = str(es.created_by or "").strip() or ex_creator_map.get(eid, "")
                         dt = es.created_date or es.start_time
-                        tests_meta_by_id[sid] = {
+                        extra_test_entries.append({
                             "id": sid,
                             "exam_id": eid,
                             "schedule_id": sid,
@@ -1477,15 +1513,68 @@ def get_test_ai_usage_api():
                             "department_ids": sorted(list(es_dept_map.get(sid, set()))),
                             "team_ids": sorted(list(es_team_map.get(sid, set()))),
                             "campus_ids": sorted(list(es_campus_map.get(sid, set()))),
-                            "created_by_id": str(es.created_by or "").strip(),
-                            "created_by_name": str(es.created_by or "").strip(),
+                            "created_by_id": cb_raw,
+                            "created_by_name": cb_raw,
                             "created_date": dt.strftime("%Y-%m-%d") if isinstance(dt, (datetime.datetime, datetime.date)) else "",
                             "scheduled_start": es.start_time.strftime("%Y-%m-%d") if isinstance(es.start_time, (datetime.datetime, datetime.date)) else "",
                             "scheduled_end": es.end_time.strftime("%Y-%m-%d") if isinstance(es.end_time, (datetime.datetime, datetime.date)) else "",
-                        }
+                            "total_credits": 0,
+                            "prompt_tokens": 0,
+                            "completion_tokens": 0,
+                            "operations_count": 0,
+                            "last_activity": None,
+                            "features": {},
+                        })
+
+            # Resolve creator names for extra schedules so Created by me matches accurately
+            if extra_test_entries:
+                extra_cb_raw = list({e["created_by_id"] for e in extra_test_entries if e.get("created_by_id")})
+                if extra_cb_raw:
+                    extra_cb_map = {}
+                    for u_row in session.query(User.user_id, User.full_name, User.user_name, User.email).filter(
+                        or_(
+                            cast(User.user_id, String).in_(extra_cb_raw),
+                            User.user_name.in_(extra_cb_raw),
+                            User.email.in_(extra_cb_raw)
+                        )
+                    ).all():
+                        disp = (u_row.full_name or u_row.user_name or u_row.email or "").strip()
+                        uid_s = str(u_row.user_id).strip()
+                        extra_cb_map[uid_s.lower()] = (uid_s, disp)
+                        if u_row.user_name:
+                            extra_cb_map[str(u_row.user_name).strip().lower()] = (uid_s, disp)
+                        if u_row.email:
+                            extra_cb_map[str(u_row.email).strip().lower()] = (uid_s, disp)
+                    for e in extra_test_entries:
+                        rcb = (e.get("created_by_id") or "").strip()
+                        if rcb and rcb.lower() in extra_cb_map:
+                            e["created_by_id"], e["created_by_name"] = extra_cb_map[rcb.lower()]
+
+                for e in extra_test_entries:
+                    tests_map[e["id"]] = e
+                    tests_meta_by_id[e["id"]] = {
+                        "id": e["id"],
+                        "exam_id": e["exam_id"],
+                        "schedule_id": e["schedule_id"],
+                        "title": e["title"],
+                        "test_type": e["test_type"],
+                        "subject": e["subject"],
+                        "subject_id": e["subject_id"],
+                        "department_ids": e["department_ids"],
+                        "team_ids": e["team_ids"],
+                        "campus_ids": e["campus_ids"],
+                        "created_by_id": e["created_by_id"],
+                        "created_by_name": e["created_by_name"],
+                        "created_date": e["created_date"],
+                        "scheduled_start": e["scheduled_start"],
+                        "scheduled_end": e["scheduled_end"],
+                    }
+                    if e["created_by_id"] and e["created_by_name"]:
+                        creators_map[e["created_by_id"]] = e["created_by_name"]
         except Exception as _sched_opt_err:
             print(f"[get_test_ai_usage_api] Extra schedule options lookup warning: {_sched_opt_err}")
 
+        all_tests_unfiltered = list(tests_map.values())
         all_tests_meta = sorted(tests_meta_by_id.values(), key=lambda x: (x["title"] or "").lower())
         creators_list = sorted(
             [{"id": k, "name": v} for k, v in creators_map.items()],
@@ -1514,10 +1603,26 @@ def get_test_ai_usage_api():
             ]
 
         if subject_filter:
+            # Resolve subject_id -> subject_name as well so UUID and name filters both match
+            subject_match_values = {subject_filter}
+            try:
+                matched_sb = session.query(Subject).filter(
+                    or_(
+                        Subject.subject_id == request.args.get('subject', '').strip(),
+                        func.lower(Subject.subject_name) == subject_filter
+                    )
+                ).all()
+                for sb in matched_sb:
+                    if sb.subject_id:
+                        subject_match_values.add(str(sb.subject_id).strip().lower())
+                    if sb.subject_name:
+                        subject_match_values.add(str(sb.subject_name).strip().lower())
+            except Exception:
+                pass
             tests_list = [
                 t for t in tests_list
-                if (t.get("subject_id") or "").lower() == subject_filter
-                or (t.get("subject") or "").lower() == subject_filter
+                if (t.get("subject_id") or "").lower() in subject_match_values
+                or (t.get("subject") or "").lower() in subject_match_values
             ]
 
         if test_id_filter:
@@ -1569,7 +1674,13 @@ def get_test_ai_usage_api():
                 t for t in tests_list
                 if search_term in t["title"].lower() or search_term in t["subject"].lower()
             ]
-        tests_list.sort(key=lambda x: x["last_activity"] or "", reverse=True)
+        tests_list.sort(
+            key=lambda x: (
+                1 if (x.get("total_credits") or 0) > 0 else 0,
+                x.get("last_activity") or x.get("created_date") or "",
+            ),
+            reverse=True,
+        )
 
         session.close()
         return jsonify({

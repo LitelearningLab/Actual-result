@@ -397,19 +397,24 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     });
   }
 
+  private isPlaceholderSubject(name: string): boolean {
+    const norm = (name || '').trim().toLowerCase();
+    return !norm || norm === 'general' || norm === 'paper test' || norm === 'online test';
+  }
+
   private computeAvailableSubjectsForDraft(): FilterOptionItem[] {
     const deptId = (this.draftFilters.department_id || '').trim().toLowerCase();
     const teamId = (this.draftFilters.team_id || '').trim().toLowerCase();
 
     const mergedMap = new Map<string, FilterOptionItem>();
     for (const s of this.subjectsList) {
-      if (s.name) {
+      if (s.name && !this.isPlaceholderSubject(s.name)) {
         mergedMap.set(s.name.toLowerCase(), { id: s.id || s.name, name: s.name });
       }
     }
     for (const t of this.allTestsMeta) {
       const sName = (t.subject || '').trim();
-      if (sName && !mergedMap.has(sName.toLowerCase())) {
+      if (!this.isPlaceholderSubject(sName) && !mergedMap.has(sName.toLowerCase())) {
         mergedMap.set(sName.toLowerCase(), { id: t.subject_id || sName, name: sName });
       }
     }
@@ -419,6 +424,9 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     }
 
     const matchingTests = this.allTestsMeta.filter((t) => {
+      if (t.test_type !== this.testTypeFilter) {
+        return false;
+      }
       if (deptId && !(t.department_ids || []).some((d) => d.toLowerCase() === deptId)) {
         return false;
       }
@@ -432,11 +440,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     for (const t of matchingTests) {
       const sName = (t.subject || '').trim();
       const sId = (t.subject_id || '').trim();
-      if (!sName && !sId) continue;
-      const key = (sName || sId).toLowerCase();
+      if (this.isPlaceholderSubject(sName)) continue;
+      const key = sName.toLowerCase();
       if (!relevantSubjs.has(key)) {
         const master = mergedMap.get(key);
-        relevantSubjs.set(key, master || { id: sId || sName, name: sName || sId });
+        relevantSubjs.set(key, master || { id: sId || sName, name: sName });
       }
     }
 

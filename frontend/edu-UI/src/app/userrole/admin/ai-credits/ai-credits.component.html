@@ -473,7 +473,7 @@
             <tr class="test-row-item" [class.expanded-highlight]="test.expanded" (click)="toggleTestExpand(test)">
               <td class="test-title-cell">
                 <strong>{{ test.title }}</strong>
-                <span class="sub-label-text">{{ test.subject }}</span>
+                <span class="sub-label-text" *ngIf="test.subject">{{ test.subject }}</span>
               </td>
               <td>
                 <span class="test-badge" [class.badge-paper]="test.test_type === 'paper'" [class.badge-online]="test.test_type === 'online'">
@@ -488,9 +488,10 @@
                 <span class="tok-out">Out: {{ test.completion_tokens | number }}</span>
               </td>
               <td>{{ test.operations_count }} operations</td>
-              <td class="small-muted">{{ test.last_activity || 'N/A' }}</td>
+              <td class="small-muted">{{ test.last_activity || '—' }}</td>
               <td class="text-center">
                 <button
+                  *ngIf="test.operations_count > 0; else noBreakdownLbl"
                   mat-stroked-button
                   class="breakdown-toggle-btn"
                   (click)="$event.stopPropagation(); toggleTestExpand(test)"
@@ -498,11 +499,14 @@
                   {{ test.expanded ? 'Hide Breakdown' : 'View Breakdown' }}
                   <mat-icon>{{ test.expanded ? 'expand_less' : 'expand_more' }}</mat-icon>
                 </button>
+                <ng-template #noBreakdownLbl>
+                  <span class="small-muted">No AI usage yet</span>
+                </ng-template>
               </td>
             </tr>
 
             <!-- Expanded Details Sub-Row -->
-            <tr *ngIf="test.expanded" class="expandable-detail-row">
+            <tr *ngIf="test.expanded && test.operations_count > 0" class="expandable-detail-row">
               <td colspan="7">
                 <div class="expanded-detail-box">
                   <div class="detail-box-header">
@@ -562,8 +566,9 @@
       </div>
 
       <div class="filter-block filter-grid">
-        <!-- 1. Class / Department -->
-        <div class="filter-col-full">
+        <!-- Row 1 (2 Columns): Class / Department & Section / Year / Team -->
+        <div class="filter-col-full filter-row-two-col">
+          <!-- 1. Class / Department -->
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>{{ terminology.deptLabel }}</mat-label>
             <mat-select
@@ -593,10 +598,8 @@
               </mat-option>
             </mat-select>
           </mat-form-field>
-        </div>
 
-        <!-- 2. Section / Year / Team -->
-        <div class="filter-col-full">
+          <!-- 2. Section / Year / Team -->
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>{{ terminology.teamLabel }}</mat-label>
             <mat-select
@@ -629,8 +632,12 @@
           </mat-form-field>
         </div>
 
-        <!-- 2b. Campus -->
-        <div class="filter-col-full">
+        <!-- Row 2: Campus & Subject (2 cols on Paper) OR Campus (Full width on Online) -->
+        <div
+          class="filter-col-full"
+          [class.filter-row-two-col]="testTypeFilter === 'paper'"
+        >
+          <!-- 3. Campus -->
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>Campus</mat-label>
             <mat-select
@@ -660,11 +667,9 @@
               </mat-option>
             </mat-select>
           </mat-form-field>
-        </div>
 
-        <!-- 3. Subject (Paper Tests only) -->
-        <div class="filter-col-full" *ngIf="testTypeFilter === 'paper'">
-          <mat-form-field appearance="outline" class="filter-item">
+          <!-- 4. Subject (Paper Tests only) -->
+          <mat-form-field appearance="outline" class="filter-item" *ngIf="testTypeFilter === 'paper'">
             <mat-label>Subject</mat-label>
             <mat-select
               [(ngModel)]="draftFilters.subject"
@@ -695,7 +700,7 @@
           </mat-form-field>
         </div>
 
-        <!-- 4. Test (Optional) — Paper Test names on Paper tab, Online Test names on Online tab -->
+        <!-- Row 3 (Full Width): Test (Optional) Dropdown -->
         <div class="filter-col-full">
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>{{ testTypeFilter === 'paper' ? 'Paper Test (Optional)' : 'Online Test (Optional)' }}</mat-label>
@@ -727,13 +732,12 @@
           </mat-form-field>
         </div>
 
-        <!-- 5. Created Date (Single field opening DateRangePickerDialogComponent) -->
+        <!-- Row 4 (Full Width): Created Date -->
         <div class="filter-col-full">
           <mat-form-field
             appearance="outline"
             class="filter-item date-range-field"
             (click)="openDateRangePicker()"
-            style="cursor: pointer"
           >
             <mat-label>Created Date</mat-label>
             <input
@@ -741,24 +745,13 @@
               readonly
               [value]="getCreatedDateRangeDisplay()"
               placeholder="Select date range"
-              style="cursor: pointer"
             />
-            <button
-              *ngIf="draftFilters.start_date || draftFilters.end_date"
-              mat-icon-button
-              matSuffix
-              type="button"
-              (click)="clearDraftDates($event)"
-              aria-label="Clear date range"
-            >
-              <mat-icon>close</mat-icon>
-            </button>
-            <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
+            <mat-icon matSuffix class="date-cal-icon">calendar_today</mat-icon>
           </mat-form-field>
         </div>
       </div>
 
-      <!-- 6. Created by Me Checkbox -->
+      <!-- Created by me Checkbox -->
       <div class="filter-checks">
         <div class="checkbox-item">
           <mat-checkbox
@@ -766,7 +759,7 @@
             (change)="onDraftCreatedByMeChange()"
             color="primary"
           >
-            Created by Me
+            Created by me
           </mat-checkbox>
         </div>
       </div>
