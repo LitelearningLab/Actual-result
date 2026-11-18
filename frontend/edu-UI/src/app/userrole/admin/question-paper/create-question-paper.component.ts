@@ -2599,7 +2599,37 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     return `${this.getOptionLabel(index)} ${text}`;
   }
 
-  getCorrectAnswerText(q: PaperQuestion): string {
+  getCorrectAnswerText(q: PaperQuestion, secIdx?: number): string {
+    const qType = String(q?.type || (q as any)?.question_type || '').toLowerCase();
+    const isTextBased =
+      this.isDescriptiveQuestion(q, secIdx) ||
+      ['fill', 'paragraph', 'essay', 'long_answer', 'description'].includes(qType);
+
+    // For descriptive / text-based questions, return plain answer text without (a)/(b) prefix
+    if (isTextBased) {
+      if (q.answer && typeof q.answer === 'string' && q.answer.trim()) {
+        return q.answer.trim();
+      }
+      if (q.options && q.options.length) {
+        const correctOpt =
+          q.options.find(
+            (o: any) =>
+              o.is_correct === 1 ||
+              o.is_correct === true ||
+              o.is_correct === '1' ||
+              o.is_correct === 'true' ||
+              o.isCorrect === true ||
+              o.isCorrect === 1
+          ) || q.options[0];
+        const text =
+          typeof correctOpt === 'string'
+            ? correctOpt
+            : correctOpt?.text || correctOpt?.option_text || correctOpt?.label || correctOpt?.value || '';
+        return (text || '').trim();
+      }
+      return '';
+    }
+
     // 1. If options array has a marked correct option
     if (q.options && q.options.length) {
       const correctOptIdx = q.options.findIndex(
@@ -2738,7 +2768,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         }
       }
     } else {
-      const ansText = this.getCorrectAnswerText(q) || 'Answer not set yet';
+      const ansText = this.getCorrectAnswerText(q, this.sections?.indexOf(sec)) || 'Answer not set yet';
       const ansLines = Math.max(1, Math.ceil(ansText.length / 100));
       optionsOrAnsHeight = ansLines * 17 + 4;
     }
@@ -3084,7 +3114,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
                 optionsOrAnswerHtml = `<div class="paper-q-options-grid">${optionsItems}</div>`;
               }
             } else {
-              const ansText = this.getCorrectAnswerText(q);
+              const ansText = this.getCorrectAnswerText(q, item.sectionIndex);
               const ansDisplay = ansText
                 ? `<span class="ans-value">${this.mathService.render(ansText)}</span>`
                 : `<em class="no-answer">Answer not set yet</em>`;

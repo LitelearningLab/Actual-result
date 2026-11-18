@@ -1005,8 +1005,8 @@
                                     </div>
                                     <div class="paper-q-answer">
                                         <span class="ans-badge">Ans:</span>
-                                        <span class="ans-value" *ngIf="getCorrectAnswerText(item.question)"><app-math-render [text]="getCorrectAnswerText(item.question)"></app-math-render></span>
-                                        <em class="no-answer" *ngIf="!getCorrectAnswerText(item.question)">Answer not set yet</em>
+                                        <span class="ans-value" *ngIf="getCorrectAnswerText(item.question, item.sectionIndex)"><app-math-render [text]="getCorrectAnswerText(item.question, item.sectionIndex)"></app-math-render></span>
+                                        <em class="no-answer" *ngIf="!getCorrectAnswerText(item.question, item.sectionIndex)">Answer not set yet</em>
                                     </div>
                                 </div>
                             </ng-container>

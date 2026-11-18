@@ -1584,11 +1584,26 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
 
           qList.forEach((q: any) => {
             const marks = q.marks ? `[${q.marks}]` : '[1]';
+            const qType = String(q.question_type || q.type || s.question_type || '').toLowerCase();
+            const isDescriptive =
+              qType.includes('descriptive') ||
+              qType.includes('subjective') ||
+              ['fill', 'paragraph', 'essay', 'long_answer', 'description'].includes(qType);
+
             let correctAns = q.answer || '';
             if (!correctAns && q.options && q.options.length) {
               const correctOptIdx = q.options.findIndex((o: any) => o.is_correct || o.isCorrect || o.is_correct === 1);
               if (correctOptIdx >= 0) {
-                correctAns = formatOpt(q.options[correctOptIdx], correctOptIdx);
+                const opt = q.options[correctOptIdx];
+                if (isDescriptive) {
+                  correctAns = (
+                    typeof opt === 'string'
+                      ? opt
+                      : opt?.text || opt?.option_text || opt?.label || opt?.value || ''
+                  ).trim();
+                } else {
+                  correctAns = formatOpt(opt, correctOptIdx);
+                }
               }
             }
             if (!correctAns) correctAns = 'Refer to model answer rubric';
