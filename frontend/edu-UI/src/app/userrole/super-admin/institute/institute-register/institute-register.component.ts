@@ -1783,21 +1783,7 @@ export class InstituteRegisterComponent {
   }
 
   getActiveConsumedCredits(): number {
-    const currentAvailable = this.getAvailableBalance();
-    const sourceList = this.allTransactionsList.length ? this.allTransactionsList : this.transactionsList;
-
-    if (sourceList && sourceList.length > 0) {
-      // Find the most recent transaction (which established the latest usable balance upon top-up/setup)
-      const latestTx = sourceList[0];
-      const baselineBalance = Number(latestTx.new_balance || 0);
-      if (baselineBalance > 0) {
-        // Consumption resets to 0 upon adding new tokens, and counts up from 0 as tokens are consumed
-        return Math.max(0, baselineBalance - currentAvailable);
-      }
-    }
-
-    const allocated = Number(this.form.get('allocated_credits')?.value || 0);
-    return Math.max(0, allocated - currentAvailable);
+    return Math.max(0, Number(this.usedCredits || 0));
   }
 
   getAvailableBalance(): number {
