@@ -426,9 +426,14 @@
     <!-- Applied Filters Bar -->
     <div class="applied-filters-bar" *ngIf="appliedFilterChips.length > 0">
       <span class="applied-filters-label">APPLIED FILTERS</span>
-      <span class="applied-filter-chip" *ngFor="let chip of appliedFilterChips">
+      <span
+        class="applied-filter-chip"
+        [class.required-chip]="chip.required"
+        *ngFor="let chip of appliedFilterChips"
+      >
         <span>{{ chip.label }}</span>
         <button
+          *ngIf="!chip.required"
           type="button"
           class="chip-remove-btn"
           (click)="removeAppliedFilter(chip.key)"
@@ -449,7 +454,8 @@
       </div>
       <h4>No Filters Applied</h4>
       <p>
-        Use the <strong>Filter</strong> button above and click <strong>Apply</strong> to view
+        Use the <strong>Filter</strong> button above, select
+        <strong>{{ getMandatoryFilterSummaryText() }}</strong>, and click <strong>Apply</strong> to view
         {{ testTypeFilter === 'paper' ? 'Paper Test' : 'Online Test' }} AI usage details.
       </p>
     </div>
@@ -566,70 +572,84 @@
       </div>
 
       <div class="filter-block filter-grid">
-        <!-- Row 1 (2 Columns): Class / Department & Section / Year / Team -->
+        <!-- Row 1 (2 Columns): Class / Department & Section / Year / Team (Both Mandatory) -->
         <div class="filter-col-full filter-row-two-col">
-          <!-- 1. Class / Department -->
-          <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>{{ terminology.deptLabel }}</mat-label>
-            <mat-select
-              [(ngModel)]="draftFilters.department_id"
-              [placeholder]="terminology.selectDeptPlaceholder"
-              (selectionChange)="onDraftDepartmentChange()"
+          <!-- 1. Class / Department (Mandatory) -->
+          <div class="filter-field-wrap">
+            <mat-form-field
+              appearance="outline"
+              class="filter-item"
+              [class.filter-field-invalid]="isDraftDeptInvalid()"
             >
-              <div class="select-search-option" (click)="$event.stopPropagation()">
-                <input
-                  type="text"
-                  class="select-search-input"
-                  [placeholder]="terminology.searchDeptPlaceholder + '...'"
-                  [(ngModel)]="deptFilterSearch"
-                  [ngModelOptions]="{ standalone: true }"
-                  (click)="$event.stopPropagation()"
-                  (keydown)="stopFilterSearchEvent($event)"
-                  (keyup)="stopFilterSearchEvent($event)"
-                  (input)="onDropdownSearchInput($event)"
-                />
-              </div>
-              <mat-option value="">{{ terminology.allDepts }}</mat-option>
-              <mat-option *ngIf="filteredDepartmentsForDraft.length === 0" disabled>
-                {{ terminology.noDeptsFound }}
-              </mat-option>
-              <mat-option *ngFor="let dept of filteredDepartmentsForDraft; trackBy: trackById" [value]="dept.id">
-                {{ dept.name }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+              <mat-label>{{ terminology.deptLabel }} <span class="required-star">*</span></mat-label>
+              <mat-select
+                [(ngModel)]="draftFilters.department_id"
+                [placeholder]="terminology.selectDeptPlaceholder"
+                (selectionChange)="onDraftDepartmentChange()"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="select-search-input"
+                    [placeholder]="terminology.searchDeptPlaceholder + '...'"
+                    [(ngModel)]="deptFilterSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="onDropdownSearchInput($event)"
+                  />
+                </div>
+                <mat-option *ngIf="filteredDepartmentsForDraft.length === 0" disabled>
+                  {{ terminology.noDeptsFound }}
+                </mat-option>
+                <mat-option *ngFor="let dept of filteredDepartmentsForDraft; trackBy: trackById" [value]="dept.id">
+                  {{ dept.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            <span class="field-error-text" *ngIf="isDraftDeptInvalid()">{{ terminology.deptRequired }}</span>
+          </div>
 
-          <!-- 2. Section / Year / Team -->
-          <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>{{ terminology.teamLabel }}</mat-label>
-            <mat-select
-              [(ngModel)]="draftFilters.team_id"
-              [disabled]="!draftFilters.department_id"
-              [placeholder]="draftFilters.department_id ? terminology.selectTeamPlaceholder : terminology.selectDeptFirst"
-              (selectionChange)="onDraftTeamChange()"
+          <!-- 2. Section / Year / Team (Mandatory) -->
+          <div class="filter-field-wrap">
+            <mat-form-field
+              appearance="outline"
+              class="filter-item"
+              [class.filter-field-invalid]="isDraftTeamInvalid()"
             >
-              <div class="select-search-option" (click)="$event.stopPropagation()">
-                <input
-                  type="text"
-                  class="select-search-input"
-                  [placeholder]="terminology.searchTeamPlaceholder + '...'"
-                  [(ngModel)]="teamFilterSearch"
-                  [ngModelOptions]="{ standalone: true }"
-                  (click)="$event.stopPropagation()"
-                  (keydown)="stopFilterSearchEvent($event)"
-                  (keyup)="stopFilterSearchEvent($event)"
-                  (input)="onDropdownSearchInput($event)"
-                />
-              </div>
-              <mat-option value="">{{ terminology.allTeams }}</mat-option>
-              <mat-option *ngIf="filteredTeamsForDraft.length === 0" disabled>
-                {{ terminology.noTeamsForDept }}
-              </mat-option>
-              <mat-option *ngFor="let team of filteredTeamsForDraft; trackBy: trackById" [value]="team.id">
-                {{ team.name }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+              <mat-label>{{ terminology.teamLabel }} <span class="required-star">*</span></mat-label>
+              <mat-select
+                [(ngModel)]="draftFilters.team_id"
+                [disabled]="!draftFilters.department_id"
+                [placeholder]="draftFilters.department_id ? terminology.selectTeamPlaceholder : terminology.selectDeptFirst"
+                (selectionChange)="onDraftTeamChange()"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="select-search-input"
+                    [placeholder]="terminology.searchTeamPlaceholder + '...'"
+                    [(ngModel)]="teamFilterSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="onDropdownSearchInput($event)"
+                  />
+                </div>
+                <mat-option *ngIf="filteredTeamsForDraft.length === 0" disabled>
+                  {{ terminology.noTeamsForDept }}
+                </mat-option>
+                <mat-option *ngFor="let team of filteredTeamsForDraft; trackBy: trackById" [value]="team.id">
+                  {{ team.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            <span class="field-error-text" *ngIf="isDraftTeamInvalid()">
+              {{ draftFilters.department_id ? terminology.teamRequired : terminology.selectDeptFirst }}
+            </span>
+          </div>
         </div>
 
         <!-- Row 2: Campus & Subject (2 cols on Paper) OR Campus (Full width on Online) -->
@@ -637,67 +657,75 @@
           class="filter-col-full"
           [class.filter-row-two-col]="testTypeFilter === 'paper'"
         >
-          <!-- 3. Campus -->
-          <mat-form-field appearance="outline" class="filter-item">
-            <mat-label>Campus</mat-label>
-            <mat-select
-              [(ngModel)]="draftFilters.campus_id"
-              placeholder="Select campus"
-              (selectionChange)="onDraftCampusChange()"
-            >
-              <div class="select-search-option" (click)="$event.stopPropagation()">
-                <input
-                  type="text"
-                  class="select-search-input"
-                  placeholder="Search campus..."
-                  [(ngModel)]="campusFilterSearch"
-                  [ngModelOptions]="{ standalone: true }"
-                  (click)="$event.stopPropagation()"
-                  (keydown)="stopFilterSearchEvent($event)"
-                  (keyup)="stopFilterSearchEvent($event)"
-                  (input)="onDropdownSearchInput($event)"
-                />
-              </div>
-              <mat-option value="">Any</mat-option>
-              <mat-option *ngIf="filteredCampusesForDraft.length === 0" disabled>
-                No campuses found
-              </mat-option>
-              <mat-option *ngFor="let cp of filteredCampusesForDraft; trackBy: trackById" [value]="cp.id">
-                {{ cp.name }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+          <!-- 3. Campus (Optional) -->
+          <div class="filter-field-wrap">
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>Campus</mat-label>
+              <mat-select
+                [(ngModel)]="draftFilters.campus_id"
+                placeholder="Select campus"
+                (selectionChange)="onDraftCampusChange()"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="select-search-input"
+                    placeholder="Search campus..."
+                    [(ngModel)]="campusFilterSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="onDropdownSearchInput($event)"
+                  />
+                </div>
+                <mat-option value="">Any</mat-option>
+                <mat-option *ngIf="filteredCampusesForDraft.length === 0" disabled>
+                  No campuses found
+                </mat-option>
+                <mat-option *ngFor="let cp of filteredCampusesForDraft; trackBy: trackById" [value]="cp.id">
+                  {{ cp.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
 
-          <!-- 4. Subject (Paper Tests only) -->
-          <mat-form-field appearance="outline" class="filter-item" *ngIf="testTypeFilter === 'paper'">
-            <mat-label>Subject</mat-label>
-            <mat-select
-              [(ngModel)]="draftFilters.subject"
-              placeholder="Select subject"
-              (selectionChange)="onDraftSubjectChange()"
+          <!-- 4. Subject (Paper Tests only - Mandatory) -->
+          <div class="filter-field-wrap" *ngIf="testTypeFilter === 'paper'">
+            <mat-form-field
+              appearance="outline"
+              class="filter-item"
+              [class.filter-field-invalid]="isDraftSubjectInvalid()"
             >
-              <div class="select-search-option" (click)="$event.stopPropagation()">
-                <input
-                  type="text"
-                  class="select-search-input"
-                  placeholder="Search subject..."
-                  [(ngModel)]="subjectFilterSearch"
-                  [ngModelOptions]="{ standalone: true }"
-                  (click)="$event.stopPropagation()"
-                  (keydown)="stopFilterSearchEvent($event)"
-                  (keyup)="stopFilterSearchEvent($event)"
-                  (input)="onDropdownSearchInput($event)"
-                />
-              </div>
-              <mat-option value="">All Subjects</mat-option>
-              <mat-option *ngIf="filteredSubjectsForDraft.length === 0" disabled>
-                No subjects found
-              </mat-option>
-              <mat-option *ngFor="let subj of filteredSubjectsForDraft; trackBy: trackById" [value]="subj.id">
-                {{ subj.name }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
+              <mat-label>Subject <span class="required-star">*</span></mat-label>
+              <mat-select
+                [(ngModel)]="draftFilters.subject"
+                placeholder="Select subject"
+                (selectionChange)="onDraftSubjectChange()"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="select-search-input"
+                    placeholder="Search subject..."
+                    [(ngModel)]="subjectFilterSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="onDropdownSearchInput($event)"
+                  />
+                </div>
+                <mat-option *ngIf="filteredSubjectsForDraft.length === 0" disabled>
+                  No subjects found
+                </mat-option>
+                <mat-option *ngFor="let subj of filteredSubjectsForDraft; trackBy: trackById" [value]="subj.id">
+                  {{ subj.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+            <span class="field-error-text" *ngIf="isDraftSubjectInvalid()">Subject is required</span>
+          </div>
         </div>
 
         <!-- Row 3 (Full Width): Test (Optional) Dropdown -->
@@ -762,6 +790,12 @@
             Created by me
           </mat-checkbox>
         </div>
+      </div>
+
+      <!-- Validation Alert Banner -->
+      <div class="filter-validation-banner" *ngIf="filterValidationError" role="alert">
+        <mat-icon>error_outline</mat-icon>
+        <span>{{ filterValidationError }}</span>
       </div>
 
       <!-- Footer Actions -->

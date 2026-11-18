@@ -245,6 +245,7 @@ export interface TestFilterState {
 export interface AppliedFilterChip {
   key: 'department' | 'team' | 'campus' | 'subject' | 'test' | 'created_by_me' | 'date_range';
   label: string;
+  required?: boolean;
 }
 
 @Component({
@@ -350,6 +351,8 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   hasAppliedFilters = false;
   appliedFilters: TestFilterState = this.createEmptyFilters();
   draftFilters: TestFilterState = this.createEmptyFilters();
+  filterValidationAttempted = false;
+  filterValidationError = '';
 
   // Filter master options
   departmentsList: FilterOptionItem[] = [];
@@ -468,8 +471,12 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       }
     }
 
+    const allSortedSubjects = Array.from(mergedMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
     if (!deptId && !teamId) {
-      return Array.from(mergedMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      return allSortedSubjects;
     }
 
     const matchingTests = this.allTestsMeta.filter((t) => {
@@ -495,6 +502,10 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         const master = mergedMap.get(key);
         relevantSubjs.set(key, master || { id: sId || sName, name: sName });
       }
+    }
+
+    if (relevantSubjs.size === 0) {
+      return allSortedSubjects;
     }
 
     return Array.from(relevantSubjs.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -589,6 +600,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       chips.push({
         key: 'department',
         label: `${this.terminology.deptLabel}: ${d?.name || this.appliedFilters.department_id}`,
+        required: true,
       });
     }
     if (this.appliedFilters.team_id) {
@@ -597,6 +609,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       chips.push({
         key: 'team',
         label: `${this.terminology.teamLabel}: ${t?.name || this.appliedFilters.team_id}`,
+        required: true,
       });
     }
     if (this.appliedFilters.campus_id) {
@@ -605,6 +618,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       chips.push({
         key: 'campus',
         label: `Campus: ${cp?.name || this.appliedFilters.campus_id}`,
+        required: false,
       });
     }
     if (this.appliedFilters.subject) {
@@ -615,6 +629,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       chips.push({
         key: 'subject',
         label: `Subject: ${s?.name || this.appliedFilters.subject}`,
+        required: this.testTypeFilter === 'paper',
       });
     }
     if (this.appliedFilters.test_id) {
@@ -628,6 +643,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       chips.push({
         key: 'test',
         label: `Test: ${tst?.title || this.appliedFilters.test_id}`,
+        required: false,
       });
     }
     if (this.appliedFilters.created_by_me) {
@@ -635,6 +651,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       chips.push({
         key: 'created_by_me',
         label: 'Created by Me',
+        required: false,
       });
     }
     if (this.appliedFilters.start_date || this.appliedFilters.end_date) {
@@ -642,6 +659,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       chips.push({
         key: 'date_range',
         label: `Created Date: ${this.getCreatedDateRangeDisplay(this.appliedFilters)}`,
+        required: false,
       });
     }
 
@@ -737,6 +755,8 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.hasAppliedFilters = false;
     this.appliedFilters = this.createEmptyFilters();
     this.draftFilters = this.createEmptyFilters();
+    this.filterValidationAttempted = false;
+    this.filterValidationError = '';
     this.lastLoadedMasterInstKey = null;
     this.refreshTerminology();
     this.refreshDraftOptions();
@@ -748,6 +768,8 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.hasAppliedFilters = false;
     this.appliedFilters = this.createEmptyFilters();
     this.draftFilters = this.createEmptyFilters();
+    this.filterValidationAttempted = false;
+    this.filterValidationError = '';
     this.lastLoadedMasterInstKey = null;
     this.refreshTerminology();
     this.refreshDraftOptions();
@@ -761,10 +783,66 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.hasAppliedFilters = false;
     this.appliedFilters = this.createEmptyFilters();
     this.draftFilters = this.createEmptyFilters();
+    this.filterValidationAttempted = false;
+    this.filterValidationError = '';
     this.testSearchTerm = '';
     this.refreshDraftOptions();
     this.refreshAppliedFilterChips();
     this.loadTestUsageData();
+  }
+
+  getMandatoryFilterSummaryText(): string {
+    return this.testTypeFilter === 'paper'
+      ? `${this.terminology.deptLabel}, ${this.terminology.teamLabel}, and Subject`
+      : `${this.terminology.deptLabel} and ${this.terminology.teamLabel}`;
+  }
+
+  private getMissingMandatoryFilterLabels(): string[] {
+    const missing: string[] = [];
+    if (!(this.draftFilters.department_id || '').trim()) {
+      missing.push(this.terminology.deptLabel);
+    }
+    if (!(this.draftFilters.team_id || '').trim()) {
+      missing.push(this.terminology.teamLabel);
+    }
+    if (this.testTypeFilter === 'paper' && !(this.draftFilters.subject || '').trim()) {
+      missing.push('Subject');
+    }
+    return missing;
+  }
+
+  private updateFilterValidationError(): boolean {
+    const missing = this.getMissingMandatoryFilterLabels();
+    if (missing.length === 0) {
+      this.filterValidationError = '';
+      return true;
+    }
+    if (missing.length === 1) {
+      this.filterValidationError = `Please select ${missing[0]} before applying filters.`;
+    } else if (missing.length === 2) {
+      this.filterValidationError = `Please select ${missing[0]} and ${missing[1]} before applying filters.`;
+    } else {
+      const last = missing[missing.length - 1];
+      const rest = missing.slice(0, -1).join(', ');
+      this.filterValidationError = `Please select ${rest}, and ${last} before applying filters.`;
+    }
+    return false;
+  }
+
+  isDraftDeptInvalid(): boolean {
+    return this.filterValidationAttempted && !(this.draftFilters.department_id || '').trim();
+  }
+
+  isDraftTeamInvalid(): boolean {
+    return this.filterValidationAttempted && !(this.draftFilters.team_id || '').trim();
+  }
+
+  isDraftSubjectInvalid(): boolean {
+    return (
+      this.filterValidationAttempted &&
+      this.testTypeFilter === 'paper' &&
+      !(this.draftFilters.subject || '').trim()
+    );
   }
 
   // ─── Anchored Filter Popover (CDK Overlay) Methods ───
@@ -776,6 +854,8 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     }
 
     this.draftFilters = this.cloneFilters(this.appliedFilters);
+    this.filterValidationAttempted = false;
+    this.filterValidationError = '';
     this.deptFilterSearch = '';
     this.teamFilterSearch = '';
     this.campusFilterSearch = '';
@@ -827,12 +907,18 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.draftFilters.subject = '';
     this.draftFilters.test_id = '';
     this.refreshDraftOptions();
+    if (this.filterValidationAttempted) {
+      this.updateFilterValidationError();
+    }
   }
 
   onDraftTeamChange(): void {
     this.draftFilters.subject = '';
     this.draftFilters.test_id = '';
     this.refreshDraftOptions();
+    if (this.filterValidationAttempted) {
+      this.updateFilterValidationError();
+    }
   }
 
   onDraftCampusChange(): void {
@@ -843,6 +929,9 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   onDraftSubjectChange(): void {
     this.draftFilters.test_id = '';
     this.refreshDraftOptions();
+    if (this.filterValidationAttempted) {
+      this.updateFilterValidationError();
+    }
   }
 
   onDraftCreatedByMeChange(): void {
@@ -893,6 +982,12 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   applyFilters(): void {
+    this.filterValidationAttempted = true;
+    if (!this.updateFilterValidationError()) {
+      return;
+    }
+    this.filterValidationAttempted = false;
+    this.filterValidationError = '';
     this.appliedFilters = this.cloneFilters(this.draftFilters);
     this.hasAppliedFilters = true;
     this.refreshAppliedFilterChips();
@@ -905,6 +1000,8 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.draftFilters = this.createEmptyFilters();
     this.appliedFilters = this.createEmptyFilters();
     this.hasAppliedFilters = false;
+    this.filterValidationAttempted = false;
+    this.filterValidationError = '';
     this.deptFilterSearch = '';
     this.teamFilterSearch = '';
     this.campusFilterSearch = '';
@@ -918,18 +1015,14 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   removeAppliedFilter(key: AppliedFilterChip['key']): void {
+    if (
+      key === 'department' ||
+      key === 'team' ||
+      (key === 'subject' && this.testTypeFilter === 'paper')
+    ) {
+      return;
+    }
     switch (key) {
-      case 'department':
-        this.appliedFilters.department_id = '';
-        this.appliedFilters.team_id = '';
-        this.appliedFilters.subject = '';
-        this.appliedFilters.test_id = '';
-        break;
-      case 'team':
-        this.appliedFilters.team_id = '';
-        this.appliedFilters.subject = '';
-        this.appliedFilters.test_id = '';
-        break;
       case 'campus':
         this.appliedFilters.campus_id = '';
         this.appliedFilters.test_id = '';

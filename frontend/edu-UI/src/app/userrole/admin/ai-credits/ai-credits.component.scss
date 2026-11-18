@@ -1708,6 +1708,12 @@
     font-weight: 600;
     color: #3730a3;
 
+    &.required-chip {
+      background: #e0e7ff;
+      border-color: #a5b4fc;
+      color: #312e81;
+    }
+
     .chip-remove-btn {
       display: inline-flex;
       align-items: center;
@@ -1831,6 +1837,64 @@
 
   .filter-checks {
     padding: 0.5rem 1.25rem 0.85rem;
+  }
+
+  .filter-field-wrap {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .required-star {
+    color: #dc2626;
+    font-weight: 700;
+    margin-left: 2px;
+  }
+
+  .field-error-text {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #dc2626;
+    margin-top: 4px;
+    padding-left: 4px;
+    line-height: 1.25;
+  }
+
+  .filter-validation-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 1.25rem 0.85rem;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.35;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      color: #dc2626;
+    }
+  }
+}
+
+::ng-deep .ai-credits-filters-panel .filter-field-invalid {
+  .mdc-notched-outline__leading,
+  .mdc-notched-outline__notch,
+  .mdc-notched-outline__trailing {
+    border-color: #dc2626 !important;
+    border-width: 1.5px !important;
+  }
+
+  .mat-mdc-floating-label {
+    color: #dc2626 !important;
   }
 }
 
