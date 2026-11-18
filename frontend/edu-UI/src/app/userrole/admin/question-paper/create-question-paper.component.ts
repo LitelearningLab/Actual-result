@@ -64,6 +64,7 @@ export interface PaperSection {
   order_number: number;
   questions: PaperQuestion[];
   targetCount?: number | null;
+  marksPerQ?: number | null;
 }
 
 export interface PaperPageItem {
@@ -2553,6 +2554,33 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     }
   }
 
+  getSectionMetaMarksFormula(sec: PaperSection): string {
+    if (!sec) return '';
+    const questions = sec.questions || [];
+
+    if (questions.length === 0) {
+      const marksPerQ = this.getSectionMarksPerQ(sec) || 1;
+      return `0 × ${marksPerQ} = 0 marks`;
+    }
+
+    const countsByMark = new Map<number, number>();
+    let totalMarks = 0;
+
+    for (const q of questions) {
+      const m = Number(q.marks) || 0;
+      totalMarks += m;
+      countsByMark.set(m, (countsByMark.get(m) || 0) + 1);
+    }
+
+    const cleanTotal = Number(totalMarks.toFixed(2));
+    const formula = Array.from(countsByMark.entries())
+      .map(([mark, qty]) => `${qty} × ${mark}`)
+      .join(' + ');
+    const unit = cleanTotal === 1 ? 'mark' : 'marks';
+
+    return `${formula} = ${cleanTotal} ${unit}`;
+  }
+
   getOptionLabel(index: number): string {
     const letters = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)', '(g)', '(h)'];
     return letters[index] || `(${String.fromCharCode(97 + index)})`;
@@ -3436,7 +3464,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       sec.sub_heading = subHeading;
       sec.instructions = subHeading;
       sec.question_type = this.newSectionType;
-      (sec as any).targetCount = this.newSectionTargetCount || null;
+      sec.targetCount = this.newSectionTargetCount || null;
+      sec.marksPerQ = this.newSectionMarksPerQ || null;
       this.markDirty();
       this.closeAddSectionModal();
       notify(`Updated ${name}`, 'success');
@@ -3446,7 +3475,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       notify(`A section named "${name}" already exists`, 'error');
       return;
     }
-    const newSec: PaperSection & { targetCount?: number | null } = {
+    const newSec: PaperSection = {
       name,
       sub_heading: subHeading,
       instructions: subHeading,
@@ -3454,6 +3483,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       order_number: this.sections.length + 1,
       questions: [],
       targetCount: this.newSectionTargetCount || null,
+      marksPerQ: this.newSectionMarksPerQ || null,
     };
     this.sections.push(newSec as PaperSection);
     this.syncModelCategoriesFromSections();
@@ -3759,7 +3789,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         id: q.id,
         question: q.question,
         type: q.type,
-        marks: q.marks,
+        marks: activeSec.marksPerQ ?? q.marks,
         category_id: q.category_id,
         category_name: q.category_name,
         options: q.options || q.raw?.options || [],

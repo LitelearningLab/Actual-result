@@ -665,8 +665,7 @@
                                         {{ getSectionSubHeading(sec) }}
                                     </div>
                                     <div class="sec-meta">
-                                        <span class="sec-meta-item">{{ sec.questions.length || 0 }} of {{ sec.targetCount || 10 }} questions</span>
-                                        <span class="sec-meta-item">{{ getSectionMarks(sec) }} of {{ (sec.targetCount || 10) * (getSectionMarksPerQ(sec) || 1) }} marks</span>
+                                        <span class="sec-meta-item">{{ getSectionMetaMarksFormula(sec) }}</span>
                                     </div>
                                 </div>
                                 <div class="sec-head-actions" *ngIf="!readOnly">
