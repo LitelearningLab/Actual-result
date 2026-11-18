@@ -1194,8 +1194,8 @@ def add_or_deduct_institute_credits(request):
 
     if not institute_id:
         return {"status": False, "statusMessage": "institute_id is required"}, 400
-    if action not in ("ADD", "DEDUCT"):
-        return {"status": False, "statusMessage": "action must be ADD or DEDUCT"}, 400
+    if action != "ADD":
+        return {"status": False, "statusMessage": "action must be ADD"}, 400
     try:
         credits_amt = int(credits_amt)
         if credits_amt <= 0:
@@ -1220,19 +1220,10 @@ def add_or_deduct_institute_credits(request):
         ).scalar() or 0)
         previous_available = max(0, current_allocated - used_credits)
 
-        if action == "DEDUCT":
-            if credits_amt > previous_available:
-                session.close()
-                return {"status": False, "statusMessage": f"Cannot deduct {credits_amt:,}. Maximum unused balance is {previous_available:,}."}, 400
-            new_allocated = current_allocated - credits_amt
-            new_available = previous_available - credits_amt
-            tx_type = "DEDUCTION"
-            signed_credits = -credits_amt
-        else:
-            new_allocated = current_allocated + credits_amt
-            new_available = previous_available + credits_amt
-            tx_type = "ADDITION"
-            signed_credits = credits_amt
+        new_allocated = current_allocated + credits_amt
+        new_available = previous_available + credits_amt
+        tx_type = "ADDITION"
+        signed_credits = credits_amt
 
         inst.allocated_credits = new_allocated
         inst.updated_date = datetime.utcnow()
@@ -1253,7 +1244,7 @@ def add_or_deduct_institute_credits(request):
 
         return {
             "status": True,
-            "statusMessage": f"Successfully {'added' if action == 'ADD' else 'deducted'} {credits_amt:,} credits.",
+            "statusMessage": f"Successfully added {credits_amt:,} credits.",
             "data": {
                 "allocated_credits": new_allocated,
                 "used_credits": used_credits,

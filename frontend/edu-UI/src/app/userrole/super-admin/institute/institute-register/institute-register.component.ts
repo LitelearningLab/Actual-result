@@ -128,7 +128,6 @@ export class InstituteRegisterComponent {
   txPageSizeOptions: number[] = [5, 10, 20, 50];
   isTxLoading: boolean = false;
   showAddModal: boolean = false;
-  showDeductModal: boolean = false;
   modalTxAmount: number | null = null;
   modalTxReason: string = '';
   isSubmittingTx: boolean = false;
@@ -1921,7 +1920,6 @@ export class InstituteRegisterComponent {
     switch (this.selectedTxType) {
       case 'INITIAL': return 'Initial Setup';
       case 'ADDITION': return 'Additions';
-      case 'DEDUCTION': return 'Deductions';
       default: return 'Transaction type';
     }
   }
@@ -2051,30 +2049,16 @@ export class InstituteRegisterComponent {
     this.modalTxAmount = 25000;
     this.modalTxReason = '';
     this.showAddModal = true;
-    this.showDeductModal = false;
-  }
-
-  openDeductCreditsDialog(): void {
-    const available = this.getAvailableBalance();
-    if (available <= 0) {
-      this._snack.open('Cannot deduct credits: available balance is 0.', 'Close', { duration: 3500 });
-      return;
-    }
-    this.modalTxAmount = Math.min(10000, available);
-    this.modalTxReason = '';
-    this.showDeductModal = true;
-    this.showAddModal = false;
   }
 
   closeModals(): void {
     this.showAddModal = false;
-    this.showDeductModal = false;
     this.modalTxAmount = null;
     this.modalTxReason = '';
     this.isSubmittingTx = false;
   }
 
-  submitCreditTx(action: 'ADD' | 'DEDUCT'): void {
+  submitCreditTx(action: 'ADD'): void {
     if (!this.editingInstituteId) {
       this._snack.open('Cannot resolve institute ID', 'Close', { duration: 3500 });
       return;
@@ -2082,11 +2066,6 @@ export class InstituteRegisterComponent {
     const amt = Number(this.modalTxAmount);
     if (!amt || isNaN(amt) || amt <= 0) {
       this._snack.open('Please enter a valid positive credit number.', 'Close', { duration: 3500 });
-      return;
-    }
-    const available = this.getAvailableBalance();
-    if (action === 'DEDUCT' && amt > available) {
-      this._snack.open(`Cannot deduct more than available balance (${available.toLocaleString()})`, 'Close', { duration: 3500 });
       return;
     }
     if (!this.modalTxReason || !this.modalTxReason.trim()) {

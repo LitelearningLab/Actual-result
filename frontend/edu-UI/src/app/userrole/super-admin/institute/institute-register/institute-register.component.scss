@@ -990,7 +990,6 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0,0,0,0.06);
     display: flex;
     gap: 12px;
     .btn-action-add { background: #4f46e5 !important; color: #ffffff !important; font-weight: 500; border-radius: 8px; }
-    .btn-action-deduct { color: #d97706 !important; border-color: #fcd34d !important; font-weight: 500; border-radius: 8px; }
   }
   .threshold-input { width: 220px; margin-bottom: -1.25em; }
 }
@@ -1354,7 +1353,6 @@ $shadow-md: 0 0.25rem 0.75rem rgba(0,0,0,0.06);
         font-size: 13px;
         color: #475569;
         strong { color: #4f46e5; }
-        &.deduct-projected strong { color: #d97706; }
       }
     }
 

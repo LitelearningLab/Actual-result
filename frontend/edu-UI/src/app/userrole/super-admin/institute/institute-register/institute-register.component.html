@@ -743,7 +743,7 @@
                 <mat-icon class="section-icon">toll</mat-icon>
                 <div>
                   <h3 class="section-heading">AI Credits & Token Allocation</h3>
-                  <p class="section-desc">Manage credit quota, perform additions/deductions, and review audit history.</p>
+                  <p class="section-desc">Manage credit quota, add credits, and review audit history.</p>
                 </div>
               </div>
 
@@ -793,10 +793,6 @@
                       <button type="button" mat-flat-button color="primary" class="btn-action-add" (click)="openAddCreditsDialog()">
                         <mat-icon>add_circle</mat-icon>
                         <span>Add Credits</span>
-                      </button>
-                      <button type="button" mat-stroked-button class="btn-action-deduct" [disabled]="getAvailableBalance() <= 0" (click)="openDeductCreditsDialog()">
-                        <mat-icon>remove_circle_outline</mat-icon>
-                        <span>Deduct Credits</span>
                       </button>
                     </div>
 
@@ -869,10 +865,6 @@
                             <mat-icon *ngIf="selectedTxType === 'ADDITION'" color="primary">check</mat-icon>
                             <span>Additions</span>
                           </button>
-                          <button mat-menu-item (click)="selectTxType('DEDUCTION')">
-                            <mat-icon *ngIf="selectedTxType === 'DEDUCTION'" color="primary">check</mat-icon>
-                            <span>Deductions</span>
-                          </button>
                         </mat-menu>
                       </div>
                     </div>
@@ -883,7 +875,7 @@
                           <tr>
                             <th>Date & Time</th>
                             <th>Transaction Type</th>
-                            <th>Credits Added / Deducted</th>
+                            <th>Credits Added</th>
                             <th>Previous Available Balance</th>
                             <th>New Available Balance</th>
                             <th>Reason / Description</th>
@@ -1029,45 +1021,6 @@
                   <button type="button" mat-button (click)="closeModals()">Cancel</button>
                   <button type="button" mat-flat-button color="primary" [disabled]="!modalTxAmount || modalTxAmount <= 0 || !modalTxReason.trim() || isSubmittingTx" (click)="submitCreditTx('ADD')">
                     <span *ngIf="!isSubmittingTx">Confirm & Add Credits</span>
-                    <span *ngIf="isSubmittingTx">Processing...</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- MODAL: DEDUCT CREDITS -->
-            <div class="credit-modal-overlay" *ngIf="showDeductModal">
-              <div class="credit-modal-card">
-                <div class="credit-modal-header">
-                  <h3>Deduct Unused Credits</h3>
-                  <button type="button" class="close-btn" (click)="closeModals()">✕</button>
-                </div>
-                <div class="credit-modal-body">
-                  <div class="modal-info-row">
-                    <span>Current Available Balance:</span>
-                    <strong>{{ remainingCredits | number }} credits</strong>
-                  </div>
-                  <mat-form-field appearance="outline" class="modal-field">
-                    <mat-label>Credits to Deduct</mat-label>
-                    <mat-icon matPrefix>remove_circle_outline</mat-icon>
-                    <input matInput type="number" min="1" [max]="remainingCredits" [(ngModel)]="modalTxAmount" [ngModelOptions]="{standalone: true}" placeholder="e.g. 10000" />
-                    <mat-hint>Cannot exceed available balance (Max: {{ remainingCredits | number }})</mat-hint>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline" class="modal-field" style="margin-top: 12px;">
-                    <mat-label>Reason for Deduction *</mat-label>
-                    <textarea matInput rows="3" [(ngModel)]="modalTxReason" [ngModelOptions]="{standalone: true}" placeholder="e.g. Allocation correction"></textarea>
-                  </mat-form-field>
-
-                  <div class="projected-balance-card deduct-projected">
-                    <span>Projected New Balance:</span>
-                    <strong>{{ Math.max(0, remainingCredits - (modalTxAmount || 0)) | number }} credits</strong>
-                  </div>
-                </div>
-                <div class="credit-modal-actions">
-                  <button type="button" mat-button (click)="closeModals()">Cancel</button>
-                  <button type="button" mat-flat-button color="warn" [disabled]="!modalTxAmount || modalTxAmount <= 0 || modalTxAmount > remainingCredits || !modalTxReason.trim() || isSubmittingTx" (click)="submitCreditTx('DEDUCT')">
-                    <span *ngIf="!isSubmittingTx">Confirm Deduction</span>
                     <span *ngIf="isSubmittingTx">Processing...</span>
                   </button>
                 </div>
