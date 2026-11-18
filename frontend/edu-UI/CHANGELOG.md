@@ -1,4 +1,31 @@
 # Changelog
+## [2.5.0] - 2026-11-18
+
+### Features & Enhancements
+- **AI Credits & Token Usage Management**:
+  - Added backend AI credits engine (`backend/others/ai_credits.py`), migration script (`backend/scripts/migrate_ai_credits.py`), and database schema updates (`Institute.allocated_credits`, `Institute.credit_alert_threshold`, `InstituteCreditTransaction`, and `openai_requests` usage/exam metadata fields in `backend/db/models.py`).
+  - Added Super Admin credit management APIs (`/institutes/update-credits`, `/institutes/credit-transaction`, `/institutes/credit-transactions`) and Admin AI credits APIs (`/ai-credits/summary`, `/ai-credits/feature-breakdown`, `/ai-credits/analytics`, `/ai-credits/institutes-overview`, `/ai-credits/test-usage`) in `backend/app.py`.
+  - Added AI access enforcement (`check_institute_ai_access`) across AI-powered endpoints (including answer sheet uploads and bulk evaluation) and per-feature token/credit logging across `backend/others/llm.py`, `backend/others/exam_review.py`, `backend/others/exams.py`, and `backend/others/questions.py`.
+  - Built the Admin **AI Credits** dashboard (`ai-credits.component.ts/.html/.scss`), route (`/admin/ai-credits` in `home-routing.module.ts`), sidebar menu entry (`side-nav.component.ts`), and global credit alert banner/service (`ai-credit-alert.component.ts`, `ai-credit-alert.service.ts`).
+- **Institute Registration & Management**:
+  - Redesigned `institute-register.component.ts/.html/.scss` and updated `view-institutes.component.ts/.html/.scss` with dynamic form/location management, AI credit allocation & transaction support, and configurable Q/A character limits.
+  - Extended `backend/others/institute.py` with institute credit updates, addition/deduction transactions, and credit history retrieval.
+- **Question Management & AI Character Limits**:
+  - Added separate question and answer character limits with automatic AI length validation and token tracking in `backend/others/questions.py`, `backend/others/institute.py`, and `questions.component.ts/.html`.
+- **Question Paper, Scheduling & Evaluation Enhancements**:
+  - Modularized and enhanced question paper creation and scheduling (`create-question-paper.component.ts/.html/.scss`, `question-paper.component.ts/.html`, `paper-review-access-dialog.component.ts`).
+  - Added paper schedule `duration_minutes` updates and creator metadata (`created_by`, `paper_created_by`) in `backend/others/paper_schedules.py`.
+  - Renamed navigation/permission label to `Create/Edit Paper Test` across `home-routing.module.ts`, `side-nav.component.ts`, `permission.guard.ts`, and `page-access.service.ts`.
+  - Enhanced test evaluation (`test-evaluation.component.ts/.html/.scss`, `backend/others/exams.py`) and exam reports (`exam-reports.component.ts/.html/.scss`, `backend/others/exam_reports.py`).
+
+### Bug Fixes & Refinements
+- **Math Rendering Detection (`math.service.ts`)**:
+  - Defaulted `isMathSubject` to `false` when no subject is provided and improved descriptive English sentence/question detection (filtering `?`, programming tokens like `C++`/`C#`, grades like `A+`, and common English words) so non-math text is not misrendered as LaTeX.
+- **Login Form Input Handling**:
+  - Cleaned up `readonly` input workarounds in `login.component.ts` and `login.component.html`.
+- **Version Tracking**: Updated application version to `2.5.0` across `version.ts`, `package.json`, and lockfiles.
+
+---
 ## [2.4.2] - 2026-11-12
 
 ### Features & Enhancements
