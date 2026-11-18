@@ -695,6 +695,27 @@
   gap: 14px;
   margin-bottom: 20px;
 
+  .card-title-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+
+    .section-icon {
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
+      color: #6366f1;
+      margin-top: 2px;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+  }
+
   .chart-title-row {
     display: flex;
     align-items: center;
@@ -851,6 +872,10 @@
     &.hovered {
       fill: rgba(99, 102, 241, 0.055);
     }
+
+    &.future-slot.hovered {
+      fill: rgba(148, 163, 184, 0.08);
+    }
   }
 
   .chart-bar-rect {
@@ -904,6 +929,11 @@
     &.current-label {
       fill: #1e293b;
       font-weight: 700;
+    }
+
+    &.future-label {
+      fill: #94a3b8;
+      font-weight: 400;
     }
   }
 
@@ -967,6 +997,17 @@
       color: #fcd34d;
       font-size: 10px;
       font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .tooltip-future-tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.2);
+      color: #cbd5e1;
+      font-size: 10px;
+      font-weight: 600;
       white-space: nowrap;
     }
 

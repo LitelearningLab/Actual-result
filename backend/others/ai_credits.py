@@ -656,7 +656,7 @@ def get_ai_analytics_api():
     GET /edu/api/ai-credits/analytics?period=today|weekly|monthly[&tz=Asia/Kolkata][&tz_offset=-330][&month=YYYY-MM]
     Returns timezone-accurate time-series token usage data:
       - today:   hourly breakdown for today (12 AM through current hour)
-      - weekly:  last 7 days including today (daily breakdown)
+      - weekly:  current calendar week (Monday through Sunday); future dates are marked future (not zero usage)
       - monthly: selected calendar month (default current month), daily breakdown excluding future dates
     """
     inst_id = resolve_institute_id(request)
@@ -891,10 +891,13 @@ def get_ai_analytics_api():
             }), 200
 
         else:
-            # Default: weekly = Last 7 days including today (daily breakdown)
-            start_day = today_date - timedelta(days=6)
+            # Default: weekly = Current calendar week (Monday through Sunday)
+            week_start = today_date - timedelta(days=today_date.weekday())
+            week_end = week_start + timedelta(days=6)
+            elapsed_days = today_date.weekday() + 1  # 1 (Mon) through 7 (Sun)
+
             start_local = datetime.datetime(
-                start_day.year, start_day.month, start_day.day, 0, 0, 0, tzinfo=target_tz
+                week_start.year, week_start.month, week_start.day, 0, 0, 0, tzinfo=target_tz
             )
             end_local = now_local
             start_utc_naive = start_local.astimezone(timezone.utc).replace(tzinfo=None)
@@ -914,17 +917,19 @@ def get_ai_analytics_api():
                 q = q.filter(openai_requests.institute_id == str(inst_id))
             records = _dedupe_token_records(q.all())
 
-            day_dates = [start_day + timedelta(days=i) for i in range(7)]
+            day_dates = [week_start + timedelta(days=i) for i in range(7)]
             labels = [_format_weekday_date(d) for d in day_dates]
             full_labels = [_format_full_date(d) for d in day_dates]
             iso_dates = [d.isoformat() for d in day_dates]
             is_current_flags = [d == today_date for d in day_dates]
+            is_future_flags = [d > today_date for d in day_dates]
 
-            buckets = [0] * 7
-            prompt_buckets = [0] * 7
-            comp_buckets = [0] * 7
-            op_buckets = [0] * 7
-            date_index_map = {d: idx for idx, d in enumerate(day_dates)}
+            # Elapsed days start at 0; future days are None (not counted as zero usage)
+            buckets = [None if is_fut else 0 for is_fut in is_future_flags]
+            prompt_buckets = [None if is_fut else 0 for is_fut in is_future_flags]
+            comp_buckets = [None if is_fut else 0 for is_fut in is_future_flags]
+            op_buckets = [None if is_fut else 0 for is_fut in is_future_flags]
+            date_index_map = {d: idx for idx, d in enumerate(day_dates) if not is_future_flags[idx]}
 
             for rec in records:
                 local_dt = _to_local_datetime(rec.created_date, target_tz)
@@ -936,33 +941,37 @@ def get_ai_analytics_api():
                         comp_buckets[idx] += int(rec.completion_tokens or 0)
                         op_buckets[idx] += 1
 
-            peak_val = max(buckets) if buckets else 0
+            elapsed_values = [buckets[i] for i in range(elapsed_days)]
+            peak_val = max(elapsed_values) if elapsed_values else 0
             if peak_val > 0:
-                peak_idx = buckets.index(peak_val)
+                peak_idx = elapsed_values.index(peak_val)
                 peak_label = labels[peak_idx]
             else:
                 peak_label = "No usage yet"
 
-            period_total = sum(buckets)
-            avg_val = round(period_total / 7, 1)
+            period_total = sum(elapsed_values)
+            avg_val = round(period_total / elapsed_days, 1) if elapsed_days > 0 else 0.0
 
             session.close()
             return jsonify({
                 "status": True,
                 "data": {
                     "period": "weekly",
-                    "period_title": "Last 7 Days",
-                    "date_range_label": _format_date_range(day_dates[0], day_dates[-1]),
+                    "period_title": "This Week",
+                    "date_range_label": _format_date_range(week_start, week_end),
                     "timezone": tz_name,
                     "timezone_abbr": tz_abbr,
                     "is_incomplete": True,
-                    "incomplete_note": f"Today ({_format_short_date(today_date)}) is still accumulating",
-                    "bucket_count": 7,
+                    "incomplete_note": f"Week in progress · Today ({_format_short_date(today_date)}) still accumulating",
+                    "bucket_count": elapsed_days,
+                    "elapsed_days": elapsed_days,
+                    "total_days_in_week": 7,
                     "avg_unit": "day",
                     "labels": labels,
                     "full_labels": full_labels,
                     "iso_dates": iso_dates,
                     "is_current_flags": is_current_flags,
+                    "is_future_flags": is_future_flags,
                     "operations": op_buckets,
                     "values": buckets,
                     "prompt_values": prompt_buckets,

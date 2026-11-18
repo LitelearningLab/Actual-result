@@ -96,12 +96,13 @@ interface ChartBar {
   label: string;
   fullLabel: string;
   isoDate: string;
-  value: number;
+  value: number | null;
   compactValue: string;
   prompt_value: number;
   comp_value: number;
   operations: number;
   isCurrent: boolean;
+  isFuture: boolean;
   showXLabel: boolean;
   showValueLabel: boolean;
   tooltipLeftPct: number;
@@ -126,16 +127,19 @@ interface AnalyticsApiData {
   is_incomplete?: boolean;
   incomplete_note?: string;
   bucket_count?: number;
+  elapsed_days?: number;
+  total_days_in_week?: number;
   days_in_month?: number;
   avg_unit?: 'hour' | 'day';
   labels: string[];
   full_labels?: string[];
   iso_dates?: string[];
   is_current_flags?: boolean[];
-  operations?: number[];
-  values: number[];
-  prompt_values: number[];
-  completion_values: number[];
+  is_future_flags?: boolean[];
+  operations?: (number | null)[];
+  values: (number | null)[];
+  prompt_values: (number | null)[];
+  completion_values: (number | null)[];
   peak_label: string;
   peak_value: number;
   period_total: number;
@@ -670,7 +674,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   chartPeakValue = 0;
   chartPeriodTotal = 0;
   chartAverage = 0;
-  chartPeriodTitle = 'Last 7 Days';
+  chartPeriodTitle = 'This Week';
   chartDateRangeLabel = '';
   chartTimezoneAbbr = '';
   chartIsIncomplete = false;
@@ -1222,14 +1226,14 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         : 'Daily token consumption for this month';
     }
     return range
-      ? `Daily token consumption · Last 7 days · ${range}`
-      : 'Daily token consumption over the last 7 days';
+      ? `Daily token consumption · Mon–Sun · ${range}`
+      : 'Daily token consumption for the current calendar week (Mon–Sun)';
   }
 
   get totalMetricLabel(): string {
     if (this.selectedPeriod === 'today') return 'Total Tokens Today';
     if (this.selectedPeriod === 'monthly') return 'Total Tokens This Month';
-    return 'Total Tokens (Last 7 Days)';
+    return 'Total Tokens (This Week)';
   }
 
   get peakMetricLabel(): string {
@@ -1251,7 +1255,8 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       const days = this.chartBucketCount || 1;
       return `tokens / day (${days} ${days === 1 ? 'day' : 'days'} elapsed)`;
     }
-    return 'tokens / day (7-day average)';
+    const elapsedDays = this.chartBucketCount || 1;
+    return `tokens / day (${elapsedDays} elapsed ${elapsedDays === 1 ? 'day' : 'days'})`;
   }
 
   loadAnalytics(period: 'today' | 'weekly' | 'monthly'): void {
@@ -1287,12 +1292,13 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
                 ? 'Today (Hourly)'
                 : period === 'monthly'
                 ? 'This Month'
-                : 'Last 7 Days');
+                : 'This Week');
             this.chartDateRangeLabel = d.date_range_label || '';
             this.chartTimezoneAbbr = d.timezone_abbr || '';
             this.chartIsIncomplete = !!d.is_incomplete;
             this.chartIncompleteNote = d.incomplete_note || '';
-            this.chartBucketCount = d.bucket_count || (d.labels || []).length || 1;
+            this.chartBucketCount =
+              d.elapsed_days || d.bucket_count || (d.labels || []).length || 1;
             this.chartAvgUnit = d.avg_unit || (period === 'today' ? 'hour' : 'day');
             this.buildChartBars(d);
           }
@@ -1457,8 +1463,10 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     const isoDates = data.iso_dates || [];
     const operations = data.operations || [];
     const isCurrentFlags = data.is_current_flags || [];
+    const isFutureFlags = data.is_future_flags || [];
 
-    const maxDataVal = values.length > 0 ? Math.max(...values, 0) : 0;
+    const numericValues = values.filter((v): v is number => v !== null && v !== undefined);
+    const maxDataVal = numericValues.length > 0 ? Math.max(...numericValues, 0) : 0;
     const { max: yAxisMax, ticks } = this.computeNiceYAxis(maxDataVal);
     this.chartYAxisTicks = ticks;
 
@@ -1495,10 +1503,12 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     const allowNonZeroValueLabels = slotWidth >= 34;
 
     this.chartBars = labels.map((label, i) => {
-      const val = Number(values[i] || 0);
-      const rawHeight = yAxisMax > 0 && val > 0 ? (val / yAxisMax) * plotHeight : 0;
-      // Preserve true linear scale: 0 renders as 0px; tiny positive values get a 1.5px hairline so they aren't invisible
-      const height = val === 0 ? 0 : Math.max(1.5, rawHeight);
+      const rawVal = values[i];
+      const isFuture = !!isFutureFlags[i] || rawVal === null || rawVal === undefined;
+      const val = isFuture ? null : Number(rawVal || 0);
+      const rawHeight = !isFuture && yAxisMax > 0 && (val || 0) > 0 ? ((val || 0) / yAxisMax) * plotHeight : 0;
+      // Preserve true linear scale: future/zero render as 0px; tiny positive values get a 1.5px hairline so they aren't invisible
+      const height = isFuture || !val || val <= 0 ? 0 : Math.max(1.5, rawHeight);
       const slotX = plotLeft + i * slotWidth;
       const x = slotX + (slotWidth - barWidth) / 2;
       const y = plotBottom - height;
@@ -1516,10 +1526,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         }
       }
 
-      const showValueLabel = allowAllValueLabels || (allowNonZeroValueLabels && val > 0);
+      // Never show "0" or any value label on future dates
+      const showValueLabel = !isFuture && (allowAllValueLabels || (allowNonZeroValueLabels && (val || 0) > 0));
       const rawLeftPct = (centerX / this.chartViewBoxWidth) * 100;
       const tooltipLeftPct = Math.max(14, Math.min(86, rawLeftPct));
-      const anchorY = val > 0 ? y : plotBottom - 12;
+      const anchorY = !isFuture && (val || 0) > 0 ? y : plotBottom - 12;
       const tooltipBelow = anchorY < plotTop + 56;
       const tooltipTopPct = tooltipBelow
         ? ((anchorY + 14) / this.chartViewBoxHeight) * 100
@@ -1536,11 +1547,12 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         fullLabel: fullLabels[i] || label,
         isoDate: isoDates[i] || '',
         value: val,
-        compactValue: this.formatCompactTokens(val),
-        prompt_value: Number(promptValues[i] || 0),
-        comp_value: Number(compValues[i] || 0),
-        operations: Number(operations[i] || 0),
+        compactValue: isFuture ? '' : this.formatCompactTokens(val || 0),
+        prompt_value: isFuture ? 0 : Number(promptValues[i] || 0),
+        comp_value: isFuture ? 0 : Number(compValues[i] || 0),
+        operations: isFuture ? 0 : Number(operations[i] || 0),
         isCurrent: !!isCurrentFlags[i],
+        isFuture,
         showXLabel,
         showValueLabel,
         tooltipLeftPct,

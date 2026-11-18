@@ -817,7 +817,7 @@
             class="period-btn"
             [class.active]="selectedPeriod === 'weekly'"
             (click)="loadAnalytics('weekly')"
-            matTooltip="Daily breakdown for the last 7 days including today"
+            matTooltip="Daily breakdown for the current calendar week (Monday–Sunday)"
           >
             Weekly
           </button>
@@ -892,10 +892,11 @@
           <g
             *ngFor="let bar of chartBars"
             class="chart-bar-group"
+            [class.future-bar-group]="bar.isFuture"
             (mouseenter)="hoveredBar = bar"
             (focus)="hoveredBar = bar"
           >
-            <!-- Full-column hover hit target (makes 0 and small bars effortless to inspect) -->
+            <!-- Full-column hover hit target (makes 0, small, and future slots effortless to inspect) -->
             <rect
               [attr.x]="bar.slotX"
               [attr.y]="chartPlotTop"
@@ -903,11 +904,12 @@
               [attr.height]="chartPlotBottom - chartPlotTop + 28"
               class="chart-slot-hitarea"
               [class.hovered]="hoveredBar === bar"
+              [class.future-slot]="bar.isFuture"
             />
 
-            <!-- Non-zero proportional bar (strict linear scale) -->
+            <!-- Non-zero proportional bar (strict linear scale; elapsed days only) -->
             <rect
-              *ngIf="bar.value > 0"
+              *ngIf="!bar.isFuture && (bar.value || 0) > 0"
               [attr.x]="bar.x"
               [attr.y]="bar.y"
               [attr.width]="bar.width"
@@ -919,9 +921,9 @@
               [class.hovered]="hoveredBar === bar"
             />
 
-            <!-- Subtle zero-usage tick mark on baseline (never distorts scale) -->
+            <!-- Subtle zero-usage tick mark on baseline (elapsed zero-usage days only; never shown on future dates) -->
             <line
-              *ngIf="bar.value === 0"
+              *ngIf="!bar.isFuture && bar.value === 0"
               [attr.x1]="bar.x + bar.width * 0.2"
               [attr.y1]="chartPlotBottom"
               [attr.x2]="bar.x + bar.width * 0.8"
@@ -930,11 +932,11 @@
               [class.hovered]="hoveredBar === bar"
             />
 
-            <!-- Compact value label above bar -->
+            <!-- Compact value label above bar (elapsed days only) -->
             <text
-              *ngIf="bar.showValueLabel"
+              *ngIf="bar.showValueLabel && !bar.isFuture"
               [attr.x]="bar.x + bar.width / 2"
-              [attr.y]="bar.value > 0 ? bar.y - 7 : chartPlotBottom - 8"
+              [attr.y]="(bar.value || 0) > 0 ? bar.y - 7 : chartPlotBottom - 8"
               class="chart-bar-val"
               [class.zero-val]="bar.value === 0"
               text-anchor="middle"
@@ -949,6 +951,7 @@
               [attr.y]="chartPlotBottom + 20"
               class="chart-bar-label"
               [class.current-label]="bar.isCurrent"
+              [class.future-label]="bar.isFuture"
               text-anchor="middle"
             >
               {{ bar.label }}
@@ -966,7 +969,7 @@
             </text>
           </g>
 
-          <!-- Empty-usage subtle overlay hint when all bars are 0 -->
+          <!-- Empty-usage subtle overlay hint when all elapsed bars are 0 -->
           <text
             *ngIf="!chartLoading && chartPeriodTotal === 0 && chartBars.length > 0"
             [attr.x]="(chartPlotLeft + chartPlotRight) / 2"
@@ -991,19 +994,29 @@
             <span class="tooltip-live-tag" *ngIf="hoveredBar.isCurrent">
               {{ selectedPeriod === 'today' ? 'In progress' : 'Today · Live' }}
             </span>
+            <span class="tooltip-future-tag" *ngIf="hoveredBar.isFuture">
+              Upcoming
+            </span>
           </div>
-          <span class="tooltip-val">
-            <strong>{{ hoveredBar.value | number }}</strong> tokens
-          </span>
-          <span class="tooltip-sub" *ngIf="hoveredBar.value > 0">
-            In: {{ hoveredBar.prompt_value | number }} · Out: {{ hoveredBar.comp_value | number }}
-          </span>
-          <span class="tooltip-meta" *ngIf="hoveredBar.operations > 0">
-            {{ hoveredBar.operations | number }} {{ hoveredBar.operations === 1 ? 'operation' : 'operations' }}
-          </span>
-          <span class="tooltip-meta muted" *ngIf="hoveredBar.value === 0">
-            No token usage recorded
-          </span>
+          <ng-container *ngIf="!hoveredBar.isFuture; else futureTooltipBody">
+            <span class="tooltip-val">
+              <strong>{{ (hoveredBar.value || 0) | number }}</strong> tokens
+            </span>
+            <span class="tooltip-sub" *ngIf="(hoveredBar.value || 0) > 0">
+              In: {{ hoveredBar.prompt_value | number }} · Out: {{ hoveredBar.comp_value | number }}
+            </span>
+            <span class="tooltip-meta" *ngIf="hoveredBar.operations > 0">
+              {{ hoveredBar.operations | number }} {{ hoveredBar.operations === 1 ? 'operation' : 'operations' }}
+            </span>
+            <span class="tooltip-meta muted" *ngIf="hoveredBar.value === 0">
+              No token usage recorded
+            </span>
+          </ng-container>
+          <ng-template #futureTooltipBody>
+            <span class="tooltip-meta muted">
+              Future date — not yet elapsed
+            </span>
+          </ng-template>
         </div>
       </div>
     </div>
