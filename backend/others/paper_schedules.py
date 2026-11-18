@@ -934,7 +934,16 @@ def update_paper_schedule(request, current_user=None):
         }
         has_review_update = any(k in data for k in review_fields)
         has_assignment_or_meta_update = any(
-            k in data for k in ("assigned_user_ids", "title", "scheduler_name", "start_time", "start_date", "exam_date")
+            k in data for k in (
+                "assigned_user_ids",
+                "title",
+                "scheduler_name",
+                "start_time",
+                "start_date",
+                "exam_date",
+                "duration_minutes",
+                "duration_mins",
+            )
         ) and not bool(data.get("review_only"))
 
         eval_count = session.query(Exam_Attempt).filter(
@@ -971,6 +980,21 @@ def update_paper_schedule(request, current_user=None):
                     new_title = (data.get("scheduler_name") or data.get("title") or "").strip()
                     if new_title:
                         schedule.title = new_title
+                raw_duration = data.get("duration_minutes")
+                if raw_duration is None:
+                    raw_duration = data.get("duration_mins")
+                if raw_duration is not None and str(raw_duration).strip() != "":
+                    try:
+                        parsed_duration = int(raw_duration)
+                        if parsed_duration <= 0:
+                            session.close()
+                            return {"statusMessage": "Duration must be greater than 0 minutes", "status": False}, 400
+                        schedule.duration_mins = parsed_duration
+                        if schedule.start_time:
+                            schedule.end_time = schedule.start_time + datetime.timedelta(minutes=parsed_duration)
+                    except Exception:
+                        session.close()
+                        return {"statusMessage": "Invalid duration_minutes value", "status": False}, 400
                 raw_start = data.get("start_time") or data.get("start_date") or data.get("exam_date")
                 if raw_start:
                     try:

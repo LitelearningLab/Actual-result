@@ -1152,7 +1152,8 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       }
 
       // 5. Time & Total Marks
-      const durationText = this.getDurationDisplay(item) || '10 Mins';
+      const durationSource = e?.schedule_id && e?.duration_mins ? e : item;
+      const durationText = this.getDurationDisplay(durationSource) || '10 Mins';
       const maxMarks = this.getTotalMarksCount(item) || item.total_marks || e.total_marks || 0;
 
       // 6. Format Options helper
@@ -1530,7 +1531,8 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
       }
 
       // 5. Time & Total Marks
-      const durationText = this.getDurationDisplay(item) || '10 Mins';
+      const durationSource = e?.schedule_id && e?.duration_mins ? e : item;
+      const durationText = this.getDurationDisplay(durationSource) || '10 Mins';
       const maxMarks = this.getTotalMarksCount(item) || item.total_marks || e.total_marks || 0;
 
       // 6. Format Options helper

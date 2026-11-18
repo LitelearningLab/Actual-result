@@ -225,7 +225,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   // ── New UI properties ──
   examTypeLabel = 'Unit Test';
   totalMarksOverride: number | null = null;
-  durationLabel = '1 Hour';
+  durationLabel = '10 Mins';
 
   // ── Filter Paper Overlay State ──
   @ViewChild('filterPaperBtn', { read: ElementRef }) filterPaperBtn?: ElementRef;
@@ -252,8 +252,27 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   initialSelectedPaperUsers: string[] = [];
   initialExamDate: string = '';
   initialPublishedScheduleName: string = '';
+  initialDurationMinutes: number | null = null;
   paperReviewSettings: PaperReviewSettings = createDefaultPaperReviewSettings();
   initialPaperReviewSignature: string = JSON.stringify(buildPaperReviewPayload(createDefaultPaperReviewSettings()));
+
+  formatDurationLabel(mins: number | null | undefined): string {
+    const value = Number(mins);
+    if (!value || isNaN(value) || value <= 0) return '';
+    if (value >= 60) {
+      const hrs = Math.floor(value / 60);
+      const rem = value % 60;
+      return `${hrs} Hour${hrs > 1 ? 's' : ''}${rem ? ' ' + rem + ' Mins' : ''}`;
+    }
+    return `${value} Mins`;
+  }
+
+  onDurationMinutesChange(val: any): void {
+    const mins = val === '' || val === null || val === undefined ? null : Number(val);
+    this.durationMinutes = mins !== null && !isNaN(mins) ? mins : null;
+    this.durationLabel = this.formatDurationLabel(this.durationMinutes);
+    this.markDirty();
+  }
 
   get hasScheduleDetailsChanged(): boolean {
     if (!this.editingScheduleId) {
@@ -262,8 +281,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     const usersChanged = this.hasAssignedUsersChanged;
     const dateChanged = (this.examDate || '').trim() !== (this.initialExamDate || '').trim();
     const nameChanged = (this.publishedScheduleName || '').trim() !== (this.initialPublishedScheduleName || '').trim();
+    const durationChanged = Number(this.durationMinutes || 0) !== Number(this.initialDurationMinutes || 0);
     const reviewChanged = JSON.stringify(buildPaperReviewPayload(this.paperReviewSettings)) !== this.initialPaperReviewSignature;
-    return usersChanged || dateChanged || nameChanged || reviewChanged;
+    return usersChanged || dateChanged || nameChanged || durationChanged || reviewChanged;
   }
 
   get hasAssignedUsersChanged(): boolean {
@@ -1135,6 +1155,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               if (!this.publishedScheduleName && (item.title || item.scheduler_name || item.schedule_name)) {
                 this.publishedScheduleName = item.title || item.scheduler_name || item.schedule_name;
               }
+              const schedMins = Number(item.duration_mins || item.duration);
+              if (schedMins > 0) {
+                this.durationMinutes = schedMins;
+                this.durationLabel = this.formatDurationLabel(schedMins);
+                this.initialDurationMinutes = schedMins;
+              }
               if (!this.selectedPaperUsers.length && Array.isArray(item.assigned_users)) {
                 this.selectedPaperUsers = item.assigned_users.map((u: any) => String(u.user_id || u.id || u));
               }
@@ -1242,6 +1268,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.hasTrackedInstituteForQuestionBanks = true;
 
       this.durationMinutes = e.duration_mins || e.duration || null;
+      this.durationLabel = this.formatDurationLabel(this.durationMinutes);
       this.passMark = e.pass_mark ?? e.passMark ?? null;
       this.numberOfAttempts = e.number_of_attempts ?? e.numberOfAttempts ?? null;
       this.startDateTime = e.start_time || e.exam_date || e.start_date || e.start || '';
@@ -1303,6 +1330,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.initialSelectedPaperUsers = [...this.selectedPaperUsers].sort();
       this.initialExamDate = this.examDate || '';
       this.initialPublishedScheduleName = (this.publishedScheduleName || '').trim();
+      this.initialDurationMinutes = this.durationMinutes !== null ? Number(this.durationMinutes) : null;
       this.userFiltersApplied = false;
       this.paperUsers = [];
 
@@ -5520,11 +5548,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         }
         this.description = item.description || item.desc || '';
         const mins = Number(item.duration_mins || item.duration);
-        if (mins) {
+        if (mins && (!this.editingScheduleId || !this.durationMinutes)) {
           this.durationMinutes = mins;
-          this.durationLabel = mins >= 60
-            ? `${Math.floor(mins / 60)} Hour${Math.floor(mins / 60) > 1 ? 's' : ''}${mins % 60 ? ' ' + (mins % 60) + ' Mins' : ''}`
-            : `${mins} Mins`;
+          this.durationLabel = this.formatDurationLabel(mins);
         }
         if (!this.editingScheduleId || !this.startDateTime) {
           if (item.start_time || item.exam_date || item.start) {
@@ -5668,6 +5694,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.readOnly) return false;
     if (this.editingScheduleId) {
       if (!this.selectedPaperUsers.length) return false;
+      if (this.durationMinutes === null || isNaN(Number(this.durationMinutes)) || Number(this.durationMinutes) <= 0) return false;
       if (!this.hasScheduleDetailsChanged) return false;
       return true;
     }
@@ -5682,7 +5709,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (!this.selectedDepartment) return false;
     if (!this.selectedTeam) return false;
     if (!this.subject_id) return false;
-    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return false;
+    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes)) || Number(this.durationMinutes) <= 0) return false;
     if (!this.sections.length || this.totalPaperQuestionsCount === 0) return false;
     if (!this.selectedPaperUsers.length) return false;
 
@@ -5706,6 +5733,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (this.readOnly) return 'Question paper is in read-only mode';
     if (this.editingScheduleId) {
       if (!this.selectedPaperUsers.length) return 'Assign at least one user';
+      if (this.durationMinutes === null || isNaN(Number(this.durationMinutes)) || Number(this.durationMinutes) <= 0) return 'Duration must be greater than 0 minutes';
       if (!this.hasScheduleDetailsChanged) return 'No changes made to schedule or assigned students';
       return '';
     }
@@ -5720,7 +5748,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (!this.selectedDepartment) return `${this.terminology.deptLabel || 'Department'} is required to schedule test`;
     if (!this.selectedTeam) return `${this.terminology.teamLabel || 'Year'} is required to schedule test`;
     if (!this.subject_id) return 'Subject is required to schedule test';
-    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) return 'Duration is required to schedule test';
+    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes)) || Number(this.durationMinutes) <= 0) return 'Duration must be greater than 0 minutes';
     if (!this.sections.length || this.totalPaperQuestionsCount === 0) return 'Add at least one section with questions to schedule test';
     if (!this.selectedPaperUsers.length) return 'Assign at least one user to schedule test';
 
@@ -5776,8 +5804,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       notify('Subject is required', 'error');
       return;
     }
-    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes))) {
-      notify('Duration is required', 'error');
+    if (this.durationMinutes === null || isNaN(Number(this.durationMinutes)) || Number(this.durationMinutes) <= 0) {
+      notify('Duration must be greater than 0 minutes', 'error');
       return;
     }
     if (

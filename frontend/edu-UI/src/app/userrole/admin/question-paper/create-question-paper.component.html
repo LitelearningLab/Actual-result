@@ -83,8 +83,8 @@
                         </div>
                     </div>
 
-                    <!-- Row 2: Schedule Name (Auto-written) + Exam Date (Optional) -->
-                    <div class="fields-row fields-row--2" style="margin-top: 16px;">
+                    <!-- Row 2: Schedule Name (Auto-written) + Duration (mins) + Exam Date (Optional) -->
+                    <div class="fields-row fields-row--3" style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; margin-top: 16px;">
                         <!-- Schedule Name -->
                         <div class="field-group">
                             <label class="field-label">Schedule name <span class="req">*</span></label>
@@ -96,6 +96,20 @@
                                 placeholder="E.g. Physics – Unit Test 1 04/11/2026 13:15" />
                             <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
                                 Auto-generated name. You can edit this if needed.
+                            </span>
+                        </div>
+
+                        <!-- Duration (minutes) -->
+                        <div class="field-group">
+                            <label class="field-label">Duration (mins) <span class="req">*</span></label>
+                            <input class="qp-input" type="number"
+                                [(ngModel)]="durationMinutes"
+                                (ngModelChange)="onDurationMinutesChange($event)"
+                                [disabled]="readOnly || (isPublished && !editingScheduleId)"
+                                min="1"
+                                placeholder="e.g. 60" />
+                            <span class="field-hint" style="font-size: 11px; color: #64748b; margin-top: 4px; display: block;">
+                                Exam time shown on paper &amp; schedule.
                             </span>
                         </div>
 
