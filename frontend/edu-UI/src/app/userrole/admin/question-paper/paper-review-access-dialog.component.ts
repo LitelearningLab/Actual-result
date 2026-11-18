@@ -185,7 +185,7 @@ export function buildPaperReviewPayload(cfg: PaperReviewSettings): Record<string
         <span>
           {{ settings.instant_review
             ? 'Review is available immediately once the paper is evaluated.'
-            : 'Review access is controlled by Schedule Review (date-wise) or Manual Review.' }}
+            : 'Review access is controlled by Schedule Review (date-wise) or Manually Enabled Review.' }}
         </span>
       </div>
 
@@ -197,7 +197,7 @@ export function buildPaperReviewPayload(cfg: PaperReviewSettings): Record<string
           class="review-radio-group"
           aria-label="Review availability">
           <mat-radio-button value="scheduled">Schedule Review (Date-wise)</mat-radio-button>
-          <mat-radio-button value="manual">Manual Review</mat-radio-button>
+          <mat-radio-button value="manual">Manually Enabled Review</mat-radio-button>
         </mat-radio-group>
 
         <div *ngIf="settings.review_mode === 'scheduled'" class="review-schedule-fields">
@@ -235,7 +235,7 @@ export function buildPaperReviewPayload(cfg: PaperReviewSettings): Record<string
             (ngModelChange)="emitChange()">
             Enable Review Access Now
           </mat-slide-toggle>
-          <span>You can also toggle Manual Review ON/OFF directly from the Schedule Test tab table.</span>
+          <span>You can also toggle Manually Enabled Review ON/OFF directly from the Schedule Test tab table.</span>
         </div>
       </div>
     </div>
