@@ -39,6 +39,11 @@
           <mat-icon class="pill-remove-icon"
             (click)="removeAppliedFilter('search'); $event.stopPropagation()">close</mat-icon>
         </span>
+        <span class="applied-filter-pill" *ngIf="filterCreatedByMe">
+          <strong>Created by me</strong>
+          <mat-icon class="pill-remove-icon"
+            (click)="removeAppliedFilter('createdByMe'); $event.stopPropagation()">close</mat-icon>
+        </span>
 
         <button type="button" class="clear-all-chip-btn" (click)="clearAppliedFilters()"
           title="Clear all applied filters" *ngIf="hasAppliedFilters">
@@ -212,12 +217,20 @@
             </div>
 
             <div class="filter-actions">
-              <button mat-flat-button (click)="resetFiltersAndReload()" class="filter-reset-btn">
-                <mat-icon svgIcon="refresh"></mat-icon> Reset
-              </button>
-              <button mat-flat-button (click)="applyFiltersPanel()" class="filter-apply-btn">
-                <mat-icon svgIcon="apply"></mat-icon> Apply
-              </button>
+              <mat-checkbox class="filter-created-by-me"
+                [(ngModel)]="filterCreatedByMe"
+                (change)="onCreatedByMeChange()"
+                aria-label="Show only tests from question papers created by me">
+                Created by me
+              </mat-checkbox>
+              <div class="filter-actions-buttons">
+                <button mat-flat-button (click)="resetFiltersAndReload()" class="filter-reset-btn">
+                  <mat-icon svgIcon="refresh"></mat-icon> Reset
+                </button>
+                <button mat-flat-button (click)="applyFiltersPanel()" class="filter-apply-btn">
+                  <mat-icon svgIcon="apply"></mat-icon> Apply
+                </button>
+              </div>
             </div>
           </div>
         </ng-template>

@@ -530,6 +530,8 @@ def get_paper_schedules(request, current_user=None):
                         "test_mode": "paper",
                         "evaluated_count": e_cnt,
                         "evaluation_status": "Evaluated" if e_cnt > 0 else "Pending",
+                        "created_by": str(s.created_by) if getattr(s, "created_by", None) is not None else None,
+                        "paper_created_by": str(m_obj.created_by) if (m_obj and getattr(m_obj, "created_by", None) is not None) else None,
                         "created_date": (s.created_date.isoformat() + "Z") if s.created_date else None,
                     })
 
@@ -835,6 +837,8 @@ def get_paper_schedules(request, current_user=None):
                 "assigned_users_count": len(assigned_users),
                 "evaluated_count": eval_count,
                 "evaluation_status": "Evaluated" if eval_count > 0 else "Pending",
+                "created_by": str(s.created_by) if getattr(s, "created_by", None) is not None else None,
+                "paper_created_by": str(master.created_by) if (master and getattr(master, "created_by", None) is not None) else None,
                 "created_date": (s.created_date.isoformat() + "Z") if s.created_date else None,
             })
 

@@ -10,6 +10,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { Overlay, OverlayRef, OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule, TemplatePortal } from '@angular/cdk/portal';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
@@ -145,6 +146,7 @@ export interface BulkFileItem {
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
+    MatCheckboxModule,
     OverlayModule,
     PortalModule,
     MathRenderComponent,
@@ -236,6 +238,31 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   selectedSection = '';
   selectedSubject = '';
   selectedExamId = '';
+  filterCreatedByMe = false;
+
+  private getCurrentUserIdentifiers(): Set<string> {
+    const identifiers = new Set<string>();
+    const addFromObj = (u: any) => {
+      if (!u || typeof u !== 'object') return;
+      [u.user_id, u.id, u.userId, u._id, u.username, u.user_name, u.email]
+        .filter((v) => v !== null && v !== undefined && String(v).trim() !== '')
+        .forEach((v) => identifiers.add(String(v).trim().toLowerCase()));
+    };
+
+    addFromObj(this.auth.currentUserValue);
+    try {
+      const rawProfile = sessionStorage.getItem('user_profile');
+      if (rawProfile) addFromObj(JSON.parse(rawProfile));
+      const rawUser = sessionStorage.getItem('user');
+      if (rawUser) addFromObj(JSON.parse(rawUser));
+    } catch (_) {}
+
+    return identifiers;
+  }
+
+  onCreatedByMeChange(): void {
+    this.applyExamFilters();
+  }
 
   classList: Array<{ id: string; name: string }> = [];
   allInstituteTeams: Array<{ id: string; name: string; department_id?: string | null; department_name?: string | null }> = [];
@@ -573,6 +600,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       (this.selectedSection && this.selectedSection !== 'ALL') ||
       (this.selectedSubject && this.selectedSubject !== 'ALL') ||
       !!this.selectedExamId ||
+      this.filterCreatedByMe ||
       (this.selectedStatus && this.selectedStatus !== 'All statuses') ||
       !!(this.searchQuery && this.searchQuery.trim()) ||
       this.bulkFiles.length > 0
@@ -592,6 +620,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.selectedSection = '';
     this.selectedSubject = '';
     this.selectedExamId = '';
+    this.filterCreatedByMe = false;
     this.searchQuery = '';
     this.selectedStatus = 'All statuses';
     this.hasStartedEvaluation = false;
@@ -899,6 +928,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.searchQuery = '';
         this.filterStudents();
         break;
+      case 'createdByMe':
+        this.filterCreatedByMe = false;
+        this.applyExamFilters();
+        break;
     }
   }
 
@@ -1128,6 +1161,21 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           String(e.subject_name).toLowerCase() === String(this.selectedSubject).toLowerCase()
         );
       });
+    }
+
+    // Filter strictly by underlying master question paper creator
+    if (this.filterCreatedByMe) {
+      const myIds = this.getCurrentUserIdentifiers();
+      if (myIds.size > 0) {
+        filtered = filtered.filter((e) => {
+          const creator = e.schedule_id
+            ? String(e.paper_created_by ?? '').trim().toLowerCase()
+            : String(e.paper_created_by ?? e.created_by ?? '').trim().toLowerCase();
+          return !!creator && myIds.has(creator);
+        });
+      } else {
+        filtered = [];
+      }
     }
 
     this.testList = filtered.map((e) => ({
