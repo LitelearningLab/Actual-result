@@ -1,5 +1,10 @@
+import calendar
 import datetime
-from datetime import timedelta
+from datetime import timedelta, timezone
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # pragma: no cover
+    ZoneInfo = None
 from flask import jsonify, request, g
 from sqlalchemy import func, cast, Date, String, desc, or_, text
 from db.db import SQLiteDB
@@ -552,189 +557,420 @@ def get_ai_feature_breakdown_api():
         return jsonify({"status": False, "statusMessage": f"Error fetching feature breakdown: {str(e)}"}), 500
 
 
+DEFAULT_ANALYTICS_TZ = "Asia/Kolkata"
+
+
+def _resolve_analytics_timezone(req):
+    """
+    Resolves target timezone from `tz` (IANA name) or `tz_offset` (JS getTimezoneOffset minutes),
+    falling back to DEFAULT_ANALYTICS_TZ (Asia/Kolkata).
+    Returns: (tzinfo_obj, tz_display_name)
+    """
+    tz_param = (req.args.get('tz') or '').strip() if req and hasattr(req, 'args') else ''
+    if tz_param and ZoneInfo is not None:
+        try:
+            return ZoneInfo(tz_param), tz_param
+        except Exception:
+            pass
+
+    offset_param = (req.args.get('tz_offset') or '').strip() if req and hasattr(req, 'args') else ''
+    if offset_param:
+        try:
+            # JS Date.getTimezoneOffset() returns minutes WEST of UTC (e.g. -330 for UTC+05:30)
+            offset_min = int(offset_param)
+            if -840 <= offset_min <= 840:
+                tz_obj = timezone(timedelta(minutes=-offset_min))
+                sign = "+" if -offset_min >= 0 else "-"
+                abs_m = abs(offset_min)
+                tz_label = f"UTC{sign}{abs_m // 60:02d}:{abs_m % 60:02d}"
+                return tz_obj, tz_label
+        except Exception:
+            pass
+
+    if ZoneInfo is not None:
+        try:
+            return ZoneInfo(DEFAULT_ANALYTICS_TZ), DEFAULT_ANALYTICS_TZ
+        except Exception:
+            pass
+    return timezone(timedelta(hours=5, minutes=30)), "UTC+05:30"
+
+
+def _to_local_datetime(dt_val, target_tz):
+    """Converts a naive UTC (or tz-aware) datetime from openai_requests into target_tz."""
+    if not dt_val:
+        return None
+    if dt_val.tzinfo is None:
+        utc_dt = dt_val.replace(tzinfo=timezone.utc)
+    else:
+        utc_dt = dt_val.astimezone(timezone.utc)
+    return utc_dt.astimezone(target_tz)
+
+
+def _format_hour_12(hour_24):
+    h = int(hour_24) % 24
+    suffix = "AM" if h < 12 else "PM"
+    h12 = h % 12 or 12
+    return f"{h12} {suffix}"
+
+
+def _format_hour_window(hour_24):
+    return f"{_format_hour_12(hour_24)} – {_format_hour_12((hour_24 + 1) % 24)}"
+
+
+def _format_short_date(d):
+    return f"{d.strftime('%b')} {d.day}"
+
+
+def _format_weekday_date(d):
+    return f"{d.strftime('%a')}, {d.strftime('%b')} {d.day}"
+
+
+def _format_full_date(d):
+    return f"{d.strftime('%A')}, {d.strftime('%b')} {d.day}, {d.year}"
+
+
+def _format_date_range(start_d, end_d):
+    if start_d == end_d:
+        return f"{start_d.strftime('%b')} {start_d.day}, {start_d.year}"
+    if start_d.year == end_d.year:
+        return f"{start_d.strftime('%b')} {start_d.day} – {end_d.strftime('%b')} {end_d.day}, {end_d.year}"
+    return f"{start_d.strftime('%b')} {start_d.day}, {start_d.year} – {end_d.strftime('%b')} {end_d.day}, {end_d.year}"
+
+
+def _dedupe_token_records(records):
+    """Removes any duplicate rows sharing the same non-empty OpenAI completion id."""
+    seen_ids = set()
+    unique_records = []
+    for rec in records:
+        req_id = str(getattr(rec, 'id', None) or '').strip()
+        if req_id:
+            if req_id in seen_ids:
+                continue
+            seen_ids.add(req_id)
+        unique_records.append(rec)
+    return unique_records
+
+
 def get_ai_analytics_api():
     """
-    GET /edu/api/ai-credits/analytics?period=today|weekly|monthly
-    Returns time-series bar chart data: Today (hourly), Weekly (7 days), Monthly (30 days).
+    GET /edu/api/ai-credits/analytics?period=today|weekly|monthly[&tz=Asia/Kolkata][&tz_offset=-330][&month=YYYY-MM]
+    Returns timezone-accurate time-series token usage data:
+      - today:   hourly breakdown for today (12 AM through current hour)
+      - weekly:  last 7 days including today (daily breakdown)
+      - monthly: selected calendar month (default current month), daily breakdown excluding future dates
     """
     inst_id = resolve_institute_id(request)
     if not inst_id:
         return jsonify({"status": False, "statusMessage": "Institute scope is required"}), 400
 
     period = (request.args.get('period') or 'weekly').lower().strip()
+    if period not in ('today', 'weekly', 'monthly'):
+        period = 'weekly'
+
+    target_tz, tz_name = _resolve_analytics_timezone(request)
+
     db = SQLiteDB()
     session = db.connect()
     if not session:
         return jsonify({"status": False, "statusMessage": "Database connection error"}), 500
 
-    now = datetime.datetime.utcnow()
+    now_utc = datetime.datetime.now(timezone.utc)
+    now_local = now_utc.astimezone(target_tz)
+    tz_abbr = now_local.tzname() or tz_name
+    today_date = now_local.date()
 
     try:
         is_all = str(inst_id).lower() == 'all'
+
         if period == 'today':
-            # Today from 00:00 to now, grouped by 2-hour or 3-hour buckets
-            start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            # Local midnight today -> now, grouped by 1-hour intervals (elapsed hours only)
+            start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+            end_local = now_local
+            start_utc_naive = start_local.astimezone(timezone.utc).replace(tzinfo=None)
+            end_utc_naive = end_local.astimezone(timezone.utc).replace(tzinfo=None)
+
             q = session.query(
+                openai_requests.id,
                 openai_requests.created_date,
                 openai_requests.prompt_tokens,
                 openai_requests.completion_tokens,
                 openai_requests.total_tokens,
-                openai_requests.feature_name
-            ).filter(openai_requests.created_date >= start_date)
+            ).filter(
+                openai_requests.created_date >= start_utc_naive,
+                openai_requests.created_date <= end_utc_naive,
+            )
             if not is_all:
                 q = q.filter(openai_requests.institute_id == str(inst_id))
-            records = q.all()
+            records = _dedupe_token_records(q.all())
 
-            # 8 buckets of 3 hours: 00-03, 03-06, 06-09, 09-12, 12-15, 15-18, 18-21, 21-24
-            labels = ["12 AM", "3 AM", "6 AM", "9 AM", "12 PM", "3 PM", "6 PM", "9 PM"]
-            buckets = [0] * len(labels)
-            prompt_buckets = [0] * len(labels)
-            comp_buckets = [0] * len(labels)
+            elapsed_hours = now_local.hour + 1
+            labels = [_format_hour_12(h) for h in range(elapsed_hours)]
+            full_labels = [
+                f"{_format_weekday_date(today_date)}, {today_date.year} · {_format_hour_window(h)}"
+                for h in range(elapsed_hours)
+            ]
+            iso_dates = [f"{today_date.isoformat()}T{h:02d}:00" for h in range(elapsed_hours)]
+            is_current_flags = [h == now_local.hour for h in range(elapsed_hours)]
+
+            buckets = [0] * elapsed_hours
+            prompt_buckets = [0] * elapsed_hours
+            comp_buckets = [0] * elapsed_hours
+            op_buckets = [0] * elapsed_hours
 
             for rec in records:
-                if rec.created_date:
-                    hour = rec.created_date.hour
-                    idx = min(hour // 3, len(labels) - 1)
+                local_dt = _to_local_datetime(rec.created_date, target_tz)
+                if local_dt and local_dt.date() == today_date and 0 <= local_dt.hour < elapsed_hours:
+                    idx = local_dt.hour
                     tot = int(rec.total_tokens or 0)
-                    p_tok = int(rec.prompt_tokens or 0)
-                    c_tok = int(rec.completion_tokens or 0)
                     buckets[idx] += tot
-                    prompt_buckets[idx] += p_tok
-                    comp_buckets[idx] += c_tok
+                    prompt_buckets[idx] += int(rec.prompt_tokens or 0)
+                    comp_buckets[idx] += int(rec.completion_tokens or 0)
+                    op_buckets[idx] += 1
 
             peak_val = max(buckets) if buckets else 0
-            peak_idx = buckets.index(peak_val) if buckets else 0
-            peak_label = labels[peak_idx] if buckets else "N/A"
+            if peak_val > 0:
+                peak_idx = buckets.index(peak_val)
+                peak_label = _format_hour_window(peak_idx)
+            else:
+                peak_label = "No usage yet"
+
             period_total = sum(buckets)
+            avg_val = round(period_total / elapsed_hours, 1) if elapsed_hours > 0 else 0.0
+            current_hour_str = _format_hour_12(now_local.hour)
 
             session.close()
             return jsonify({
                 "status": True,
                 "data": {
                     "period": "today",
+                    "period_title": "Today (Hourly)",
+                    "date_range_label": f"{_format_weekday_date(today_date)}, {today_date.year}",
+                    "timezone": tz_name,
+                    "timezone_abbr": tz_abbr,
+                    "is_incomplete": True,
+                    "incomplete_note": f"Today is still accumulating (through {current_hour_str} {tz_abbr})",
+                    "bucket_count": elapsed_hours,
+                    "avg_unit": "hour",
                     "labels": labels,
+                    "full_labels": full_labels,
+                    "iso_dates": iso_dates,
+                    "is_current_flags": is_current_flags,
+                    "operations": op_buckets,
                     "values": buckets,
                     "prompt_values": prompt_buckets,
                     "completion_values": comp_buckets,
                     "peak_label": peak_label,
                     "peak_value": peak_val,
                     "period_total": period_total,
-                    "avg": round(period_total / len(labels), 1) if labels else 0
+                    "avg": avg_val,
                 }
             }), 200
 
         elif period == 'monthly':
-            # Last 30 days grouped into 5 weeks or 6-day intervals
-            start_date = (now - timedelta(days=29)).replace(hour=0, minute=0, second=0, microsecond=0)
-            q = session.query(
-                openai_requests.created_date,
-                openai_requests.prompt_tokens,
-                openai_requests.completion_tokens,
-                openai_requests.total_tokens
-            ).filter(openai_requests.created_date >= start_date)
-            if not is_all:
-                q = q.filter(openai_requests.institute_id == str(inst_id))
-            records = q.all()
+            # Selected calendar month (default current month), daily breakdown; never include future dates
+            month_param = (request.args.get('month') or '').strip()
+            target_year, target_month = today_date.year, today_date.month
+            if month_param:
+                try:
+                    parts = month_param.split('-')
+                    if len(parts) == 2:
+                        y_p, m_p = int(parts[0]), int(parts[1])
+                        if 2000 <= y_p <= 2100 and 1 <= m_p <= 12:
+                            target_year, target_month = y_p, m_p
+                except Exception:
+                    pass
 
-            # 5 weekly intervals: Week 1, Week 2, Week 3, Week 4, Week 5
-            labels = ["W-4 (28d)", "W-3 (21d)", "W-2 (14d)", "W-1 (7d)", "Current Week"]
-            buckets = [0] * 5
-            prompt_buckets = [0] * 5
-            comp_buckets = [0] * 5
+            days_in_month = calendar.monthrange(target_year, target_month)[1]
+            is_current_month = (target_year == today_date.year and target_month == today_date.month)
+            is_future_month = (target_year, target_month) > (today_date.year, today_date.month)
 
-            for rec in records:
-                if rec.created_date:
-                    days_ago = (now - rec.created_date).days
-                    # Map to 0-4
-                    if days_ago < 7:
-                        idx = 4
-                    elif days_ago < 14:
-                        idx = 3
-                    elif days_ago < 21:
-                        idx = 2
-                    elif days_ago < 28:
-                        idx = 1
-                    else:
-                        idx = 0
-                    tot = int(rec.total_tokens or 0)
-                    buckets[idx] += tot
-                    prompt_buckets[idx] += int(rec.prompt_tokens or 0)
-                    comp_buckets[idx] += int(rec.completion_tokens or 0)
+            if is_future_month:
+                day_dates = []
+            elif is_current_month:
+                day_dates = [datetime.date(target_year, target_month, d) for d in range(1, today_date.day + 1)]
+            else:
+                day_dates = [datetime.date(target_year, target_month, d) for d in range(1, days_in_month + 1)]
+
+            month_title = datetime.date(target_year, target_month, 1).strftime("%B %Y")
+            num_days = len(day_dates)
+
+            buckets = [0] * num_days
+            prompt_buckets = [0] * num_days
+            comp_buckets = [0] * num_days
+            op_buckets = [0] * num_days
+
+            if num_days > 0:
+                start_local = datetime.datetime(
+                    target_year, target_month, 1, 0, 0, 0, tzinfo=target_tz
+                )
+                if is_current_month:
+                    end_local = now_local
+                else:
+                    end_local = datetime.datetime(
+                        target_year, target_month, days_in_month, 23, 59, 59, 999999, tzinfo=target_tz
+                    )
+
+                start_utc_naive = start_local.astimezone(timezone.utc).replace(tzinfo=None)
+                end_utc_naive = end_local.astimezone(timezone.utc).replace(tzinfo=None)
+
+                q = session.query(
+                    openai_requests.id,
+                    openai_requests.created_date,
+                    openai_requests.prompt_tokens,
+                    openai_requests.completion_tokens,
+                    openai_requests.total_tokens,
+                ).filter(
+                    openai_requests.created_date >= start_utc_naive,
+                    openai_requests.created_date <= end_utc_naive,
+                )
+                if not is_all:
+                    q = q.filter(openai_requests.institute_id == str(inst_id))
+                records = _dedupe_token_records(q.all())
+
+                date_index_map = {d: idx for idx, d in enumerate(day_dates)}
+                for rec in records:
+                    local_dt = _to_local_datetime(rec.created_date, target_tz)
+                    if local_dt:
+                        idx = date_index_map.get(local_dt.date())
+                        if idx is not None:
+                            buckets[idx] += int(rec.total_tokens or 0)
+                            prompt_buckets[idx] += int(rec.prompt_tokens or 0)
+                            comp_buckets[idx] += int(rec.completion_tokens or 0)
+                            op_buckets[idx] += 1
+
+            labels = [str(d.day) for d in day_dates]
+            full_labels = [_format_full_date(d) for d in day_dates]
+            iso_dates = [d.isoformat() for d in day_dates]
+            is_current_flags = [d == today_date for d in day_dates]
 
             peak_val = max(buckets) if buckets else 0
-            peak_idx = buckets.index(peak_val) if buckets else 0
-            peak_label = labels[peak_idx] if buckets else "N/A"
+            if peak_val > 0 and day_dates:
+                peak_idx = buckets.index(peak_val)
+                peak_label = _format_weekday_date(day_dates[peak_idx])
+            else:
+                peak_label = "No usage yet"
+
             period_total = sum(buckets)
+            avg_val = round(period_total / num_days, 1) if num_days > 0 else 0.0
+            date_range_label = (
+                _format_date_range(day_dates[0], day_dates[-1])
+                if day_dates else month_title
+            )
 
             session.close()
             return jsonify({
                 "status": True,
                 "data": {
                     "period": "monthly",
+                    "period_title": f"{month_title} (Month to Date)" if is_current_month else month_title,
+                    "month_label": month_title,
+                    "date_range_label": date_range_label,
+                    "timezone": tz_name,
+                    "timezone_abbr": tz_abbr,
+                    "is_incomplete": is_current_month,
+                    "incomplete_note": (
+                        f"Today ({_format_short_date(today_date)}) is still accumulating"
+                        if is_current_month else ""
+                    ),
+                    "bucket_count": num_days,
+                    "days_in_month": days_in_month,
+                    "avg_unit": "day",
                     "labels": labels,
+                    "full_labels": full_labels,
+                    "iso_dates": iso_dates,
+                    "is_current_flags": is_current_flags,
+                    "operations": op_buckets,
                     "values": buckets,
                     "prompt_values": prompt_buckets,
                     "completion_values": comp_buckets,
                     "peak_label": peak_label,
                     "peak_value": peak_val,
                     "period_total": period_total,
-                    "avg": round(period_total / 30, 1)
+                    "avg": avg_val,
                 }
             }), 200
 
         else:
-            # Default: weekly (last 7 days, e.g. Mon, Tue, Wed, Thu, Fri, Sat, Sun)
-            start_date = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+            # Default: weekly = Last 7 days including today (daily breakdown)
+            start_day = today_date - timedelta(days=6)
+            start_local = datetime.datetime(
+                start_day.year, start_day.month, start_day.day, 0, 0, 0, tzinfo=target_tz
+            )
+            end_local = now_local
+            start_utc_naive = start_local.astimezone(timezone.utc).replace(tzinfo=None)
+            end_utc_naive = end_local.astimezone(timezone.utc).replace(tzinfo=None)
+
             q = session.query(
+                openai_requests.id,
                 openai_requests.created_date,
                 openai_requests.prompt_tokens,
                 openai_requests.completion_tokens,
-                openai_requests.total_tokens
-            ).filter(openai_requests.created_date >= start_date)
+                openai_requests.total_tokens,
+            ).filter(
+                openai_requests.created_date >= start_utc_naive,
+                openai_requests.created_date <= end_utc_naive,
+            )
             if not is_all:
                 q = q.filter(openai_requests.institute_id == str(inst_id))
-            records = q.all()
+            records = _dedupe_token_records(q.all())
 
-            # Generate 7 days labels ending with today
-            day_labels = []
-            day_dates = []
-            for i in range(7):
-                d = (now - timedelta(days=6 - i)).date()
-                day_dates.append(d)
-                day_labels.append(d.strftime("%a (%b %d)"))
+            day_dates = [start_day + timedelta(days=i) for i in range(7)]
+            labels = [_format_weekday_date(d) for d in day_dates]
+            full_labels = [_format_full_date(d) for d in day_dates]
+            iso_dates = [d.isoformat() for d in day_dates]
+            is_current_flags = [d == today_date for d in day_dates]
 
             buckets = [0] * 7
             prompt_buckets = [0] * 7
             comp_buckets = [0] * 7
+            op_buckets = [0] * 7
+            date_index_map = {d: idx for idx, d in enumerate(day_dates)}
 
             for rec in records:
-                if rec.created_date:
-                    rec_date = rec.created_date.date()
-                    if rec_date in day_dates:
-                        idx = day_dates.index(rec_date)
-                        tot = int(rec.total_tokens or 0)
-                        buckets[idx] += tot
+                local_dt = _to_local_datetime(rec.created_date, target_tz)
+                if local_dt:
+                    idx = date_index_map.get(local_dt.date())
+                    if idx is not None:
+                        buckets[idx] += int(rec.total_tokens or 0)
                         prompt_buckets[idx] += int(rec.prompt_tokens or 0)
                         comp_buckets[idx] += int(rec.completion_tokens or 0)
+                        op_buckets[idx] += 1
 
             peak_val = max(buckets) if buckets else 0
-            peak_idx = buckets.index(peak_val) if buckets else 0
-            peak_label = day_labels[peak_idx] if buckets else "N/A"
+            if peak_val > 0:
+                peak_idx = buckets.index(peak_val)
+                peak_label = labels[peak_idx]
+            else:
+                peak_label = "No usage yet"
+
             period_total = sum(buckets)
+            avg_val = round(period_total / 7, 1)
 
             session.close()
             return jsonify({
                 "status": True,
                 "data": {
                     "period": "weekly",
-                    "labels": day_labels,
+                    "period_title": "Last 7 Days",
+                    "date_range_label": _format_date_range(day_dates[0], day_dates[-1]),
+                    "timezone": tz_name,
+                    "timezone_abbr": tz_abbr,
+                    "is_incomplete": True,
+                    "incomplete_note": f"Today ({_format_short_date(today_date)}) is still accumulating",
+                    "bucket_count": 7,
+                    "avg_unit": "day",
+                    "labels": labels,
+                    "full_labels": full_labels,
+                    "iso_dates": iso_dates,
+                    "is_current_flags": is_current_flags,
+                    "operations": op_buckets,
                     "values": buckets,
                     "prompt_values": prompt_buckets,
                     "completion_values": comp_buckets,
                     "peak_label": peak_label,
                     "peak_value": peak_val,
                     "period_total": period_total,
-                    "avg": round(period_total / 7, 1)
+                    "avg": avg_val,
                 }
             }), 200
 

@@ -690,13 +690,75 @@
 .chart-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 14px;
   margin-bottom: 20px;
 
+  .chart-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chart-period-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4f46e5;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
   .chart-subtitle {
-    margin: 2px 0 0 0;
+    margin: 3px 0 0 0;
     font-size: 13px;
     color: #64748b;
+  }
+
+  .chart-header-controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+.live-accumulating-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #b45309;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+    animation: pulseLiveDot 2s ease-in-out infinite;
+  }
+}
+
+@keyframes pulseLiveDot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
   }
 }
 
@@ -735,17 +797,42 @@
   position: relative;
   width: 100%;
   overflow-x: auto;
+  overflow-y: visible;
+  padding-top: 6px;
+
+  .chart-scroll-inner {
+    position: relative;
+    width: 100%;
+    min-width: 580px;
+  }
 
   .chart-svg {
+    display: block;
     width: 100%;
     height: auto;
-    min-width: 600px;
-    max-height: 280px;
+    max-height: 310px;
+    overflow: visible;
+  }
+
+  .chart-axis-unit {
+    fill: #94a3b8;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .chart-yaxis-label {
+    fill: #64748b;
+    font-size: 11px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
 
   .chart-gridline {
     stroke: #e2e8f0;
-    stroke-dasharray: 4 4;
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
   }
 
   .chart-baseline {
@@ -753,96 +840,245 @@
     stroke-width: 1.5;
   }
 
+  .chart-bar-group {
+    cursor: pointer;
+  }
+
+  .chart-slot-hitarea {
+    fill: transparent;
+    transition: fill 0.15s ease;
+
+    &.hovered {
+      fill: rgba(99, 102, 241, 0.055);
+    }
+  }
+
   .chart-bar-rect {
     fill: url(#barGradientPrimary);
-    transition: fill 0.2s, transform 0.2s;
-    cursor: pointer;
+    transition: fill 0.18s ease, opacity 0.18s ease;
+
+    &.current-bar {
+      fill: url(#barGradientCurrent);
+      stroke: #a5b4fc;
+      stroke-width: 1.5;
+      stroke-dasharray: 4 2;
+    }
 
     &:hover,
     &.hovered {
       fill: url(#barGradientHover);
-      opacity: 0.9;
+    }
+  }
+
+  .chart-zero-marker {
+    stroke: #cbd5e1;
+    stroke-width: 2;
+    stroke-linecap: round;
+    transition: stroke 0.15s ease;
+
+    &.hovered {
+      stroke: #6366f1;
     }
   }
 
   .chart-bar-val {
     fill: #4f46e5;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+
+    &.zero-val {
+      fill: #94a3b8;
+      font-weight: 500;
+      font-size: 11px;
+    }
   }
 
   .chart-bar-label {
     fill: #64748b;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 500;
+    pointer-events: none;
+
+    &.current-label {
+      fill: #1e293b;
+      font-weight: 700;
+    }
+  }
+
+  .chart-current-sublabel {
+    fill: #4f46e5;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+  }
+
+  .chart-empty-hint {
+    fill: #94a3b8;
+    font-size: 13px;
+    font-weight: 500;
+    pointer-events: none;
   }
 
   .chart-floating-tooltip {
     position: absolute;
     background: #0f172a;
     color: #ffffff;
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 10px 13px;
+    border-radius: 8px;
     font-size: 12px;
     pointer-events: none;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.24);
+    border: 1px solid rgba(148, 163, 184, 0.18);
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    z-index: 10;
-    transform: translateX(-35%);
+    gap: 3px;
+    min-width: 175px;
+    max-width: 260px;
+    z-index: 20;
+    transform: translate(-50%, -100%);
+    transition: left 0.1s ease-out, top 0.1s ease-out;
+
+    &.tooltip-below {
+      transform: translate(-50%, 0);
+    }
+
+    .tooltip-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
 
     .tooltip-title {
-      color: #94a3b8;
+      color: #cbd5e1;
       font-size: 11px;
+      font-weight: 500;
+    }
+
+    .tooltip-live-tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(245, 158, 11, 0.2);
+      color: #fcd34d;
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
     }
 
     .tooltip-val {
-      font-size: 13px;
+      font-size: 14px;
       color: #a5b4fc;
+      font-variant-numeric: tabular-nums;
+
+      strong {
+        color: #ffffff;
+      }
     }
 
     .tooltip-sub {
       color: #cbd5e1;
       font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tooltip-meta {
+      color: #94a3b8;
+      font-size: 10.5px;
+
+      &.muted {
+        font-style: italic;
+      }
     }
   }
 }
 
 .chart-insights-strip {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid #f1f5f9;
 
   .insight-item {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 1px solid #eef2f6;
+
+    .insight-icon-wrap {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: #eef2ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
 
     .insight-icon {
       font-size: 20px;
       width: 20px;
       height: 20px;
-      color: #6366f1;
+      color: #4f46e5;
     }
 
     .insight-label {
       display: block;
       font-size: 11px;
-      color: #94a3b8;
+      color: #64748b;
       text-transform: uppercase;
+      letter-spacing: 0.03em;
       font-weight: 600;
+      margin-bottom: 2px;
     }
 
     .insight-value {
       display: block;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 700;
-      color: #1e293b;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+
+      small {
+        font-size: 12px;
+        font-weight: 500;
+        color: #64748b;
+      }
+
+      &.muted-val {
+        color: #94a3b8;
+        font-weight: 600;
+      }
     }
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-header {
+    flex-direction: column;
+    align-items: stretch;
+
+    .chart-header-controls {
+      justify-content: space-between;
+    }
+  }
+
+  .live-accumulating-pill {
+    white-space: normal;
+  }
+
+  .chart-insights-strip {
+    grid-template-columns: 1fr;
   }
 }
 

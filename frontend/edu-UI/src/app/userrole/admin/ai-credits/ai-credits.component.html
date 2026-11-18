@@ -782,137 +782,270 @@
       <div class="card-title-group">
         <mat-icon class="section-icon">bar_chart</mat-icon>
         <div>
-          <h3>Token Usage Trends</h3>
-          <p class="chart-subtitle">Historical breakdown of tokens consumed over time</p>
+          <div class="chart-title-row">
+            <h3>Token Usage Trends</h3>
+            <span class="chart-period-pill" *ngIf="chartPeriodTitle">{{ chartPeriodTitle }}</span>
+          </div>
+          <p class="chart-subtitle">{{ chartSubtitleText }}</p>
         </div>
       </div>
 
-      <!-- Timeframe Toggle Buttons -->
-      <div class="period-toggle-group">
-        <button
-          type="button"
-          class="period-btn"
-          [class.active]="selectedPeriod === 'today'"
-          (click)="loadAnalytics('today')"
+      <div class="chart-header-controls">
+        <!-- Accumulating / In-Progress Indicator -->
+        <span
+          class="live-accumulating-pill"
+          *ngIf="chartIsIncomplete && chartIncompleteNote"
+          [matTooltip]="chartIncompleteNote"
         >
-          Today
-        </button>
-        <button
-          type="button"
-          class="period-btn"
-          [class.active]="selectedPeriod === 'weekly'"
-          (click)="loadAnalytics('weekly')"
-        >
-          Weekly
-        </button>
-        <button
-          type="button"
-          class="period-btn"
-          [class.active]="selectedPeriod === 'monthly'"
-          (click)="loadAnalytics('monthly')"
-        >
-          Monthly
-        </button>
+          <span class="live-dot"></span>
+          {{ chartIncompleteNote }}
+        </span>
+
+        <!-- Timeframe Toggle Buttons -->
+        <div class="period-toggle-group" role="tablist" aria-label="Token usage timeframe">
+          <button
+            type="button"
+            class="period-btn"
+            [class.active]="selectedPeriod === 'today'"
+            (click)="loadAnalytics('today')"
+            matTooltip="Hourly breakdown for today"
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            class="period-btn"
+            [class.active]="selectedPeriod === 'weekly'"
+            (click)="loadAnalytics('weekly')"
+            matTooltip="Daily breakdown for the last 7 days including today"
+          >
+            Weekly
+          </button>
+          <button
+            type="button"
+            class="period-btn"
+            [class.active]="selectedPeriod === 'monthly'"
+            (click)="loadAnalytics('monthly')"
+            matTooltip="Daily breakdown for the current calendar month"
+          >
+            Monthly
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- SVG Bar Chart -->
-    <div class="svg-chart-container">
-      <svg
-        viewBox="0 0 760 250"
-        class="chart-svg"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <defs>
-          <linearGradient id="barGradientPrimary" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#6366f1" />
-            <stop offset="100%" stop-color="#4338ca" />
-          </linearGradient>
-          <linearGradient id="barGradientHover" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#818cf8" />
-            <stop offset="100%" stop-color="#6366f1" />
-          </linearGradient>
-        </defs>
+    <div class="svg-chart-container" (mouseleave)="hoveredBar = null">
+      <div class="chart-scroll-inner">
+        <svg
+          [attr.viewBox]="'0 0 ' + chartViewBoxWidth + ' ' + chartViewBoxHeight"
+          class="chart-svg"
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          [attr.aria-label]="'Token usage trends chart for ' + chartPeriodTitle"
+        >
+          <defs>
+            <linearGradient id="barGradientPrimary" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#6366f1" />
+              <stop offset="100%" stop-color="#4338ca" />
+            </linearGradient>
+            <linearGradient id="barGradientHover" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#818cf8" />
+              <stop offset="100%" stop-color="#4f46e5" />
+            </linearGradient>
+            <linearGradient id="barGradientCurrent" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#4f46e5" />
+              <stop offset="100%" stop-color="#3730a3" />
+            </linearGradient>
+          </defs>
 
-        <!-- Horizontal Guide Lines -->
-        <line x1="40" y1="40" x2="740" y2="40" class="chart-gridline" />
-        <line x1="40" y1="95" x2="740" y2="95" class="chart-gridline" />
-        <line x1="40" y1="150" x2="740" y2="150" class="chart-gridline" />
-        <line x1="40" y1="200" x2="740" y2="200" class="chart-baseline" />
+          <!-- Y-Axis Unit Label -->
+          <text
+            [attr.x]="chartPlotLeft - 10"
+            [attr.y]="chartPlotTop - 16"
+            class="chart-axis-unit"
+            text-anchor="end"
+          >
+            Tokens
+          </text>
 
-        <!-- Bars -->
-        <g *ngFor="let bar of chartBars">
-          <!-- Animated Bar Rect -->
-          <rect
-            [attr.x]="bar.x"
-            [attr.y]="bar.y"
-            [attr.width]="bar.width"
-            [attr.height]="bar.height"
-            rx="5"
-            ry="5"
-            class="chart-bar-rect"
-            [class.hovered]="hoveredBar === bar"
+          <!-- Y-Axis Gridlines & Labels (Linear Scale) -->
+          <g *ngFor="let tick of chartYAxisTicks">
+            <line
+              [attr.x1]="chartPlotLeft"
+              [attr.y1]="tick.y"
+              [attr.x2]="chartPlotRight"
+              [attr.y2]="tick.y"
+              [ngClass]="tick.isBaseline ? 'chart-baseline' : 'chart-gridline'"
+            />
+            <text
+              [attr.x]="chartPlotLeft - 10"
+              [attr.y]="tick.y + 4"
+              class="chart-yaxis-label"
+              text-anchor="end"
+            >
+              {{ tick.label }}
+            </text>
+          </g>
+
+          <!-- Bars & Hover Columns -->
+          <g
+            *ngFor="let bar of chartBars"
+            class="chart-bar-group"
             (mouseenter)="hoveredBar = bar"
-            (mouseleave)="hoveredBar = null"
-          />
+            (focus)="hoveredBar = bar"
+          >
+            <!-- Full-column hover hit target (makes 0 and small bars effortless to inspect) -->
+            <rect
+              [attr.x]="bar.slotX"
+              [attr.y]="chartPlotTop"
+              [attr.width]="bar.slotWidth"
+              [attr.height]="chartPlotBottom - chartPlotTop + 28"
+              class="chart-slot-hitarea"
+              [class.hovered]="hoveredBar === bar"
+            />
 
-          <!-- Value on top of bar -->
+            <!-- Non-zero proportional bar (strict linear scale) -->
+            <rect
+              *ngIf="bar.value > 0"
+              [attr.x]="bar.x"
+              [attr.y]="bar.y"
+              [attr.width]="bar.width"
+              [attr.height]="bar.height"
+              [attr.rx]="bar.width >= 16 ? 5 : 3"
+              [attr.ry]="bar.width >= 16 ? 5 : 3"
+              class="chart-bar-rect"
+              [class.current-bar]="bar.isCurrent"
+              [class.hovered]="hoveredBar === bar"
+            />
+
+            <!-- Subtle zero-usage tick mark on baseline (never distorts scale) -->
+            <line
+              *ngIf="bar.value === 0"
+              [attr.x1]="bar.x + bar.width * 0.2"
+              [attr.y1]="chartPlotBottom"
+              [attr.x2]="bar.x + bar.width * 0.8"
+              [attr.y2]="chartPlotBottom"
+              class="chart-zero-marker"
+              [class.hovered]="hoveredBar === bar"
+            />
+
+            <!-- Compact value label above bar -->
+            <text
+              *ngIf="bar.showValueLabel"
+              [attr.x]="bar.x + bar.width / 2"
+              [attr.y]="bar.value > 0 ? bar.y - 7 : chartPlotBottom - 8"
+              class="chart-bar-val"
+              [class.zero-val]="bar.value === 0"
+              text-anchor="middle"
+            >
+              {{ bar.compactValue }}
+            </text>
+
+            <!-- X-axis label -->
+            <text
+              *ngIf="bar.showXLabel"
+              [attr.x]="bar.x + bar.width / 2"
+              [attr.y]="chartPlotBottom + 20"
+              class="chart-bar-label"
+              [class.current-label]="bar.isCurrent"
+              text-anchor="middle"
+            >
+              {{ bar.label }}
+            </text>
+
+            <!-- Subtle 'Today' / 'Now' sub-tag under current bucket -->
+            <text
+              *ngIf="bar.isCurrent"
+              [attr.x]="bar.x + bar.width / 2"
+              [attr.y]="chartPlotBottom + 36"
+              class="chart-current-sublabel"
+              text-anchor="middle"
+            >
+              {{ selectedPeriod === 'today' ? 'Now' : 'Today' }}
+            </text>
+          </g>
+
+          <!-- Empty-usage subtle overlay hint when all bars are 0 -->
           <text
-            *ngIf="bar.value > 0"
-            [attr.x]="bar.x + bar.width / 2"
-            [attr.y]="bar.y - 7"
-            class="chart-bar-val"
+            *ngIf="!chartLoading && chartPeriodTotal === 0 && chartBars.length > 0"
+            [attr.x]="(chartPlotLeft + chartPlotRight) / 2"
+            [attr.y]="chartPlotTop + (chartPlotBottom - chartPlotTop) / 2"
+            class="chart-empty-hint"
             text-anchor="middle"
           >
-            {{ bar.value > 999 ? (bar.value / 1000 | number: '1.0-1') + 'k' : bar.value }}
+            No token usage recorded in this period
           </text>
+        </svg>
 
-          <!-- Label below baseline -->
-          <text
-            [attr.x]="bar.x + bar.width / 2"
-            y="222"
-            class="chart-bar-label"
-            text-anchor="middle"
-          >
-            {{ bar.label }}
-          </text>
-        </g>
-      </svg>
-
-      <!-- Hover Tooltip -->
-      <div
-        class="chart-floating-tooltip"
-        *ngIf="hoveredBar"
-        [style.left.px]="hoveredBar.x"
-        [style.top.px]="hoveredBar.y - 45"
-      >
-        <span class="tooltip-title">{{ hoveredBar.label }}</span>
-        <span class="tooltip-val"><strong>{{ hoveredBar.value | number }}</strong> Tokens</span>
-        <span class="tooltip-sub">In: {{ hoveredBar.prompt_value | number }} | Out: {{ hoveredBar.comp_value | number }}</span>
+        <!-- Hover Tooltip (percentage positioned to stay aligned across all viewports) -->
+        <div
+          class="chart-floating-tooltip"
+          *ngIf="hoveredBar"
+          [class.tooltip-below]="hoveredBar.tooltipBelow"
+          [style.left.%]="hoveredBar.tooltipLeftPct"
+          [style.top.%]="hoveredBar.tooltipTopPct"
+        >
+          <div class="tooltip-header">
+            <span class="tooltip-title">{{ hoveredBar.fullLabel }}</span>
+            <span class="tooltip-live-tag" *ngIf="hoveredBar.isCurrent">
+              {{ selectedPeriod === 'today' ? 'In progress' : 'Today · Live' }}
+            </span>
+          </div>
+          <span class="tooltip-val">
+            <strong>{{ hoveredBar.value | number }}</strong> tokens
+          </span>
+          <span class="tooltip-sub" *ngIf="hoveredBar.value > 0">
+            In: {{ hoveredBar.prompt_value | number }} · Out: {{ hoveredBar.comp_value | number }}
+          </span>
+          <span class="tooltip-meta" *ngIf="hoveredBar.operations > 0">
+            {{ hoveredBar.operations | number }} {{ hoveredBar.operations === 1 ? 'operation' : 'operations' }}
+          </span>
+          <span class="tooltip-meta muted" *ngIf="hoveredBar.value === 0">
+            No token usage recorded
+          </span>
+        </div>
       </div>
     </div>
 
     <!-- Chart Insights Footer Strip -->
     <div class="chart-insights-strip">
       <div class="insight-item">
-        <mat-icon class="insight-icon">functions</mat-icon>
+        <div class="insight-icon-wrap">
+          <mat-icon class="insight-icon">functions</mat-icon>
+        </div>
         <div>
-          <span class="insight-label">Period Total</span>
-          <span class="insight-value">{{ chartPeriodTotal | number }} Tokens</span>
+          <span class="insight-label">{{ totalMetricLabel }}</span>
+          <span class="insight-value">{{ chartPeriodTotal | number }} <small>tokens</small></span>
         </div>
       </div>
+
       <div class="insight-item">
-        <mat-icon class="insight-icon">trending_up</mat-icon>
+        <div class="insight-icon-wrap">
+          <mat-icon class="insight-icon">trending_up</mat-icon>
+        </div>
         <div>
-          <span class="insight-label">Peak Usage</span>
-          <span class="insight-value">{{ chartPeakLabel }} ({{ chartPeakValue | number }} Tokens)</span>
+          <span class="insight-label">{{ peakMetricLabel }}</span>
+          <span class="insight-value" *ngIf="chartPeakValue > 0">
+            {{ chartPeakLabel }}
+            <small class="insight-sub-val">({{ chartPeakValue | number }} tokens)</small>
+          </span>
+          <span class="insight-value muted-val" *ngIf="chartPeakValue === 0">
+            No usage yet
+          </span>
         </div>
       </div>
+
       <div class="insight-item">
-        <mat-icon class="insight-icon">speed</mat-icon>
+        <div class="insight-icon-wrap">
+          <mat-icon class="insight-icon">speed</mat-icon>
+        </div>
         <div>
-          <span class="insight-label">Average</span>
-          <span class="insight-value">{{ chartAverage | number }} Tokens / Interval</span>
+          <span class="insight-label">{{ averageMetricLabel }}</span>
+          <span class="insight-value">
+            {{ chartAverage | number: '1.0-1' }}
+            <small class="insight-sub-val">{{ averageMetricSubtext }}</small>
+          </span>
         </div>
       </div>
     </div>

@@ -91,10 +91,55 @@ interface ChartBar {
   y: number;
   width: number;
   height: number;
+  slotX: number;
+  slotWidth: number;
   label: string;
+  fullLabel: string;
+  isoDate: string;
   value: number;
+  compactValue: string;
   prompt_value: number;
   comp_value: number;
+  operations: number;
+  isCurrent: boolean;
+  showXLabel: boolean;
+  showValueLabel: boolean;
+  tooltipLeftPct: number;
+  tooltipTopPct: number;
+  tooltipBelow: boolean;
+}
+
+interface ChartYAxisTick {
+  value: number;
+  label: string;
+  y: number;
+  isBaseline: boolean;
+}
+
+interface AnalyticsApiData {
+  period: 'today' | 'weekly' | 'monthly';
+  period_title?: string;
+  month_label?: string;
+  date_range_label?: string;
+  timezone?: string;
+  timezone_abbr?: string;
+  is_incomplete?: boolean;
+  incomplete_note?: string;
+  bucket_count?: number;
+  days_in_month?: number;
+  avg_unit?: 'hour' | 'day';
+  labels: string[];
+  full_labels?: string[];
+  iso_dates?: string[];
+  is_current_flags?: boolean[];
+  operations?: number[];
+  values: number[];
+  prompt_values: number[];
+  completion_values: number[];
+  peak_label: string;
+  peak_value: number;
+  period_total: number;
+  avg: number;
 }
 
 export interface InstituteOverviewItem {
@@ -612,11 +657,27 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   // Bar Chart state
   selectedPeriod: 'today' | 'weekly' | 'monthly' = 'weekly';
+  readonly chartViewBoxWidth = 820;
+  readonly chartViewBoxHeight = 278;
+  readonly chartPlotLeft = 68;
+  readonly chartPlotRight = 796;
+  readonly chartPlotTop = 34;
+  readonly chartPlotBottom = 222;
+
   chartBars: ChartBar[] = [];
-  chartPeakLabel = 'N/A';
+  chartYAxisTicks: ChartYAxisTick[] = [];
+  chartPeakLabel = 'No usage yet';
   chartPeakValue = 0;
   chartPeriodTotal = 0;
   chartAverage = 0;
+  chartPeriodTitle = 'Last 7 Days';
+  chartDateRangeLabel = '';
+  chartTimezoneAbbr = '';
+  chartIsIncomplete = false;
+  chartIncompleteNote = '';
+  chartBucketCount = 7;
+  chartAvgUnit: 'hour' | 'day' = 'day';
+  chartLoading = false;
 
   // Active hover tooltip
   hoveredBar: ChartBar | null = null;
@@ -1135,9 +1196,70 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       });
   }
 
+  private getClientTimezoneParams(): string {
+    const parts: string[] = [];
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz && tz.trim()) {
+        parts.push(`tz=${encodeURIComponent(tz.trim())}`);
+      }
+    } catch (_) {}
+    parts.push(`tz_offset=${encodeURIComponent(String(new Date().getTimezoneOffset()))}`);
+    return parts.join('&');
+  }
+
+  get chartSubtitleText(): string {
+    const range = this.chartDateRangeLabel;
+    if (this.selectedPeriod === 'today') {
+      const tz = this.chartTimezoneAbbr ? ` (${this.chartTimezoneAbbr})` : '';
+      return range
+        ? `Hourly token consumption · ${range}${tz}`
+        : 'Hourly token consumption for today';
+    }
+    if (this.selectedPeriod === 'monthly') {
+      return range
+        ? `Daily token consumption · ${range}`
+        : 'Daily token consumption for this month';
+    }
+    return range
+      ? `Daily token consumption · Last 7 days · ${range}`
+      : 'Daily token consumption over the last 7 days';
+  }
+
+  get totalMetricLabel(): string {
+    if (this.selectedPeriod === 'today') return 'Total Tokens Today';
+    if (this.selectedPeriod === 'monthly') return 'Total Tokens This Month';
+    return 'Total Tokens (Last 7 Days)';
+  }
+
+  get peakMetricLabel(): string {
+    return this.selectedPeriod === 'today' ? 'Peak Usage Hour' : 'Peak Usage Day';
+  }
+
+  get averageMetricLabel(): string {
+    return this.selectedPeriod === 'today'
+      ? 'Average Tokens Per Hour'
+      : 'Average Tokens Per Day';
+  }
+
+  get averageMetricSubtext(): string {
+    if (this.selectedPeriod === 'today') {
+      const hrs = this.chartBucketCount || 1;
+      return `tokens / hr (${hrs} elapsed ${hrs === 1 ? 'hr' : 'hrs'})`;
+    }
+    if (this.selectedPeriod === 'monthly') {
+      const days = this.chartBucketCount || 1;
+      return `tokens / day (${days} ${days === 1 ? 'day' : 'days'} elapsed)`;
+    }
+    return 'tokens / day (7-day average)';
+  }
+
   loadAnalytics(period: 'today' | 'weekly' | 'monthly'): void {
     this.selectedPeriod = period;
-    let url = `${API_BASE}/ai-credits/analytics?period=${period}`;
+    this.hoveredBar = null;
+    this.chartLoading = true;
+
+    let url = `${API_BASE}/ai-credits/analytics?period=${period}&${this.getClientTimezoneParams()}`;
     if (this.isSuperAdmin && this.selectedInstituteId) {
       url += `&institute_id=${encodeURIComponent(this.selectedInstituteId)}`;
     }
@@ -1145,39 +1267,39 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.http
       .get<{
         status: boolean;
-        data: {
-          period: string;
-          labels: string[];
-          values: number[];
-          prompt_values: number[];
-          completion_values: number[];
-          peak_label: string;
-          peak_value: number;
-          period_total: number;
-          avg: number;
-        };
+        data: AnalyticsApiData;
       }>(url, {
         headers: this.getAuthHeaders(),
       })
       .subscribe({
         next: (res) => {
           this.isLoading = false;
+          this.chartLoading = false;
           if (res && res.status && res.data) {
             const d = res.data;
-            this.chartPeakLabel = d.peak_label || 'N/A';
+            this.chartPeakLabel = d.peak_label || 'No usage yet';
             this.chartPeakValue = d.peak_value || 0;
             this.chartPeriodTotal = d.period_total || 0;
             this.chartAverage = d.avg || 0;
-            this.buildChartBars(
-              d.labels || [],
-              d.values || [],
-              d.prompt_values || [],
-              d.completion_values || []
-            );
+            this.chartPeriodTitle =
+              d.period_title ||
+              (period === 'today'
+                ? 'Today (Hourly)'
+                : period === 'monthly'
+                ? 'This Month'
+                : 'Last 7 Days');
+            this.chartDateRangeLabel = d.date_range_label || '';
+            this.chartTimezoneAbbr = d.timezone_abbr || '';
+            this.chartIsIncomplete = !!d.is_incomplete;
+            this.chartIncompleteNote = d.incomplete_note || '';
+            this.chartBucketCount = d.bucket_count || (d.labels || []).length || 1;
+            this.chartAvgUnit = d.avg_unit || (period === 'today' ? 'hour' : 'day');
+            this.buildChartBars(d);
           }
         },
         error: (err) => {
           this.isLoading = false;
+          this.chartLoading = false;
           console.error('Error fetching analytics:', err);
         },
       });
@@ -1271,42 +1393,159 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     return Object.keys(features || {});
   }
 
-  buildChartBars(
-    labels: string[],
-    values: number[],
-    promptValues: number[],
-    compValues: number[]
-  ): void {
-    if (!labels || labels.length === 0) {
+  formatCompactTokens(val: number): string {
+    if (!val || val <= 0) return '0';
+    if (val >= 1_000_000) {
+      return `${Number((val / 1_000_000).toFixed(1))}M`;
+    }
+    if (val >= 1_000) {
+      return `${Number((val / 1_000).toFixed(1))}K`;
+    }
+    return String(Math.round(val));
+  }
+
+  private computeNiceYAxis(maxDataValue: number): { max: number; ticks: ChartYAxisTick[] } {
+    const plotTop = this.chartPlotTop;
+    const plotBottom = this.chartPlotBottom;
+    const plotHeight = plotBottom - plotTop;
+
+    let step: number;
+    let numIntervals: number;
+
+    if (!maxDataValue || maxDataValue <= 0) {
+      step = 250;
+      numIntervals = 4;
+    } else {
+      const targetIntervals = 4;
+      const rawStep = maxDataValue / targetIntervals;
+      const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+      const residual = rawStep / magnitude;
+      const niceMultipliers = [1, 2, 2.5, 5, 10];
+      const multiplier = niceMultipliers.find((m) => m >= residual) || 10;
+      step = multiplier * magnitude;
+      if (step < 1) {
+        step = 1;
+      } else if (maxDataValue < 20) {
+        step = Math.ceil(step);
+      }
+      numIntervals = Math.max(2, Math.ceil(maxDataValue / step));
+    }
+
+    const niceMax = step * numIntervals;
+    const ticks: ChartYAxisTick[] = [];
+    for (let i = 0; i <= numIntervals; i++) {
+      const value = Math.round(step * i);
+      const ratio = niceMax > 0 ? value / niceMax : 0;
+      const y = plotBottom - ratio * plotHeight;
+      ticks.push({
+        value,
+        label: this.formatCompactTokens(value),
+        y,
+        isBaseline: i === 0,
+      });
+    }
+
+    return { max: niceMax, ticks };
+  }
+
+  buildChartBars(data: AnalyticsApiData): void {
+    const labels = data.labels || [];
+    const values = data.values || [];
+    const promptValues = data.prompt_values || [];
+    const compValues = data.completion_values || [];
+    const fullLabels = data.full_labels || labels;
+    const isoDates = data.iso_dates || [];
+    const operations = data.operations || [];
+    const isCurrentFlags = data.is_current_flags || [];
+
+    const maxDataVal = values.length > 0 ? Math.max(...values, 0) : 0;
+    const { max: yAxisMax, ticks } = this.computeNiceYAxis(maxDataVal);
+    this.chartYAxisTicks = ticks;
+
+    if (labels.length === 0) {
       this.chartBars = [];
       return;
     }
 
-    const maxValue = Math.max(...values, 100);
-    const chartHeight = 160; // Max height in SVG px
-    const chartWidth = 700; // SVG viewBox width
-    const barWidth = Math.max(
-      18,
-      Math.min(48, Math.floor((chartWidth - 80) / labels.length - 16))
-    );
+    const plotLeft = this.chartPlotLeft;
+    const plotRight = this.chartPlotRight;
+    const plotTop = this.chartPlotTop;
+    const plotBottom = this.chartPlotBottom;
+    const plotWidth = plotRight - plotLeft;
+    const plotHeight = plotBottom - plotTop;
     const totalSlots = labels.length;
-    const spacing = (chartWidth - 80) / totalSlots;
+    const slotWidth = plotWidth / totalSlots;
+
+    // Bar width adapts smoothly for 1..31 slots while keeping balanced whitespace
+    const maxBarW = this.selectedPeriod === 'weekly' ? 54 : 38;
+    const minBarW = totalSlots > 24 ? 10 : 14;
+    const barGap = totalSlots > 20 ? 5 : totalSlots > 12 ? 8 : 16;
+    const barWidth = Math.max(minBarW, Math.min(maxBarW, Math.floor(slotWidth - barGap)));
+
+    // Determine X-axis label thinning so labels never collide
+    let labelStep = 1;
+    if (this.selectedPeriod === 'today' && totalSlots > 12) {
+      labelStep = 2;
+    } else if (this.selectedPeriod === 'monthly' && totalSlots > 25) {
+      labelStep = 2;
+    }
+
+    // Show compact value labels on bars only when wide enough to avoid overlap
+    const allowAllValueLabels = this.selectedPeriod === 'weekly';
+    const allowNonZeroValueLabels = slotWidth >= 34;
 
     this.chartBars = labels.map((label, i) => {
-      const val = values[i] || 0;
-      const height = Math.max(4, (val / maxValue) * chartHeight);
-      const x = 50 + i * spacing + (spacing - barWidth) / 2;
-      const y = 200 - height;
+      const val = Number(values[i] || 0);
+      const rawHeight = yAxisMax > 0 && val > 0 ? (val / yAxisMax) * plotHeight : 0;
+      // Preserve true linear scale: 0 renders as 0px; tiny positive values get a 1.5px hairline so they aren't invisible
+      const height = val === 0 ? 0 : Math.max(1.5, rawHeight);
+      const slotX = plotLeft + i * slotWidth;
+      const x = slotX + (slotWidth - barWidth) / 2;
+      const y = plotBottom - height;
+      const centerX = x + barWidth / 2;
+
+      const isLast = i === totalSlots - 1;
+      let showXLabel = true;
+      if (labelStep > 1) {
+        if (isLast) {
+          showXLabel = true;
+        } else if (i === totalSlots - 2) {
+          showXLabel = false;
+        } else {
+          showXLabel = i % labelStep === 0;
+        }
+      }
+
+      const showValueLabel = allowAllValueLabels || (allowNonZeroValueLabels && val > 0);
+      const rawLeftPct = (centerX / this.chartViewBoxWidth) * 100;
+      const tooltipLeftPct = Math.max(14, Math.min(86, rawLeftPct));
+      const anchorY = val > 0 ? y : plotBottom - 12;
+      const tooltipBelow = anchorY < plotTop + 56;
+      const tooltipTopPct = tooltipBelow
+        ? ((anchorY + 14) / this.chartViewBoxHeight) * 100
+        : ((anchorY - 12) / this.chartViewBoxHeight) * 100;
 
       return {
         x,
         y,
         width: barWidth,
         height,
+        slotX,
+        slotWidth,
         label,
+        fullLabel: fullLabels[i] || label,
+        isoDate: isoDates[i] || '',
         value: val,
-        prompt_value: promptValues[i] || 0,
-        comp_value: compValues[i] || 0,
+        compactValue: this.formatCompactTokens(val),
+        prompt_value: Number(promptValues[i] || 0),
+        comp_value: Number(compValues[i] || 0),
+        operations: Number(operations[i] || 0),
+        isCurrent: !!isCurrentFlags[i],
+        showXLabel,
+        showValueLabel,
+        tooltipLeftPct,
+        tooltipTopPct,
+        tooltipBelow,
       };
     });
   }
