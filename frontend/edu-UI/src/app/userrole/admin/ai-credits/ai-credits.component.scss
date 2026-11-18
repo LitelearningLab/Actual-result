@@ -1955,6 +1955,10 @@
   }
 }
 
+::ng-deep .mat-mdc-select-panel:has(.select-search-option) {
+  padding-top: 0 !important;
+}
+
 ::ng-deep .mat-mdc-select-panel .select-search-option {
   position: sticky;
   top: 0;

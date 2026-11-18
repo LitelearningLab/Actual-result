@@ -269,6 +269,12 @@ export interface InstAppliedFilterChip {
   required?: boolean;
 }
 
+interface InstituteLocationEntry {
+  country_code: string;
+  country_name: string;
+  city: string;
+}
+
 interface InstituteMasterRecord {
   id: string;
   name: string;
@@ -279,6 +285,7 @@ interface InstituteMasterRecord {
   country_codes: string[];
   country_names: string[];
   cities: string[];
+  locations: InstituteLocationEntry[];
 }
 
 @Component({
@@ -718,27 +725,49 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     });
   }
 
+  private locationMatchesCountry(
+    loc: InstituteLocationEntry,
+    selCountryCodesLower: string[],
+    selCountryNamesLower: string[]
+  ): boolean {
+    const locCode = (loc.country_code || '').trim().toLowerCase();
+    const locName = (loc.country_name || '').trim().toLowerCase();
+    if (!locCode && !locName) return false;
+    return (
+      (!!locCode &&
+        (selCountryCodesLower.includes(locCode) || selCountryNamesLower.includes(locCode))) ||
+      (!!locName &&
+        (selCountryCodesLower.includes(locName) || selCountryNamesLower.includes(locName)))
+    );
+  }
+
   private getScopedInstRecordsForTestDraft(): InstituteMasterRecord[] {
     const selCountry = (this.draftFilters.country || '').trim().toLowerCase();
+    const selCountryCodes = selCountry ? [selCountry] : [];
     const selCountryObj = selCountry
       ? this.instCountriesList.find((c) => c.code.toLowerCase() === selCountry)
       : null;
-    const selCountryName = (selCountryObj?.name || '').toLowerCase();
+    const selCountryNames = selCountryObj?.name ? [selCountryObj.name.toLowerCase()] : [];
     const selCity = (this.draftFilters.city || '').trim().toLowerCase();
     const selIndustry = (this.draftFilters.industry || '').trim().toLowerCase();
     const selSector = (this.draftFilters.sector || '').trim().toLowerCase();
 
     return this.instMasterRecords.filter((rec) => {
-      if (selCountry) {
-        const hasCountry =
-          rec.country_codes.some((c) => c.toLowerCase() === selCountry) ||
-          rec.country_names.some(
-            (n) => n.toLowerCase() === selCountry || (selCountryName && n.toLowerCase() === selCountryName)
-          );
+      if (selCountry && selCity) {
+        const hasPairedMatch = rec.locations.some(
+          (loc) =>
+            this.locationMatchesCountry(loc, selCountryCodes, selCountryNames) &&
+            (loc.city || '').toLowerCase() === selCity
+        );
+        if (!hasPairedMatch) return false;
+      } else if (selCountry) {
+        const hasCountry = rec.locations.some((loc) =>
+          this.locationMatchesCountry(loc, selCountryCodes, selCountryNames)
+        );
         if (!hasCountry) return false;
-      }
-      if (selCity) {
-        if (!rec.cities.some((c) => c.toLowerCase() === selCity)) return false;
+      } else if (selCity) {
+        const hasCity = rec.locations.some((loc) => (loc.city || '').toLowerCase() === selCity);
+        if (!hasCity) return false;
       }
       if (selIndustry) {
         if ((rec.industry_type || '').toLowerCase() !== selIndustry) return false;
@@ -758,26 +787,24 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         ? this.instCountriesList.filter((c) => c.name.toLowerCase().includes(cQ))
         : this.instCountriesList;
 
-      // 2. City options (scoped to selected Country)
+      // 2. City options (scoped per-campus to the selected Country, matching view-institutes)
       const selCountry = (this.draftFilters.country || '').trim().toLowerCase();
+      const selCountryCodes = selCountry ? [selCountry] : [];
       const selCountryObj = selCountry
         ? this.instCountriesList.find((c) => c.code.toLowerCase() === selCountry)
         : null;
-      const selCountryName = (selCountryObj?.name || '').toLowerCase();
+      const selCountryNames = selCountryObj?.name ? [selCountryObj.name.toLowerCase()] : [];
       const cityMap = new Map<string, { code: string; name: string }>();
       if (selCountry) {
         for (const rec of this.instMasterRecords) {
-          const matchesCountry =
-            rec.country_codes.some((c) => c.toLowerCase() === selCountry) ||
-            rec.country_names.some(
-              (n) =>
-                n.toLowerCase() === selCountry ||
-                (selCountryName && n.toLowerCase() === selCountryName)
-            );
-          if (matchesCountry) {
-            for (const city of rec.cities) {
-              if (!cityMap.has(city.toLowerCase())) {
-                cityMap.set(city.toLowerCase(), { code: city, name: city });
+          for (const loc of rec.locations) {
+            if (
+              loc.city &&
+              this.locationMatchesCountry(loc, selCountryCodes, selCountryNames)
+            ) {
+              const key = loc.city.toLowerCase();
+              if (!cityMap.has(key)) {
+                cityMap.set(key, { code: loc.city, name: loc.city });
               }
             }
           }
@@ -1786,6 +1813,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
           const cCodes = new Set<string>();
           const cNames = new Set<string>();
           const citiesSet = new Set<string>();
+          const campusLocations: InstituteLocationEntry[] = [];
 
           const locations = [r, ...(Array.isArray(r.campuses) ? r.campuses : [])];
           for (const loc of locations) {
@@ -1829,8 +1857,16 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
                 (typeof rawCity === 'object' ? rawCity?.city_name || rawCity?.name : rawCity) ||
                 ''
             ).trim();
-            if (cityVal) {
-              citiesSet.add(this.toTitleCase(cityVal));
+            const formattedCity = cityVal ? this.toTitleCase(cityVal) : '';
+            if (formattedCity) {
+              citiesSet.add(formattedCity);
+            }
+            if (resolvedCode || resolvedName || formattedCity) {
+              campusLocations.push({
+                country_code: resolvedCode,
+                country_name: resolvedName,
+                city: formattedCity,
+              });
             }
           }
 
@@ -1844,6 +1880,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
             country_codes: Array.from(cCodes),
             country_names: Array.from(cNames),
             cities: Array.from(citiesSet),
+            locations: campusLocations,
           });
         }
 
@@ -1889,16 +1926,22 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       if (activeFilter !== null && rec.active_status !== activeFilter) {
         return false;
       }
-      if (selCountries.length > 0) {
-        const hasCountry =
-          rec.country_codes.some((c) => selCountries.includes(c.toLowerCase())) ||
-          rec.country_names.some(
-            (n) => selCountries.includes(n.toLowerCase()) || selCountryNames.includes(n.toLowerCase())
-          );
+      if (selCountries.length > 0 && selCities.length > 0) {
+        const hasPairedMatch = rec.locations.some(
+          (loc) =>
+            this.locationMatchesCountry(loc, selCountries, selCountryNames) &&
+            selCities.includes((loc.city || '').toLowerCase())
+        );
+        if (!hasPairedMatch) return false;
+      } else if (selCountries.length > 0) {
+        const hasCountry = rec.locations.some((loc) =>
+          this.locationMatchesCountry(loc, selCountries, selCountryNames)
+        );
         if (!hasCountry) return false;
-      }
-      if (selCities.length > 0) {
-        const hasCity = rec.cities.some((c) => selCities.includes(c.toLowerCase()));
+      } else if (selCities.length > 0) {
+        const hasCity = rec.locations.some((loc) =>
+          selCities.includes((loc.city || '').toLowerCase())
+        );
         if (!hasCity) return false;
       }
       if (selIndustries.length > 0) {
@@ -1932,7 +1975,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       return a.name.localeCompare(b.name);
     });
 
-    // 2. Cities (scoped to selected countries)
+    // 2. Cities (scoped per-campus to selected countries, matching view-institutes)
     const selCountriesLower = selC.map((c) => c.toLowerCase());
     const selCountryNamesLower = this.instCountriesList
       .filter((c) => selCountriesLower.includes(c.code.toLowerCase()))
@@ -1940,17 +1983,14 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     const cityMap = new Map<string, { code: string; name: string }>();
     if (selCountriesLower.length > 0) {
       for (const rec of this.instMasterRecords) {
-        const matchesCountry =
-          rec.country_codes.some((c) => selCountriesLower.includes(c.toLowerCase())) ||
-          rec.country_names.some(
-            (n) =>
-              selCountriesLower.includes(n.toLowerCase()) ||
-              selCountryNamesLower.includes(n.toLowerCase())
-          );
-        if (matchesCountry) {
-          for (const city of rec.cities) {
-            if (!cityMap.has(city.toLowerCase())) {
-              cityMap.set(city.toLowerCase(), { code: city, name: city });
+        for (const loc of rec.locations) {
+          if (
+            loc.city &&
+            this.locationMatchesCountry(loc, selCountriesLower, selCountryNamesLower)
+          ) {
+            const key = loc.city.toLowerCase();
+            if (!cityMap.has(key)) {
+              cityMap.set(key, { code: loc.city, name: loc.city });
             }
           }
         }
