@@ -377,20 +377,13 @@
 
     <!-- Filters & Controls Bar -->
     <div class="test-controls-bar">
+      <!-- Row 1: Paper Tests / Online Tests Tabs -->
       <div class="type-filter-group">
         <button
           type="button"
           class="test-filter-btn"
-          [class.active]="testTypeFilter === 'all'"
-          (click)="testTypeFilter = 'all'; loadTestUsageData()"
-        >
-          All Tests ({{ testUsageList.length }})
-        </button>
-        <button
-          type="button"
-          class="test-filter-btn"
           [class.active]="testTypeFilter === 'paper'"
-          (click)="testTypeFilter = 'paper'; loadTestUsageData()"
+          (click)="onTestTypeTabChange('paper')"
         >
           📄 Paper Tests
         </button>
@@ -398,44 +391,71 @@
           type="button"
           class="test-filter-btn"
           [class.active]="testTypeFilter === 'online'"
-          (click)="testTypeFilter = 'online'; loadTestUsageData()"
+          (click)="onTestTypeTabChange('online')"
         >
           💻 Online Tests
         </button>
       </div>
 
-      <div class="view-mode-toggle">
-        <button
-          type="button"
-          class="mode-btn"
-          [class.active]="viewMode === 'test'"
-          (click)="viewMode = 'test'"
-        >
-          <mat-icon>list_alt</mat-icon> By Test
-        </button>
-        <button
-          type="button"
-          class="mode-btn"
-          [class.active]="viewMode === 'date'"
-          (click)="viewMode = 'date'"
-        >
-          <mat-icon>calendar_today</mat-icon> By Date
-        </button>
-      </div>
+      <!-- Row 2: Search Bar + Filter Button directly under the tabs -->
+      <div class="test-search-filter-row">
+        <div class="test-search-box">
+          <mat-icon class="search-box-icon">search</mat-icon>
+          <input
+            type="text"
+            [placeholder]="testTypeFilter === 'paper' ? 'Search paper test name or subject...' : 'Search online test name...'"
+            [(ngModel)]="testSearchTerm"
+            (input)="hasAppliedFilters && loadTestUsageData()"
+          />
+        </div>
 
-      <div class="test-search-box">
-        <mat-icon class="search-box-icon">search</mat-icon>
-        <input
-          type="text"
-          placeholder="Search test name or subject..."
-          [(ngModel)]="testSearchTerm"
-          (input)="loadTestUsageData()"
-        />
+        <button
+          #filtersBtn
+          type="button"
+          class="open-filter-btn"
+          [class.has-active-filters]="activeFilterCount > 0"
+          (click)="$event.stopPropagation(); openFiltersOverlay()"
+        >
+          <mat-icon>tune</mat-icon>
+          <span>Filter</span>
+          <span class="filter-count-badge" *ngIf="activeFilterCount > 0">{{ activeFilterCount }}</span>
+        </button>
       </div>
     </div>
 
-    <!-- VIEW 1: Test-wise Table -->
-    <div class="table-responsive" *ngIf="viewMode === 'test'">
+    <!-- Applied Filters Bar -->
+    <div class="applied-filters-bar" *ngIf="appliedFilterChips.length > 0">
+      <span class="applied-filters-label">APPLIED FILTERS</span>
+      <span class="applied-filter-chip" *ngFor="let chip of appliedFilterChips">
+        <span>{{ chip.label }}</span>
+        <button
+          type="button"
+          class="chip-remove-btn"
+          (click)="removeAppliedFilter(chip.key)"
+          aria-label="Remove filter"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </span>
+      <button type="button" class="clear-all-filters-btn" (click)="resetFilters()">
+        Clear all
+      </button>
+    </div>
+
+    <!-- Prompt State before Filters Are Applied -->
+    <div class="no-filter-applied-state" *ngIf="!hasAppliedFilters">
+      <div class="prompt-icon-wrap">
+        <mat-icon>tune</mat-icon>
+      </div>
+      <h4>No Filters Applied</h4>
+      <p>
+        Use the <strong>Filter</strong> button above and click <strong>Apply</strong> to view
+        {{ testTypeFilter === 'paper' ? 'Paper Test' : 'Online Test' }} AI usage details.
+      </p>
+    </div>
+
+    <!-- Test-wise Table (Shown ONLY after Filters Are Applied) -->
+    <div class="table-responsive" *ngIf="hasAppliedFilters">
       <table class="ai-table test-data-table">
         <thead>
           <tr>
@@ -511,7 +531,9 @@
           <tr *ngIf="testUsageList.length === 0">
             <td colspan="7" class="empty-test-state">
               <mat-icon>inbox</mat-icon>
-              <p>No tests recorded with AI consumption for this institute scope.</p>
+              <p>
+                {{ activeFilterCount > 0 ? 'No tests match the applied filters.' : 'No tests recorded with AI consumption for this institute scope.' }}
+              </p>
             </td>
           </tr>
         </tbody>
@@ -530,30 +552,236 @@
         aria-label="Select test page"
       ></mat-paginator>
     </div>
+  </div>
 
-    <!-- VIEW 2: Date-wise Daily Timeline -->
-    <div class="daily-timeline-box" *ngIf="viewMode === 'date'">
-      <div class="daily-timeline-card" *ngFor="let day of dailyTimeline">
-        <div class="day-card-header">
-          <div class="day-label-group">
-            <mat-icon>event</mat-icon>
-            <strong>{{ day.label }}</strong>
-          </div>
-          <div class="day-metrics-group">
-            <span class="day-credits-badge">{{ day.total_credits | number }} credits</span>
-            <span class="day-tokens-text">
-              In: {{ day.prompt_tokens | number }} | Out: {{ day.completion_tokens | number }} ({{ day.operations }} operations)
-            </span>
-          </div>
+  <!-- Anchored Filter Popover (rendered into CDK Overlay below Filter button) -->
+  <ng-template #filtersPanel>
+    <div class="filters-panel view-questions-filters-panel ai-credits-filters-panel" (click)="$event.stopPropagation()">
+      <div class="filters-panel-header">
+        <h4><mat-icon>tune</mat-icon> Filters</h4>
+      </div>
+
+      <div class="filter-block filter-grid">
+        <!-- 1. Class / Department -->
+        <div class="filter-col-full">
+          <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>{{ terminology.deptLabel }}</mat-label>
+            <mat-select
+              [(ngModel)]="draftFilters.department_id"
+              [placeholder]="terminology.selectDeptPlaceholder"
+              (selectionChange)="onDraftDepartmentChange()"
+            >
+              <div class="select-search-option" (click)="$event.stopPropagation()">
+                <input
+                  type="text"
+                  class="select-search-input"
+                  [placeholder]="terminology.searchDeptPlaceholder + '...'"
+                  [(ngModel)]="deptFilterSearch"
+                  [ngModelOptions]="{ standalone: true }"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)"
+                  (keyup)="stopFilterSearchEvent($event)"
+                  (input)="onDropdownSearchInput($event)"
+                />
+              </div>
+              <mat-option value="">{{ terminology.allDepts }}</mat-option>
+              <mat-option *ngIf="filteredDepartmentsForDraft.length === 0" disabled>
+                {{ terminology.noDeptsFound }}
+              </mat-option>
+              <mat-option *ngFor="let dept of filteredDepartmentsForDraft; trackBy: trackById" [value]="dept.id">
+                {{ dept.name }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- 2. Section / Year / Team -->
+        <div class="filter-col-full">
+          <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>{{ terminology.teamLabel }}</mat-label>
+            <mat-select
+              [(ngModel)]="draftFilters.team_id"
+              [disabled]="!draftFilters.department_id"
+              [placeholder]="draftFilters.department_id ? terminology.selectTeamPlaceholder : terminology.selectDeptFirst"
+              (selectionChange)="onDraftTeamChange()"
+            >
+              <div class="select-search-option" (click)="$event.stopPropagation()">
+                <input
+                  type="text"
+                  class="select-search-input"
+                  [placeholder]="terminology.searchTeamPlaceholder + '...'"
+                  [(ngModel)]="teamFilterSearch"
+                  [ngModelOptions]="{ standalone: true }"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)"
+                  (keyup)="stopFilterSearchEvent($event)"
+                  (input)="onDropdownSearchInput($event)"
+                />
+              </div>
+              <mat-option value="">{{ terminology.allTeams }}</mat-option>
+              <mat-option *ngIf="filteredTeamsForDraft.length === 0" disabled>
+                {{ terminology.noTeamsForDept }}
+              </mat-option>
+              <mat-option *ngFor="let team of filteredTeamsForDraft; trackBy: trackById" [value]="team.id">
+                {{ team.name }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- 2b. Campus -->
+        <div class="filter-col-full">
+          <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>Campus</mat-label>
+            <mat-select
+              [(ngModel)]="draftFilters.campus_id"
+              placeholder="Select campus"
+              (selectionChange)="onDraftCampusChange()"
+            >
+              <div class="select-search-option" (click)="$event.stopPropagation()">
+                <input
+                  type="text"
+                  class="select-search-input"
+                  placeholder="Search campus..."
+                  [(ngModel)]="campusFilterSearch"
+                  [ngModelOptions]="{ standalone: true }"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)"
+                  (keyup)="stopFilterSearchEvent($event)"
+                  (input)="onDropdownSearchInput($event)"
+                />
+              </div>
+              <mat-option value="">Any</mat-option>
+              <mat-option *ngIf="filteredCampusesForDraft.length === 0" disabled>
+                No campuses found
+              </mat-option>
+              <mat-option *ngFor="let cp of filteredCampusesForDraft; trackBy: trackById" [value]="cp.id">
+                {{ cp.name }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- 3. Subject (Paper Tests only) -->
+        <div class="filter-col-full" *ngIf="testTypeFilter === 'paper'">
+          <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>Subject</mat-label>
+            <mat-select
+              [(ngModel)]="draftFilters.subject"
+              placeholder="Select subject"
+              (selectionChange)="onDraftSubjectChange()"
+            >
+              <div class="select-search-option" (click)="$event.stopPropagation()">
+                <input
+                  type="text"
+                  class="select-search-input"
+                  placeholder="Search subject..."
+                  [(ngModel)]="subjectFilterSearch"
+                  [ngModelOptions]="{ standalone: true }"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)"
+                  (keyup)="stopFilterSearchEvent($event)"
+                  (input)="onDropdownSearchInput($event)"
+                />
+              </div>
+              <mat-option value="">All Subjects</mat-option>
+              <mat-option *ngIf="filteredSubjectsForDraft.length === 0" disabled>
+                No subjects found
+              </mat-option>
+              <mat-option *ngFor="let subj of filteredSubjectsForDraft; trackBy: trackById" [value]="subj.id">
+                {{ subj.name }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- 4. Test (Optional) — Paper Test names on Paper tab, Online Test names on Online tab -->
+        <div class="filter-col-full">
+          <mat-form-field appearance="outline" class="filter-item">
+            <mat-label>{{ testTypeFilter === 'paper' ? 'Paper Test (Optional)' : 'Online Test (Optional)' }}</mat-label>
+            <mat-select
+              [(ngModel)]="draftFilters.test_id"
+              [placeholder]="testTypeFilter === 'paper' ? 'Select paper test (optional)' : 'Select online test (optional)'"
+            >
+              <div class="select-search-option" (click)="$event.stopPropagation()">
+                <input
+                  type="text"
+                  class="select-search-input"
+                  [placeholder]="testTypeFilter === 'paper' ? 'Search paper test...' : 'Search online test...'"
+                  [(ngModel)]="testFilterSearch"
+                  [ngModelOptions]="{ standalone: true }"
+                  (click)="$event.stopPropagation()"
+                  (keydown)="stopFilterSearchEvent($event)"
+                  (keyup)="stopFilterSearchEvent($event)"
+                  (input)="onDropdownSearchInput($event)"
+                />
+              </div>
+              <mat-option value="">{{ testTypeFilter === 'paper' ? 'All Paper Tests' : 'All Online Tests' }}</mat-option>
+              <mat-option *ngIf="filteredTestsForDraft.length === 0" disabled>
+                {{ testTypeFilter === 'paper' ? 'No matching paper tests found' : 'No matching online tests found' }}
+              </mat-option>
+              <mat-option *ngFor="let t of filteredTestsForDraft; trackBy: trackById" [value]="t.id">
+                {{ t.title }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+
+        <!-- 5. Created Date (Single field opening DateRangePickerDialogComponent) -->
+        <div class="filter-col-full">
+          <mat-form-field
+            appearance="outline"
+            class="filter-item date-range-field"
+            (click)="openDateRangePicker()"
+            style="cursor: pointer"
+          >
+            <mat-label>Created Date</mat-label>
+            <input
+              matInput
+              readonly
+              [value]="getCreatedDateRangeDisplay()"
+              placeholder="Select date range"
+              style="cursor: pointer"
+            />
+            <button
+              *ngIf="draftFilters.start_date || draftFilters.end_date"
+              mat-icon-button
+              matSuffix
+              type="button"
+              (click)="clearDraftDates($event)"
+              aria-label="Clear date range"
+            >
+              <mat-icon>close</mat-icon>
+            </button>
+            <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
+          </mat-form-field>
         </div>
       </div>
 
-      <div *ngIf="dailyTimeline.length === 0" class="empty-test-state">
-        <mat-icon>event_busy</mat-icon>
-        <p>No daily timeline records found for this scope.</p>
+      <!-- 6. Created by Me Checkbox -->
+      <div class="filter-checks">
+        <div class="checkbox-item">
+          <mat-checkbox
+            [(ngModel)]="draftFilters.created_by_me"
+            (change)="onDraftCreatedByMeChange()"
+            color="primary"
+          >
+            Created by Me
+          </mat-checkbox>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="filter-actions">
+        <button mat-flat-button type="button" (click)="resetFilters()" class="filter-reset-btn">
+          <mat-icon>refresh</mat-icon> Reset
+        </button>
+        <button mat-flat-button type="button" (click)="applyFilters()" class="filter-apply-btn">
+          <mat-icon>check</mat-icon> Apply
+        </button>
       </div>
     </div>
-  </div>
+  </ng-template>
 
   <!-- SECTION 6: Token Consumption Bar Charts (Trends) -->
   <div class="section-card chart-card">

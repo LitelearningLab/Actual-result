@@ -1,4 +1,12 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  ElementRef,
+  TemplateRef,
+  ViewChild,
+  ViewContainerRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -12,13 +20,28 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { Overlay, OverlayModule, OverlayRef } from '@angular/cdk/overlay';
+import { TemplatePortal } from '@angular/cdk/portal';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
+import { SharedModule } from 'src/app/shared/shared.module';
+import {
+  DateRangePickerDialogComponent,
+  DateRangeDialogResult,
+} from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
+import {
+  getInstituteTerminology,
+  InstituteTerminology,
+} from 'src/app/shared/services/institute-terminology.service';
 import { Subscription } from 'rxjs';
 
 interface CreditSummary {
   institute_id: string;
   institute_name: string;
+  industry_type?: string;
+  industry_sector?: string;
   allocated_credits: number;
   used_credits: number;
   remaining_credits: number;
@@ -78,6 +101,8 @@ export interface InstituteOverviewItem {
   institute_id: string;
   name: string;
   short_name: string;
+  industry_type?: string;
+  industry_sector?: string;
   allocated_credits: number;
   used_credits: number;
   remaining_credits: number;
@@ -93,6 +118,8 @@ export interface InstituteOption {
   institute_id: string;
   name: string;
   short_name?: string;
+  industry_type?: string;
+  industry_sector?: string;
 }
 
 export interface TestFeatureItem {
@@ -103,10 +130,19 @@ export interface TestFeatureItem {
 }
 
 export interface TestUsageItem {
+  id?: string;
   exam_id: string;
   schedule_id?: string;
   title: string;
   subject: string;
+  subject_id?: string;
+  department_ids?: string[];
+  team_ids?: string[];
+  campus_ids?: string[];
+  created_by_id?: string;
+  created_by_name?: string;
+  scheduled_start?: string;
+  scheduled_end?: string;
   test_type: 'paper' | 'online' | 'general';
   total_credits: number;
   prompt_tokens: number;
@@ -117,13 +153,49 @@ export interface TestUsageItem {
   expanded?: boolean;
 }
 
-export interface DailyUsageItem {
-  date: string;
+export interface FilterOptionItem {
+  id: string;
+  name: string;
+}
+
+export interface TeamOptionItem {
+  id: string;
+  name: string;
+  department_id?: string | null;
+  department_name?: string | null;
+}
+
+export interface FilterTestMeta {
+  id: string;
+  exam_id: string;
+  schedule_id?: string | null;
+  title: string;
+  test_type: 'paper' | 'online' | 'general';
+  subject: string;
+  subject_id?: string;
+  department_ids: string[];
+  team_ids: string[];
+  campus_ids?: string[];
+  created_by_id?: string;
+  created_by_name?: string;
+  scheduled_start?: string;
+  scheduled_end?: string;
+}
+
+export interface TestFilterState {
+  department_id: string;
+  team_id: string;
+  campus_id: string;
+  subject: string;
+  test_id: string;
+  created_by_me: boolean;
+  start_date: Date | null;
+  end_date: Date | null;
+}
+
+export interface AppliedFilterChip {
+  key: 'department' | 'team' | 'campus' | 'subject' | 'test' | 'created_by_me' | 'date_range';
   label: string;
-  total_credits: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  operations: number;
 }
 
 @Component({
@@ -132,6 +204,7 @@ export interface DailyUsageItem {
   imports: [
     CommonModule,
     FormsModule,
+    SharedModule,
     MatFormFieldModule,
     MatInputModule,
     MatSelectModule,
@@ -142,6 +215,9 @@ export interface DailyUsageItem {
     MatTooltipModule,
     MatSnackBarModule,
     MatPaginatorModule,
+    MatDialogModule,
+    MatCheckboxModule,
+    OverlayModule,
   ],
   templateUrl: './ai-credits.component.html',
   styleUrls: ['./ai-credits.component.scss'],
@@ -201,18 +277,320 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   // Test & Paper Usage state
   testsLoading = false;
   testUsageList: TestUsageItem[] = [];
-  dailyTimeline: DailyUsageItem[] = [];
   paperCreditsTotal = 0;
   onlineCreditsTotal = 0;
   standaloneCreditsTotal = 0;
 
-  testTypeFilter: 'all' | 'paper' | 'online' = 'all';
-  viewMode: 'test' | 'date' = 'test';
+  testTypeFilter: 'paper' | 'online' = 'paper';
   testSearchTerm = '';
 
   testPageIndex = 0;
   testPageSize = 10;
   testPageSizeOptions = [5, 10, 25, 50];
+
+  // Logged-in institute scope & dynamic sector terminology
+  loggedInstituteId = '';
+  loggedIndustryType = '';
+  private lastLoadedMasterInstKey: string | null = null;
+
+  // Anchored Filter Popover state (draft vs. applied so closing without Apply discards changes)
+  @ViewChild('filtersBtn') filtersBtn?: ElementRef;
+  @ViewChild('filtersPanel') filtersPanelTpl!: TemplateRef<any>;
+  filtersOverlayRef: OverlayRef | null = null;
+  private currentUserIdentifiers = new Set<string>();
+  hasAppliedFilters = false;
+  appliedFilters: TestFilterState = this.createEmptyFilters();
+  draftFilters: TestFilterState = this.createEmptyFilters();
+
+  // Filter master options
+  departmentsList: FilterOptionItem[] = [];
+  allTeamsList: TeamOptionItem[] = [];
+  campusesList: FilterOptionItem[] = [];
+  subjectsList: FilterOptionItem[] = [];
+  allTestsMeta: FilterTestMeta[] = [];
+
+  // Search terms inside filter dropdowns
+  deptFilterSearch = '';
+  teamFilterSearch = '';
+  campusFilterSearch = '';
+  subjectFilterSearch = '';
+  testFilterSearch = '';
+
+  private createEmptyFilters(): TestFilterState {
+    return {
+      department_id: '',
+      team_id: '',
+      campus_id: '',
+      subject: '',
+      test_id: '',
+      created_by_me: false,
+      start_date: null,
+      end_date: null,
+    };
+  }
+
+  private cloneFilters(src: TestFilterState): TestFilterState {
+    return {
+      department_id: src.department_id || '',
+      team_id: src.team_id || '',
+      campus_id: src.campus_id || '',
+      subject: src.subject || '',
+      test_id: src.test_id || '',
+      created_by_me: !!src.created_by_me,
+      start_date: src.start_date ? new Date(src.start_date.getTime()) : null,
+      end_date: src.end_date ? new Date(src.end_date.getTime()) : null,
+    };
+  }
+
+  // Cached terminology & filter options (never recomputed inside template getters)
+  terminology: InstituteTerminology = getInstituteTerminology('');
+  filteredDepartmentsForDraft: FilterOptionItem[] = [];
+  filteredTeamsForDraft: TeamOptionItem[] = [];
+  filteredCampusesForDraft: FilterOptionItem[] = [];
+  filteredSubjectsForDraft: FilterOptionItem[] = [];
+  filteredTestsForDraft: FilterTestMeta[] = [];
+  appliedFilterChips: AppliedFilterChip[] = [];
+  activeFilterCount = 0;
+
+  trackById(_index: number, item: { id: string }): string {
+    return item.id;
+  }
+
+  private refreshTerminology(): void {
+    let industryType = '';
+
+    if (this.summary?.industry_type) {
+      industryType = this.summary.industry_type;
+    } else if (this.isSuperAdmin && this.selectedInstituteId && this.selectedInstituteId !== 'all') {
+      const inst = this.institutesList.find(
+        (i) => String(i.institute_id) === String(this.selectedInstituteId)
+      );
+      industryType = inst?.industry_type || '';
+    } else if (!this.isSuperAdmin && this.loggedIndustryType) {
+      industryType = this.loggedIndustryType;
+    }
+
+    if (!industryType && this.summary?.institute_name) {
+      const lowerName = this.summary.institute_name.toLowerCase();
+      if (lowerName.includes('school')) {
+        industryType = 'School';
+      } else if (lowerName.includes('college')) {
+        industryType = 'College';
+      }
+    }
+
+    this.terminology = getInstituteTerminology(industryType);
+    this.refreshAppliedFilterChips();
+  }
+
+  private computeAvailableTeamsForDraft(): TeamOptionItem[] {
+    const deptId = (this.draftFilters.department_id || '').trim();
+    if (!deptId) return [];
+    const selectedDept = this.departmentsList.find((d) => String(d.id) === deptId);
+    const deptNameLower = (selectedDept?.name || '').trim().toLowerCase();
+    return this.allTeamsList.filter((t) => {
+      const tDeptId = (t.department_id || '').trim();
+      const tDeptName = (t.department_name || '').trim().toLowerCase();
+      if (tDeptId && tDeptId.toLowerCase() === deptId.toLowerCase()) return true;
+      if (deptNameLower && tDeptName && tDeptName === deptNameLower) return true;
+      return false;
+    });
+  }
+
+  private computeAvailableSubjectsForDraft(): FilterOptionItem[] {
+    const deptId = (this.draftFilters.department_id || '').trim().toLowerCase();
+    const teamId = (this.draftFilters.team_id || '').trim().toLowerCase();
+
+    const mergedMap = new Map<string, FilterOptionItem>();
+    for (const s of this.subjectsList) {
+      if (s.name) {
+        mergedMap.set(s.name.toLowerCase(), { id: s.id || s.name, name: s.name });
+      }
+    }
+    for (const t of this.allTestsMeta) {
+      const sName = (t.subject || '').trim();
+      if (sName && !mergedMap.has(sName.toLowerCase())) {
+        mergedMap.set(sName.toLowerCase(), { id: t.subject_id || sName, name: sName });
+      }
+    }
+
+    if (!deptId && !teamId) {
+      return Array.from(mergedMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    const matchingTests = this.allTestsMeta.filter((t) => {
+      if (deptId && !(t.department_ids || []).some((d) => d.toLowerCase() === deptId)) {
+        return false;
+      }
+      if (teamId && !(t.team_ids || []).some((tm) => tm.toLowerCase() === teamId)) {
+        return false;
+      }
+      return true;
+    });
+
+    const relevantSubjs = new Map<string, FilterOptionItem>();
+    for (const t of matchingTests) {
+      const sName = (t.subject || '').trim();
+      const sId = (t.subject_id || '').trim();
+      if (!sName && !sId) continue;
+      const key = (sName || sId).toLowerCase();
+      if (!relevantSubjs.has(key)) {
+        const master = mergedMap.get(key);
+        relevantSubjs.set(key, master || { id: sId || sName, name: sName || sId });
+      }
+    }
+
+    return Array.from(relevantSubjs.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  private computeAvailableTestsForDraft(availableSubjects: FilterOptionItem[]): FilterTestMeta[] {
+    const deptId = (this.draftFilters.department_id || '').trim().toLowerCase();
+    const teamId = (this.draftFilters.team_id || '').trim().toLowerCase();
+    const campusId = (this.draftFilters.campus_id || '').trim().toLowerCase();
+    const subjVal =
+      this.testTypeFilter === 'paper'
+        ? (this.draftFilters.subject || '').trim().toLowerCase()
+        : '';
+
+    const selectedSubjObj = availableSubjects.find(
+      (s) => s.id.toLowerCase() === subjVal || s.name.toLowerCase() === subjVal
+    );
+    const subjNameLower = (selectedSubjObj?.name || subjVal).toLowerCase();
+
+    return this.allTestsMeta.filter((t) => {
+      if (t.test_type !== this.testTypeFilter) {
+        return false;
+      }
+      if (deptId && !(t.department_ids || []).some((d) => d.toLowerCase() === deptId)) {
+        return false;
+      }
+      if (teamId && !(t.team_ids || []).some((tm) => tm.toLowerCase() === teamId)) {
+        return false;
+      }
+      if (campusId && !(t.campus_ids || []).some((c) => c.toLowerCase() === campusId)) {
+        return false;
+      }
+      if (subjVal) {
+        const tSubjId = (t.subject_id || '').toLowerCase();
+        const tSubjName = (t.subject || '').toLowerCase();
+        if (tSubjId !== subjVal && tSubjName !== subjVal && tSubjName !== subjNameLower) {
+          return false;
+        }
+      }
+      if (this.draftFilters.created_by_me && this.currentUserIdentifiers.size > 0) {
+        const tCid = (t.created_by_id || '').toLowerCase();
+        const tCname = (t.created_by_name || '').toLowerCase();
+        if (!this.currentUserIdentifiers.has(tCid) && !this.currentUserIdentifiers.has(tCname)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  refreshDraftOptions(): void {
+    const deptQ = (this.deptFilterSearch || '').trim().toLowerCase();
+    this.filteredDepartmentsForDraft = deptQ
+      ? this.departmentsList.filter((d) => (d.name || '').toLowerCase().includes(deptQ))
+      : this.departmentsList;
+
+    const availTeams = this.computeAvailableTeamsForDraft();
+    const teamQ = (this.teamFilterSearch || '').trim().toLowerCase();
+    this.filteredTeamsForDraft = teamQ
+      ? availTeams.filter((t) => (t.name || '').toLowerCase().includes(teamQ))
+      : availTeams;
+
+    const campusQ = (this.campusFilterSearch || '').trim().toLowerCase();
+    this.filteredCampusesForDraft = campusQ
+      ? this.campusesList.filter((c) => (c.name || '').toLowerCase().includes(campusQ))
+      : this.campusesList;
+
+    const availSubjects = this.computeAvailableSubjectsForDraft();
+    const subjQ = (this.subjectFilterSearch || '').trim().toLowerCase();
+    this.filteredSubjectsForDraft = subjQ
+      ? availSubjects.filter((s) => (s.name || '').toLowerCase().includes(subjQ))
+      : availSubjects;
+
+    const availTests = this.computeAvailableTestsForDraft(availSubjects);
+    const testQ = (this.testFilterSearch || '').trim().toLowerCase();
+    this.filteredTestsForDraft = testQ
+      ? availTests.filter(
+          (t) =>
+            (t.title || '').toLowerCase().includes(testQ) ||
+            (t.subject || '').toLowerCase().includes(testQ)
+        )
+      : availTests;
+  }
+
+  private refreshAppliedFilterChips(): void {
+    const chips: AppliedFilterChip[] = [];
+    let count = 0;
+
+    if (this.appliedFilters.department_id) {
+      count++;
+      const d = this.departmentsList.find((x) => x.id === this.appliedFilters.department_id);
+      chips.push({
+        key: 'department',
+        label: `${this.terminology.deptLabel}: ${d?.name || this.appliedFilters.department_id}`,
+      });
+    }
+    if (this.appliedFilters.team_id) {
+      count++;
+      const t = this.allTeamsList.find((x) => x.id === this.appliedFilters.team_id);
+      chips.push({
+        key: 'team',
+        label: `${this.terminology.teamLabel}: ${t?.name || this.appliedFilters.team_id}`,
+      });
+    }
+    if (this.appliedFilters.campus_id) {
+      count++;
+      const cp = this.campusesList.find((x) => x.id === this.appliedFilters.campus_id);
+      chips.push({
+        key: 'campus',
+        label: `Campus: ${cp?.name || this.appliedFilters.campus_id}`,
+      });
+    }
+    if (this.appliedFilters.subject) {
+      count++;
+      const s = this.subjectsList.find(
+        (x) => x.id === this.appliedFilters.subject || x.name === this.appliedFilters.subject
+      );
+      chips.push({
+        key: 'subject',
+        label: `Subject: ${s?.name || this.appliedFilters.subject}`,
+      });
+    }
+    if (this.appliedFilters.test_id) {
+      count++;
+      const tst = this.allTestsMeta.find(
+        (x) =>
+          x.id === this.appliedFilters.test_id ||
+          x.schedule_id === this.appliedFilters.test_id ||
+          x.exam_id === this.appliedFilters.test_id
+      );
+      chips.push({
+        key: 'test',
+        label: `Test: ${tst?.title || this.appliedFilters.test_id}`,
+      });
+    }
+    if (this.appliedFilters.created_by_me) {
+      count++;
+      chips.push({
+        key: 'created_by_me',
+        label: 'Created by Me',
+      });
+    }
+    if (this.appliedFilters.start_date || this.appliedFilters.end_date) {
+      count++;
+      chips.push({
+        key: 'date_range',
+        label: `Created Date: ${this.getCreatedDateRangeDisplay(this.appliedFilters)}`,
+      });
+    }
+
+    this.activeFilterCount = count;
+    this.appliedFilterChips = chips;
+  }
 
   get paginatedTests(): TestUsageItem[] {
     const start = this.testPageIndex * this.testPageSize;
@@ -240,7 +618,10 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   constructor(
     private http: HttpClient,
     private snackBar: MatSnackBar,
-    private pageMeta: PageMetaService
+    private pageMeta: PageMetaService,
+    private dialog: MatDialog,
+    private overlay: Overlay,
+    private vcr: ViewContainerRef
   ) {}
 
   ngOnInit(): void {
@@ -252,11 +633,17 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         const user = JSON.parse(userStr);
         const role = (user.user_role || user.role || '').toLowerCase();
         this.isSuperAdmin = role.includes('super');
+        this.loggedInstituteId = String(user.institute_id || '').trim();
+        this.loggedIndustryType = String(user.industry_type || user.industry || '').trim();
+        [user.user_id, user.id, user.userId, user.user_name, user.username, user.email, user.full_name, user.name]
+          .filter((v) => v !== null && v !== undefined && String(v).trim() !== '')
+          .forEach((v) => this.currentUserIdentifiers.add(String(v).trim().toLowerCase()));
       } catch (e) {
         console.error('Failed to parse user session', e);
       }
     }
 
+    this.refreshTerminology();
     this.loadAllData();
   }
 
@@ -268,17 +655,370 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.loadSummary();
     this.loadBreakdown();
     this.loadAnalytics(this.selectedPeriod);
+    this.loadFilterMasterData();
     this.loadTestUsageData();
   }
 
   onInstituteChange(instId: string): void {
     this.selectedInstituteId = instId;
+    this.hasAppliedFilters = false;
+    this.appliedFilters = this.createEmptyFilters();
+    this.draftFilters = this.createEmptyFilters();
+    this.lastLoadedMasterInstKey = null;
+    this.refreshTerminology();
+    this.refreshDraftOptions();
     this.loadAllData();
   }
 
   selectInstitute(instId: string): void {
     this.selectedInstituteId = instId;
+    this.hasAppliedFilters = false;
+    this.appliedFilters = this.createEmptyFilters();
+    this.draftFilters = this.createEmptyFilters();
+    this.lastLoadedMasterInstKey = null;
+    this.refreshTerminology();
+    this.refreshDraftOptions();
     this.loadAllData();
+  }
+
+  onTestTypeTabChange(type: 'paper' | 'online'): void {
+    if (this.testTypeFilter === type) return;
+    this.testTypeFilter = type;
+    this.closeFiltersOverlay();
+    this.hasAppliedFilters = false;
+    this.appliedFilters = this.createEmptyFilters();
+    this.draftFilters = this.createEmptyFilters();
+    this.testSearchTerm = '';
+    this.refreshDraftOptions();
+    this.refreshAppliedFilterChips();
+    this.loadTestUsageData();
+  }
+
+  // ─── Anchored Filter Popover (CDK Overlay) Methods ───
+  openFiltersOverlay(): void {
+    if (!this.filtersBtn) return;
+    if (this.filtersOverlayRef) {
+      this.closeFiltersOverlay();
+      return;
+    }
+
+    this.draftFilters = this.cloneFilters(this.appliedFilters);
+    this.deptFilterSearch = '';
+    this.teamFilterSearch = '';
+    this.campusFilterSearch = '';
+    this.subjectFilterSearch = '';
+    this.testFilterSearch = '';
+    this.refreshDraftOptions();
+
+    const targetEl =
+      this.filtersBtn?.nativeElement ||
+      (this.filtersBtn as any)?._elementRef?.nativeElement ||
+      this.filtersBtn;
+
+    const positionStrategy = this.overlay
+      .position()
+      .flexibleConnectedTo(targetEl)
+      .withPositions([
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
+        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
+      ])
+      .withPush(true);
+
+    this.filtersOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+    });
+
+    this.filtersOverlayRef.backdropClick().subscribe(() => this.closeFiltersOverlay());
+    this.filtersOverlayRef.keydownEvents().subscribe((ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') this.closeFiltersOverlay();
+    });
+
+    const portal = new TemplatePortal(this.filtersPanelTpl, this.vcr);
+    this.filtersOverlayRef.attach(portal);
+  }
+
+  closeFiltersOverlay(): void {
+    if (this.filtersOverlayRef) {
+      try {
+        this.filtersOverlayRef.dispose();
+      } catch (_) {}
+      this.filtersOverlayRef = null;
+    }
+  }
+
+  onDraftDepartmentChange(): void {
+    this.draftFilters.team_id = '';
+    this.draftFilters.subject = '';
+    this.draftFilters.test_id = '';
+    this.refreshDraftOptions();
+  }
+
+  onDraftTeamChange(): void {
+    this.draftFilters.subject = '';
+    this.draftFilters.test_id = '';
+    this.refreshDraftOptions();
+  }
+
+  onDraftCampusChange(): void {
+    this.draftFilters.test_id = '';
+    this.refreshDraftOptions();
+  }
+
+  onDraftSubjectChange(): void {
+    this.draftFilters.test_id = '';
+    this.refreshDraftOptions();
+  }
+
+  onDraftCreatedByMeChange(): void {
+    this.refreshDraftOptions();
+    if (this.draftFilters.test_id) {
+      const stillValid = this.filteredTestsForDraft.some((t) => t.id === this.draftFilters.test_id);
+      if (!stillValid) {
+        this.draftFilters.test_id = '';
+      }
+    }
+  }
+
+  onDropdownSearchInput(event: Event): void {
+    event.stopPropagation();
+    this.refreshDraftOptions();
+  }
+
+  getCreatedDateRangeDisplay(state: TestFilterState = this.draftFilters): string {
+    const startStr = this.formatDisplayDate(state.start_date);
+    const endStr = this.formatDisplayDate(state.end_date);
+    if (startStr && endStr) return `${startStr} - ${endStr}`;
+    if (startStr) return startStr;
+    if (endStr) return endStr;
+    return '';
+  }
+
+  openDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.draftFilters.start_date,
+        endDate: this.draftFilters.end_date,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.draftFilters.start_date = res.startDate;
+        this.draftFilters.end_date = res.endDate;
+      }
+    });
+  }
+
+  clearDraftDates(event: Event): void {
+    event.stopPropagation();
+    this.draftFilters.start_date = null;
+    this.draftFilters.end_date = null;
+  }
+
+  applyFilters(): void {
+    this.appliedFilters = this.cloneFilters(this.draftFilters);
+    this.hasAppliedFilters = true;
+    this.refreshAppliedFilterChips();
+    this.closeFiltersOverlay();
+    this.testPageIndex = 0;
+    this.loadTestUsageData();
+  }
+
+  resetFilters(): void {
+    this.draftFilters = this.createEmptyFilters();
+    this.appliedFilters = this.createEmptyFilters();
+    this.hasAppliedFilters = false;
+    this.deptFilterSearch = '';
+    this.teamFilterSearch = '';
+    this.campusFilterSearch = '';
+    this.subjectFilterSearch = '';
+    this.testFilterSearch = '';
+    this.refreshDraftOptions();
+    this.refreshAppliedFilterChips();
+    this.closeFiltersOverlay();
+    this.testPageIndex = 0;
+    this.loadTestUsageData();
+  }
+
+  removeAppliedFilter(key: AppliedFilterChip['key']): void {
+    switch (key) {
+      case 'department':
+        this.appliedFilters.department_id = '';
+        this.appliedFilters.team_id = '';
+        this.appliedFilters.subject = '';
+        this.appliedFilters.test_id = '';
+        break;
+      case 'team':
+        this.appliedFilters.team_id = '';
+        this.appliedFilters.subject = '';
+        this.appliedFilters.test_id = '';
+        break;
+      case 'campus':
+        this.appliedFilters.campus_id = '';
+        this.appliedFilters.test_id = '';
+        break;
+      case 'subject':
+        this.appliedFilters.subject = '';
+        this.appliedFilters.test_id = '';
+        break;
+      case 'test':
+        this.appliedFilters.test_id = '';
+        break;
+      case 'created_by_me':
+        this.appliedFilters.created_by_me = false;
+        break;
+      case 'date_range':
+        this.appliedFilters.start_date = null;
+        this.appliedFilters.end_date = null;
+        break;
+    }
+    this.refreshAppliedFilterChips();
+    if (this.activeFilterCount === 0) {
+      this.hasAppliedFilters = false;
+    }
+    this.testPageIndex = 0;
+    this.loadTestUsageData();
+  }
+
+  formatDisplayDate(d: Date | null): string {
+    if (!d || isNaN(d.getTime())) return '';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  }
+
+  private formatIsoDateParam(d: Date | null): string {
+    if (!d || isNaN(d.getTime())) return '';
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  private getEffectiveInstituteIdForMasters(): string {
+    if (this.isSuperAdmin) {
+      return this.selectedInstituteId && this.selectedInstituteId !== 'all'
+        ? this.selectedInstituteId
+        : '';
+    }
+    return this.loggedInstituteId || (this.summary?.institute_id && this.summary.institute_id !== 'all' ? this.summary.institute_id : '');
+  }
+
+  loadFilterMasterData(force = false): void {
+    const instId = this.getEffectiveInstituteIdForMasters();
+    const masterKey = this.isSuperAdmin ? (instId || 'all') : (instId || 'self');
+    if (!force && this.lastLoadedMasterInstKey === masterKey) {
+      return;
+    }
+    this.lastLoadedMasterInstKey = masterKey;
+
+    const query = instId ? `?institute_id=${encodeURIComponent(instId)}` : '';
+    const headers = this.getAuthHeaders();
+
+    // 1. Departments / Classes
+    this.http.get<any>(`${API_BASE}/get-department-list${query}`, { headers }).subscribe({
+      next: (res) => {
+        const raw = res?.data || res || [];
+        const items = Array.isArray(raw) ? raw : [];
+        this.departmentsList = items
+          .map((d: any) => ({
+            id: String(d.department_id || d.id || d.dept_id || d.name || ''),
+            name: String(d.name || d.department_name || d.department || d || ''),
+          }))
+          .filter((x) => !!x.name);
+        this.refreshDraftOptions();
+        this.refreshAppliedFilterChips();
+      },
+      error: (err) => {
+        console.error('Error loading departments/classes for filter:', err);
+        this.departmentsList = [];
+        this.refreshDraftOptions();
+      },
+    });
+
+    // 2. Teams / Sections / Years
+    this.http.get<any>(`${API_BASE}/get-teams-list${query}`, { headers }).subscribe({
+      next: (res) => {
+        const raw = res?.data || res || [];
+        const items = Array.isArray(raw) ? raw : [];
+        this.allTeamsList = items
+          .map((t: any) => ({
+            id: String(t.team_id || t.id || t.teamId || t.name || ''),
+            name: String(t.name || t.team_name || t.team || t || ''),
+            department_id:
+              t.department_id != null
+                ? String(t.department_id)
+                : t.dept_id != null
+                ? String(t.dept_id)
+                : null,
+            department_name: t.department_name || t.department || null,
+          }))
+          .filter((x) => !!x.name);
+        this.refreshDraftOptions();
+        this.refreshAppliedFilterChips();
+      },
+      error: (err) => {
+        console.error('Error loading teams/sections for filter:', err);
+        this.allTeamsList = [];
+        this.refreshDraftOptions();
+      },
+    });
+
+    // 3. Campuses (endpoint requires institute_id)
+    if (instId) {
+      this.http
+        .get<any>(`${API_BASE}/get-campus-list?institute_id=${encodeURIComponent(instId)}`, {
+          headers,
+        })
+        .subscribe({
+          next: (res) => {
+            const raw = res?.data || res?.campuses || res || [];
+            const items = Array.isArray(raw) ? raw : [];
+            this.campusesList = items
+              .map((c: any) => ({
+                id: String(c.campus_id || c.id || c.name || ''),
+                name: String(c.name || c.campus_name || c || ''),
+              }))
+              .filter((x) => !!x.name);
+            this.refreshDraftOptions();
+            this.refreshAppliedFilterChips();
+          },
+          error: (err) => {
+            console.error('Error loading campuses for filter:', err);
+            this.campusesList = [];
+            this.refreshDraftOptions();
+          },
+        });
+    } else {
+      this.campusesList = [];
+      this.refreshDraftOptions();
+    }
+
+    // 4. Subjects
+    this.http.get<any>(`${API_BASE}/get-subject-list${query}`, { headers }).subscribe({
+      next: (res) => {
+        const raw = res?.data || res || [];
+        const items = Array.isArray(raw) ? raw : [];
+        this.subjectsList = items
+          .map((s: any) => ({
+            id: String(s.subject_id || s.id || s.subjectId || s.name || ''),
+            name: String(s.subject_name || s.name || s.title || s || ''),
+          }))
+          .filter((x) => !!x.name);
+        this.refreshDraftOptions();
+        this.refreshAppliedFilterChips();
+      },
+      error: (err) => {
+        console.error('Error loading subjects for filter:', err);
+        this.subjectsList = [];
+        this.refreshDraftOptions();
+      },
+    });
   }
 
   private getAuthHeaders(): { [key: string]: string } {
@@ -311,7 +1051,10 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
               institute_id: item.institute_id,
               name: item.name,
               short_name: item.short_name,
+              industry_type: item.industry_type,
+              industry_sector: item.industry_sector,
             }));
+            this.refreshTerminology();
           }
         },
         error: (err) => {
@@ -334,6 +1077,17 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         next: (res) => {
           if (res && res.status && res.data) {
             this.summary = res.data;
+            if (!this.isSuperAdmin && res.data.institute_id && res.data.institute_id !== 'all') {
+              const prevInst = this.loggedInstituteId;
+              this.loggedInstituteId = res.data.institute_id;
+              if (res.data.industry_type) {
+                this.loggedIndustryType = res.data.industry_type;
+              }
+              if (prevInst !== this.loggedInstituteId) {
+                this.loadFilterMasterData(true);
+              }
+            }
+            this.refreshTerminology();
           }
         },
         error: (err) => {
@@ -423,13 +1177,42 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   loadTestUsageData(): void {
     this.testsLoading = true;
-    let url = `${API_BASE}/ai-credits/test-usage?test_type=${this.testTypeFilter}`;
-    if (this.selectedInstituteId) {
-      url += `&institute_id=${encodeURIComponent(this.selectedInstituteId)}`;
+    const params: string[] = [`test_type=${encodeURIComponent(this.testTypeFilter)}`];
+
+    if (this.isSuperAdmin && this.selectedInstituteId) {
+      params.push(`institute_id=${encodeURIComponent(this.selectedInstituteId)}`);
     }
     if (this.testSearchTerm.trim()) {
-      url += `&search=${encodeURIComponent(this.testSearchTerm.trim())}`;
+      params.push(`search=${encodeURIComponent(this.testSearchTerm.trim())}`);
     }
+    if (this.appliedFilters.department_id) {
+      params.push(`department_id=${encodeURIComponent(this.appliedFilters.department_id)}`);
+    }
+    if (this.appliedFilters.team_id) {
+      params.push(`team_id=${encodeURIComponent(this.appliedFilters.team_id)}`);
+    }
+    if (this.appliedFilters.campus_id) {
+      params.push(`campus_id=${encodeURIComponent(this.appliedFilters.campus_id)}`);
+    }
+    if (this.testTypeFilter === 'paper' && this.appliedFilters.subject) {
+      params.push(`subject=${encodeURIComponent(this.appliedFilters.subject)}`);
+    }
+    if (this.appliedFilters.test_id) {
+      params.push(`test_id=${encodeURIComponent(this.appliedFilters.test_id)}`);
+    }
+    if (this.appliedFilters.created_by_me) {
+      params.push(`created_by_me=true`);
+    }
+    const startIso = this.formatIsoDateParam(this.appliedFilters.start_date);
+    if (startIso) {
+      params.push(`created_start_date=${encodeURIComponent(startIso)}`);
+    }
+    const endIso = this.formatIsoDateParam(this.appliedFilters.end_date);
+    if (endIso) {
+      params.push(`created_end_date=${encodeURIComponent(endIso)}`);
+    }
+
+    const url = `${API_BASE}/ai-credits/test-usage?${params.join('&')}`;
 
     this.http
       .get<{
@@ -442,7 +1225,10 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
             grand_total: number;
           };
           tests: TestUsageItem[];
-          daily_timeline: DailyUsageItem[];
+          filter_options?: {
+            creators: FilterOptionItem[];
+            tests: FilterTestMeta[];
+          };
         };
       }>(url, { headers: this.getAuthHeaders() })
       .subscribe({
@@ -450,12 +1236,16 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
           this.testsLoading = false;
           if (res && res.status && res.data) {
             this.testUsageList = res.data.tests || [];
-            this.dailyTimeline = res.data.daily_timeline || [];
             this.testPageIndex = 0;
             const s = res.data.summary || {};
             this.paperCreditsTotal = s.total_paper_credits || 0;
             this.onlineCreditsTotal = s.total_online_credits || 0;
             this.standaloneCreditsTotal = s.total_standalone_credits || 0;
+            if (res.data.filter_options) {
+              this.allTestsMeta = res.data.filter_options.tests || [];
+              this.refreshDraftOptions();
+              this.refreshAppliedFilterChips();
+            }
           }
         },
         error: (err) => {
@@ -550,6 +1340,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.closeFiltersOverlay();
     this.pageMeta.clear();
     this.subs.unsubscribe();
   }
