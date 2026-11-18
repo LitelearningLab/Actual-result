@@ -218,6 +218,7 @@ export interface FilterTestMeta {
   id: string;
   exam_id: string;
   schedule_id?: string | null;
+  institute_id?: string;
   title: string;
   test_type: 'paper' | 'online' | 'general';
   subject: string;
@@ -232,6 +233,11 @@ export interface FilterTestMeta {
 }
 
 export interface TestFilterState {
+  country: string;
+  city: string;
+  industry: string;
+  sector: string;
+  institute_id: string;
   department_id: string;
   team_id: string;
   campus_id: string;
@@ -243,9 +249,36 @@ export interface TestFilterState {
 }
 
 export interface AppliedFilterChip {
-  key: 'department' | 'team' | 'campus' | 'subject' | 'test' | 'created_by_me' | 'date_range';
+  key: 'institute' | 'department' | 'team' | 'campus' | 'subject' | 'test' | 'created_by_me' | 'date_range';
   label: string;
   required?: boolean;
+}
+
+export interface InstituteFilterState {
+  institute_ids: string[];
+  countries: string[];
+  cities: string[];
+  industries: string[];
+  sectors: string[];
+  active_status: boolean | null;
+}
+
+export interface InstAppliedFilterChip {
+  key: 'institutes' | 'country' | 'city' | 'industry' | 'sector' | 'active_status';
+  label: string;
+  required?: boolean;
+}
+
+interface InstituteMasterRecord {
+  id: string;
+  name: string;
+  short_name: string;
+  industry_type: string;
+  industry_sector: string;
+  active_status: boolean;
+  country_codes: string[];
+  country_names: string[];
+  cities: string[];
 }
 
 @Component({
@@ -285,6 +318,69 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   institutesList: InstituteOption[] = [];
   institutesOverview: InstituteOverviewItem[] = [];
   instituteSearchTerm = '';
+
+  // Section 3: All Institutes AI Credit Allocations Filter Popover state
+  @ViewChild('instFiltersBtn') instFiltersBtn?: ElementRef;
+  @ViewChild('instFiltersPanel') instFiltersPanelTpl!: TemplateRef<any>;
+  instFiltersOverlayRef: OverlayRef | null = null;
+  hasAppliedInstFilters = false;
+  instOverviewLoading = false;
+  instAppliedFilters: InstituteFilterState = this.createEmptyInstFilters();
+  instDraftFilters: InstituteFilterState = this.createEmptyInstFilters();
+  instFilterValidationAttempted = false;
+  instFilterValidationError = '';
+
+  // Master data & search terms for Institute Table Filters
+  private instMasterLoaded = false;
+  private instMasterRecords: InstituteMasterRecord[] = [];
+  private locationCountriesRaw: Array<{ code: string; name: string }> = [];
+  instCountriesList: Array<{ code: string; name: string }> = [];
+  readonly instIndustryTypes: string[] = ['School', 'College', 'BPO', 'Bank', 'IT'];
+  private readonly instSectorMap: Record<string, string[]> = {
+    School: ['School'],
+    College: ['Engineering', 'Arts'],
+    BPO: ['Healthcare', 'Finance'],
+    Bank: ['Bank'],
+    IT: ['IT'],
+  };
+  loadingInstFilterOptions = false;
+  loadingInstCountries = false;
+
+  instFilterNameSearch = '';
+  instCountrySearch = '';
+  instCitySearch = '';
+  instIndustrySearch = '';
+  instSectorSearch = '';
+
+  filteredInstOptionsForDraft: Array<{ id: string; name: string }> = [];
+  filteredInstCountriesForDraft: Array<{ code: string; name: string }> = [];
+  filteredInstCitiesForDraft: Array<{ code: string; name: string }> = [];
+  filteredInstIndustriesForDraft: string[] = [];
+  filteredInstSectorsForDraft: string[] = [];
+  instAppliedFilterChips: InstAppliedFilterChip[] = [];
+  instActiveFilterCount = 0;
+
+  private createEmptyInstFilters(): InstituteFilterState {
+    return {
+      institute_ids: [],
+      countries: [],
+      cities: [],
+      industries: [],
+      sectors: [],
+      active_status: true,
+    };
+  }
+
+  private cloneInstFilters(src: InstituteFilterState): InstituteFilterState {
+    return {
+      institute_ids: [...(src.institute_ids || [])],
+      countries: [...(src.countries || [])],
+      cities: [...(src.cities || [])],
+      industries: [...(src.industries || [])],
+      sectors: [...(src.sectors || [])],
+      active_status: src.active_status === undefined ? true : src.active_status,
+    };
+  }
 
   // Institutes table pagination
   institutePageIndex = 0;
@@ -362,6 +458,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   allTestsMeta: FilterTestMeta[] = [];
 
   // Search terms inside filter dropdowns
+  testCountryFilterSearch = '';
+  testCityFilterSearch = '';
+  testIndustryFilterSearch = '';
+  testSectorFilterSearch = '';
+  testInstFilterSearch = '';
   deptFilterSearch = '';
   teamFilterSearch = '';
   campusFilterSearch = '';
@@ -370,6 +471,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   private createEmptyFilters(): TestFilterState {
     return {
+      country: '',
+      city: '',
+      industry: '',
+      sector: '',
+      institute_id: '',
       department_id: '',
       team_id: '',
       campus_id: '',
@@ -383,6 +489,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   private cloneFilters(src: TestFilterState): TestFilterState {
     return {
+      country: src.country || '',
+      city: src.city || '',
+      industry: src.industry || '',
+      sector: src.sector || '',
+      institute_id: src.institute_id || '',
       department_id: src.department_id || '',
       team_id: src.team_id || '',
       campus_id: src.campus_id || '',
@@ -396,6 +507,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   // Cached terminology & filter options (never recomputed inside template getters)
   terminology: InstituteTerminology = getInstituteTerminology('');
+  filteredTestCountriesForDraft: Array<{ code: string; name: string }> = [];
+  filteredTestCitiesForDraft: Array<{ code: string; name: string }> = [];
+  filteredTestIndustriesForDraft: string[] = [];
+  filteredTestSectorsForDraft: string[] = [];
+  filteredTestInstitutesForDraft: Array<{ id: string; name: string }> = [];
   filteredDepartmentsForDraft: FilterOptionItem[] = [];
   filteredTeamsForDraft: TeamOptionItem[] = [];
   filteredCampusesForDraft: FilterOptionItem[] = [];
@@ -411,18 +527,34 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   private refreshTerminology(): void {
     let industryType = '';
 
-    if (this.summary?.industry_type) {
-      industryType = this.summary.industry_type;
-    } else if (this.isSuperAdmin && this.selectedInstituteId && this.selectedInstituteId !== 'all') {
-      const inst = this.institutesList.find(
-        (i) => String(i.institute_id) === String(this.selectedInstituteId)
-      );
-      industryType = inst?.industry_type || '';
-    } else if (!this.isSuperAdmin && this.loggedIndustryType) {
-      industryType = this.loggedIndustryType;
+    if (this.isSuperAdmin) {
+      const scopedInstId =
+        (this.filtersOverlayRef ? this.draftFilters.institute_id : this.appliedFilters.institute_id) ||
+        (this.selectedInstituteId && this.selectedInstituteId !== 'all' ? this.selectedInstituteId : '');
+      if (scopedInstId) {
+        const masterRec = this.instMasterRecords.find((i) => String(i.id) === String(scopedInstId));
+        const listRec = this.institutesList.find(
+          (i) => String(i.institute_id) === String(scopedInstId)
+        );
+        industryType = masterRec?.industry_type || listRec?.industry_type || '';
+        if (!industryType) {
+          const instName = (masterRec?.name || listRec?.name || '').toLowerCase();
+          if (instName.includes('school')) industryType = 'School';
+          else if (instName.includes('college')) industryType = 'College';
+        }
+      }
+      if (!industryType && this.summary?.industry_type && this.selectedInstituteId !== 'all') {
+        industryType = this.summary.industry_type;
+      }
+    } else {
+      if (this.summary?.industry_type) {
+        industryType = this.summary.industry_type;
+      } else if (this.loggedIndustryType) {
+        industryType = this.loggedIndustryType;
+      }
     }
 
-    if (!industryType && this.summary?.institute_name) {
+    if (!industryType && this.summary?.institute_name && (!this.isSuperAdmin || this.selectedInstituteId !== 'all')) {
       const lowerName = this.summary.institute_name.toLowerCase();
       if (lowerName.includes('school')) {
         industryType = 'School';
@@ -455,6 +587,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   private computeAvailableSubjectsForDraft(): FilterOptionItem[] {
+    const instId = this.isSuperAdmin ? (this.draftFilters.institute_id || '').trim().toLowerCase() : '';
     const deptId = (this.draftFilters.department_id || '').trim().toLowerCase();
     const teamId = (this.draftFilters.team_id || '').trim().toLowerCase();
 
@@ -465,6 +598,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       }
     }
     for (const t of this.allTestsMeta) {
+      if (instId && t.institute_id && t.institute_id.toLowerCase() !== instId) continue;
       const sName = (t.subject || '').trim();
       if (!this.isPlaceholderSubject(sName) && !mergedMap.has(sName.toLowerCase())) {
         mergedMap.set(sName.toLowerCase(), { id: t.subject_id || sName, name: sName });
@@ -481,6 +615,9 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
     const matchingTests = this.allTestsMeta.filter((t) => {
       if (t.test_type !== this.testTypeFilter) {
+        return false;
+      }
+      if (instId && t.institute_id && t.institute_id.toLowerCase() !== instId) {
         return false;
       }
       if (deptId && !(t.department_ids || []).some((d) => d.toLowerCase() === deptId)) {
@@ -512,6 +649,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   private computeAvailableTestsForDraft(availableSubjects: FilterOptionItem[]): FilterTestMeta[] {
+    const instId = this.isSuperAdmin ? (this.draftFilters.institute_id || '').trim().toLowerCase() : '';
     const deptId = (this.draftFilters.department_id || '').trim().toLowerCase();
     const teamId = (this.draftFilters.team_id || '').trim().toLowerCase();
     const campusId = (this.draftFilters.campus_id || '').trim().toLowerCase();
@@ -527,6 +665,9 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
     return this.allTestsMeta.filter((t) => {
       if (t.test_type !== this.testTypeFilter) {
+        return false;
+      }
+      if (instId && t.institute_id && t.institute_id.toLowerCase() !== instId) {
         return false;
       }
       if (deptId && !(t.department_ids || []).some((d) => d.toLowerCase() === deptId)) {
@@ -556,7 +697,100 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     });
   }
 
+  private getScopedInstRecordsForTestDraft(): InstituteMasterRecord[] {
+    const selCountry = (this.draftFilters.country || '').trim().toLowerCase();
+    const selCountryObj = selCountry
+      ? this.instCountriesList.find((c) => c.code.toLowerCase() === selCountry)
+      : null;
+    const selCountryName = (selCountryObj?.name || '').toLowerCase();
+    const selCity = (this.draftFilters.city || '').trim().toLowerCase();
+    const selIndustry = (this.draftFilters.industry || '').trim().toLowerCase();
+    const selSector = (this.draftFilters.sector || '').trim().toLowerCase();
+
+    return this.instMasterRecords.filter((rec) => {
+      if (selCountry) {
+        const hasCountry =
+          rec.country_codes.some((c) => c.toLowerCase() === selCountry) ||
+          rec.country_names.some(
+            (n) => n.toLowerCase() === selCountry || (selCountryName && n.toLowerCase() === selCountryName)
+          );
+        if (!hasCountry) return false;
+      }
+      if (selCity) {
+        if (!rec.cities.some((c) => c.toLowerCase() === selCity)) return false;
+      }
+      if (selIndustry) {
+        if ((rec.industry_type || '').toLowerCase() !== selIndustry) return false;
+      }
+      if (selSector) {
+        if ((rec.industry_sector || '').toLowerCase() !== selSector) return false;
+      }
+      return true;
+    });
+  }
+
   refreshDraftOptions(): void {
+    if (this.isSuperAdmin) {
+      // 1. Country options for Test filter
+      const cQ = (this.testCountryFilterSearch || '').trim().toLowerCase();
+      this.filteredTestCountriesForDraft = cQ
+        ? this.instCountriesList.filter((c) => c.name.toLowerCase().includes(cQ))
+        : this.instCountriesList;
+
+      // 2. City options (scoped to selected Country)
+      const selCountry = (this.draftFilters.country || '').trim().toLowerCase();
+      const selCountryObj = selCountry
+        ? this.instCountriesList.find((c) => c.code.toLowerCase() === selCountry)
+        : null;
+      const selCountryName = (selCountryObj?.name || '').toLowerCase();
+      const cityMap = new Map<string, { code: string; name: string }>();
+      if (selCountry) {
+        for (const rec of this.instMasterRecords) {
+          const matchesCountry =
+            rec.country_codes.some((c) => c.toLowerCase() === selCountry) ||
+            rec.country_names.some(
+              (n) =>
+                n.toLowerCase() === selCountry ||
+                (selCountryName && n.toLowerCase() === selCountryName)
+            );
+          if (matchesCountry) {
+            for (const city of rec.cities) {
+              if (!cityMap.has(city.toLowerCase())) {
+                cityMap.set(city.toLowerCase(), { code: city, name: city });
+              }
+            }
+          }
+        }
+      }
+      const allCities = Array.from(cityMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      const cityQ = (this.testCityFilterSearch || '').trim().toLowerCase();
+      this.filteredTestCitiesForDraft = cityQ
+        ? allCities.filter((c) => c.name.toLowerCase().includes(cityQ))
+        : allCities;
+
+      // 3. Industry options
+      const indQ = (this.testIndustryFilterSearch || '').trim().toLowerCase();
+      this.filteredTestIndustriesForDraft = indQ
+        ? this.instIndustryTypes.filter((t) => t.toLowerCase().includes(indQ))
+        : this.instIndustryTypes;
+
+      // 4. Sector options (scoped to selected Industry)
+      const selInd = (this.draftFilters.industry || '').trim();
+      const scopedSectors = selInd ? this.instSectorMap[selInd] || [] : [];
+      const secQ = (this.testSectorFilterSearch || '').trim().toLowerCase();
+      this.filteredTestSectorsForDraft = secQ
+        ? scopedSectors.filter((s) => s.toLowerCase().includes(secQ))
+        : scopedSectors;
+
+      // 5. Institute options (scoped by Country, City, Industry, Sector)
+      const scopedInsts = this.getScopedInstRecordsForTestDraft();
+      const instQ = (this.testInstFilterSearch || '').trim().toLowerCase();
+      const instMatches = instQ
+        ? scopedInsts.filter((i) => i.name.toLowerCase().includes(instQ))
+        : scopedInsts;
+      this.filteredTestInstitutesForDraft = instMatches.map((i) => ({ id: i.id, name: i.name }));
+    }
+
     const deptQ = (this.deptFilterSearch || '').trim().toLowerCase();
     this.filteredDepartmentsForDraft = deptQ
       ? this.departmentsList.filter((d) => (d.name || '').toLowerCase().includes(deptQ))
@@ -594,6 +828,17 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     const chips: AppliedFilterChip[] = [];
     let count = 0;
 
+    if (this.isSuperAdmin && this.appliedFilters.institute_id) {
+      count++;
+      const instObj =
+        this.instMasterRecords.find((x) => x.id === this.appliedFilters.institute_id) ||
+        this.institutesList.find((x) => x.institute_id === this.appliedFilters.institute_id);
+      chips.push({
+        key: 'institute',
+        label: `Institute: ${instObj?.name || this.appliedFilters.institute_id}`,
+        required: true,
+      });
+    }
     if (this.appliedFilters.department_id) {
       count++;
       const d = this.departmentsList.find((x) => x.id === this.appliedFilters.department_id);
@@ -741,7 +986,10 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   loadAllData(): void {
     this.isLoading = true;
     if (this.isSuperAdmin) {
-      this.loadInstitutesOverview();
+      this.loadInstFilterMasterData();
+      if (this.hasAppliedInstFilters) {
+        this.loadInstitutesOverview();
+      }
     }
     this.loadSummary();
     this.loadBreakdown();
@@ -751,6 +999,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   onInstituteChange(instId: string): void {
+    this.closeInstFiltersOverlay();
     this.selectedInstituteId = instId;
     this.hasAppliedFilters = false;
     this.appliedFilters = this.createEmptyFilters();
@@ -764,6 +1013,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   selectInstitute(instId: string): void {
+    this.closeInstFiltersOverlay();
     this.selectedInstituteId = instId;
     this.hasAppliedFilters = false;
     this.appliedFilters = this.createEmptyFilters();
@@ -792,6 +1042,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   getMandatoryFilterSummaryText(): string {
+    if (this.isSuperAdmin) {
+      return this.testTypeFilter === 'paper'
+        ? `Institute, ${this.terminology.deptLabel}, ${this.terminology.teamLabel}, and Subject`
+        : `Institute, ${this.terminology.deptLabel}, and ${this.terminology.teamLabel}`;
+    }
     return this.testTypeFilter === 'paper'
       ? `${this.terminology.deptLabel}, ${this.terminology.teamLabel}, and Subject`
       : `${this.terminology.deptLabel} and ${this.terminology.teamLabel}`;
@@ -799,6 +1054,9 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   private getMissingMandatoryFilterLabels(): string[] {
     const missing: string[] = [];
+    if (this.isSuperAdmin && !(this.draftFilters.institute_id || '').trim()) {
+      missing.push('Institute');
+    }
     if (!(this.draftFilters.department_id || '').trim()) {
       missing.push(this.terminology.deptLabel);
     }
@@ -829,6 +1087,14 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     return false;
   }
 
+  isDraftTestInstituteInvalid(): boolean {
+    return (
+      this.isSuperAdmin &&
+      this.filterValidationAttempted &&
+      !(this.draftFilters.institute_id || '').trim()
+    );
+  }
+
   isDraftDeptInvalid(): boolean {
     return this.filterValidationAttempted && !(this.draftFilters.department_id || '').trim();
   }
@@ -853,15 +1119,33 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.closeInstFiltersOverlay();
     this.draftFilters = this.cloneFilters(this.appliedFilters);
+    if (
+      this.isSuperAdmin &&
+      !this.draftFilters.institute_id &&
+      this.selectedInstituteId &&
+      this.selectedInstituteId !== 'all'
+    ) {
+      this.draftFilters.institute_id = this.selectedInstituteId;
+    }
     this.filterValidationAttempted = false;
     this.filterValidationError = '';
+    this.testCountryFilterSearch = '';
+    this.testCityFilterSearch = '';
+    this.testIndustryFilterSearch = '';
+    this.testSectorFilterSearch = '';
+    this.testInstFilterSearch = '';
     this.deptFilterSearch = '';
     this.teamFilterSearch = '';
     this.campusFilterSearch = '';
     this.subjectFilterSearch = '';
     this.testFilterSearch = '';
-    this.refreshDraftOptions();
+
+    if (this.isSuperAdmin) {
+      this.loadInstFilterMasterData();
+      this.loadFilterMasterData(false, this.draftFilters.institute_id || '');
+    }
 
     const targetEl =
       this.filtersBtn?.nativeElement ||
@@ -891,14 +1175,73 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
     const portal = new TemplatePortal(this.filtersPanelTpl, this.vcr);
     this.filtersOverlayRef.attach(portal);
+    this.refreshTerminology();
+    this.refreshDraftOptions();
   }
 
   closeFiltersOverlay(): void {
+    const hadOverlay = !!this.filtersOverlayRef;
     if (this.filtersOverlayRef) {
       try {
         this.filtersOverlayRef.dispose();
       } catch (_) {}
       this.filtersOverlayRef = null;
+    }
+    if (hadOverlay && this.isSuperAdmin) {
+      const activeInst =
+        this.appliedFilters.institute_id ||
+        (this.selectedInstituteId !== 'all' ? this.selectedInstituteId : '');
+      this.refreshTerminology();
+      this.loadFilterMasterData(false, activeInst);
+    }
+  }
+
+  private pruneTestDraftInstituteIfOutOfScope(): void {
+    const scoped = this.getScopedInstRecordsForTestDraft();
+    if (
+      this.draftFilters.institute_id &&
+      !scoped.some((r) => r.id === this.draftFilters.institute_id)
+    ) {
+      this.draftFilters.institute_id = '';
+      this.onTestDraftInstituteChange();
+    }
+  }
+
+  onTestDraftCountryChange(): void {
+    this.draftFilters.city = '';
+    this.testCityFilterSearch = '';
+    this.pruneTestDraftInstituteIfOutOfScope();
+    this.refreshDraftOptions();
+  }
+
+  onTestDraftCityChange(): void {
+    this.pruneTestDraftInstituteIfOutOfScope();
+    this.refreshDraftOptions();
+  }
+
+  onTestDraftIndustryChange(): void {
+    this.draftFilters.sector = '';
+    this.testSectorFilterSearch = '';
+    this.pruneTestDraftInstituteIfOutOfScope();
+    this.refreshDraftOptions();
+  }
+
+  onTestDraftSectorChange(): void {
+    this.pruneTestDraftInstituteIfOutOfScope();
+    this.refreshDraftOptions();
+  }
+
+  onTestDraftInstituteChange(): void {
+    this.draftFilters.department_id = '';
+    this.draftFilters.team_id = '';
+    this.draftFilters.campus_id = '';
+    this.draftFilters.subject = '';
+    this.draftFilters.test_id = '';
+    this.refreshTerminology();
+    this.loadFilterMasterData(true, this.draftFilters.institute_id || '');
+    this.refreshDraftOptions();
+    if (this.filterValidationAttempted) {
+      this.updateFilterValidationError();
     }
   }
 
@@ -1002,20 +1345,28 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.hasAppliedFilters = false;
     this.filterValidationAttempted = false;
     this.filterValidationError = '';
+    this.testCountryFilterSearch = '';
+    this.testCityFilterSearch = '';
+    this.testIndustryFilterSearch = '';
+    this.testSectorFilterSearch = '';
+    this.testInstFilterSearch = '';
     this.deptFilterSearch = '';
     this.teamFilterSearch = '';
     this.campusFilterSearch = '';
     this.subjectFilterSearch = '';
     this.testFilterSearch = '';
+    this.closeFiltersOverlay();
+    this.refreshTerminology();
+    this.loadFilterMasterData(false);
     this.refreshDraftOptions();
     this.refreshAppliedFilterChips();
-    this.closeFiltersOverlay();
     this.testPageIndex = 0;
     this.loadTestUsageData();
   }
 
   removeAppliedFilter(key: AppliedFilterChip['key']): void {
     if (
+      key === 'institute' ||
       key === 'department' ||
       key === 'team' ||
       (key === 'subject' && this.testTypeFilter === 'paper')
@@ -1068,6 +1419,9 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   private getEffectiveInstituteIdForMasters(): string {
     if (this.isSuperAdmin) {
+      if (this.appliedFilters.institute_id) {
+        return this.appliedFilters.institute_id;
+      }
       return this.selectedInstituteId && this.selectedInstituteId !== 'all'
         ? this.selectedInstituteId
         : '';
@@ -1075,13 +1429,24 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     return this.loggedInstituteId || (this.summary?.institute_id && this.summary.institute_id !== 'all' ? this.summary.institute_id : '');
   }
 
-  loadFilterMasterData(force = false): void {
-    const instId = this.getEffectiveInstituteIdForMasters();
-    const masterKey = this.isSuperAdmin ? (instId || 'all') : (instId || 'self');
+  loadFilterMasterData(force = false, overrideInstId?: string): void {
+    const instId =
+      overrideInstId !== undefined ? overrideInstId : this.getEffectiveInstituteIdForMasters();
+    const masterKey = this.isSuperAdmin ? (instId || 'none') : (instId || 'self');
     if (!force && this.lastLoadedMasterInstKey === masterKey) {
       return;
     }
     this.lastLoadedMasterInstKey = masterKey;
+
+    if (this.isSuperAdmin && !instId) {
+      this.departmentsList = [];
+      this.allTeamsList = [];
+      this.campusesList = [];
+      this.subjectsList = [];
+      this.refreshDraftOptions();
+      this.refreshAppliedFilterChips();
+      return;
+    }
 
     const query = instId ? `?institute_id=${encodeURIComponent(instId)}` : '';
     const headers = this.getAuthHeaders();
@@ -1201,29 +1566,685 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     return headers;
   }
 
-  loadInstitutesOverview(): void {
+  // ─── Section 3: Institute Table Filter Popover & Master Data Methods ───
+  private toTitleCase(str: string): string {
+    return str
+      ? str
+          .trim()
+          .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase())
+      : '';
+  }
+
+  loadInstFilterMasterData(force = false): void {
     if (!this.isSuperAdmin) return;
+    if (!force && this.instMasterLoaded) return;
+
+    this.loadingInstFilterOptions = true;
+    this.loadingInstCountries = true;
+    const headers = this.getAuthHeaders();
+
+    this.http.get<any>(`${API_BASE}/location-hierarchy`, { headers }).subscribe({
+      next: (locRes) => {
+        const rawCountries = locRes?.data?.countries || locRes?.countries || locRes?.data || [];
+        this.locationCountriesRaw = Array.isArray(rawCountries)
+          ? rawCountries
+              .map((c: any) => ({
+                code: String(c.country_code || c.code || c.country_id || c.id || '').trim(),
+                name: String(c.country_name || c.name || c.country || '').trim(),
+              }))
+              .filter((c) => !!c.code && !!c.name)
+          : [];
+        this.fetchInstitutesForFilterMaster();
+      },
+      error: () => {
+        this.locationCountriesRaw = [];
+        this.fetchInstitutesForFilterMaster();
+      },
+    });
+  }
+
+  private fetchInstitutesForFilterMaster(): void {
+    const headers = this.getAuthHeaders();
+    this.http.get<any>(`${API_BASE}/get-institutes`, { headers }).subscribe({
+      next: (res) => {
+        const raw = Array.isArray(res?.data) ? res.data : [];
+        const records: InstituteMasterRecord[] = [];
+        const countryMap = new Map<string, { code: string; name: string }>();
+
+        for (const r of raw) {
+          const id = String(r.institute_id || r.id || '').trim();
+          const name = String(r.name || r.institute_name || '').trim();
+          if (!id || !name) continue;
+
+          const cCodes = new Set<string>();
+          const cNames = new Set<string>();
+          const citiesSet = new Set<string>();
+
+          const locations = [r, ...(Array.isArray(r.campuses) ? r.campuses : [])];
+          for (const loc of locations) {
+            if (!loc) continue;
+            const rawCountry = loc.country;
+            const cCode = String(
+              loc.country_id ||
+                loc.country_code ||
+                (typeof rawCountry === 'object'
+                  ? rawCountry?.country_id || rawCountry?.id || rawCountry?.country_code || rawCountry?.code
+                  : rawCountry) ||
+                ''
+            ).trim();
+            const cName = String(
+              loc.country_name ||
+                (typeof rawCountry === 'object'
+                  ? rawCountry?.country_name || rawCountry?.name || rawCountry?.country
+                  : rawCountry) ||
+                ''
+            ).trim();
+
+            const match = this.locationCountriesRaw.find(
+              (lc) =>
+                (cCode && lc.code.toLowerCase() === cCode.toLowerCase()) ||
+                (cName && lc.name.toLowerCase() === cName.toLowerCase())
+            );
+            const resolvedCode = match?.code || cCode;
+            const resolvedName = match?.name || cName;
+            if (resolvedCode) cCodes.add(resolvedCode);
+            if (resolvedName) cNames.add(resolvedName);
+            if (resolvedCode && resolvedName && !countryMap.has(resolvedName.toLowerCase())) {
+              countryMap.set(resolvedName.toLowerCase(), {
+                code: resolvedCode,
+                name: resolvedName,
+              });
+            }
+
+            const rawCity = loc.city;
+            const cityVal = String(
+              loc.city_name ||
+                (typeof rawCity === 'object' ? rawCity?.city_name || rawCity?.name : rawCity) ||
+                ''
+            ).trim();
+            if (cityVal) {
+              citiesSet.add(this.toTitleCase(cityVal));
+            }
+          }
+
+          records.push({
+            id,
+            name,
+            short_name: String(r.short_name || r.short || '').trim(),
+            industry_type: String(r.industry_type || r.industry || '').trim(),
+            industry_sector: String(r.industry_sector || r.sector || '').trim(),
+            active_status: r.active_status !== undefined ? !!r.active_status : true,
+            country_codes: Array.from(cCodes),
+            country_names: Array.from(cNames),
+            cities: Array.from(citiesSet),
+          });
+        }
+
+        records.sort((a, b) => a.name.localeCompare(b.name));
+        this.instMasterRecords = records;
+        this.instMasterLoaded = true;
+        this.instCountriesList = Array.from(countryMap.values()).sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+        this.institutesList = records.map((rec) => ({
+          institute_id: rec.id,
+          name: rec.name,
+          short_name: rec.short_name,
+          industry_type: rec.industry_type,
+          industry_sector: rec.industry_sector,
+        }));
+        this.loadingInstFilterOptions = false;
+        this.loadingInstCountries = false;
+        this.refreshTerminology();
+        this.refreshInstDraftOptions();
+        this.refreshInstAppliedFilterChips();
+        this.refreshDraftOptions();
+      },
+      error: (err) => {
+        console.error('Error loading institutes master list for filter:', err);
+        this.loadingInstFilterOptions = false;
+        this.loadingInstCountries = false;
+      },
+    });
+  }
+
+  private getScopedInstRecordsForDraft(): InstituteMasterRecord[] {
+    const selCountries = (this.instDraftFilters.countries || []).map((c) => c.toLowerCase());
+    const selCountryNames = this.instCountriesList
+      .filter((c) => selCountries.includes(c.code.toLowerCase()))
+      .map((c) => c.name.toLowerCase());
+    const selCities = (this.instDraftFilters.cities || []).map((c) => c.toLowerCase());
+    const selIndustries = (this.instDraftFilters.industries || []).map((i) => i.toLowerCase());
+    const selSectors = (this.instDraftFilters.sectors || []).map((s) => s.toLowerCase());
+    const activeFilter = this.instDraftFilters.active_status;
+
+    return this.instMasterRecords.filter((rec) => {
+      if (activeFilter !== null && rec.active_status !== activeFilter) {
+        return false;
+      }
+      if (selCountries.length > 0) {
+        const hasCountry =
+          rec.country_codes.some((c) => selCountries.includes(c.toLowerCase())) ||
+          rec.country_names.some(
+            (n) => selCountries.includes(n.toLowerCase()) || selCountryNames.includes(n.toLowerCase())
+          );
+        if (!hasCountry) return false;
+      }
+      if (selCities.length > 0) {
+        const hasCity = rec.cities.some((c) => selCities.includes(c.toLowerCase()));
+        if (!hasCity) return false;
+      }
+      if (selIndustries.length > 0) {
+        if (!selIndustries.includes((rec.industry_type || '').toLowerCase())) {
+          return false;
+        }
+      }
+      if (selSectors.length > 0) {
+        if (!selSectors.includes((rec.industry_sector || '').toLowerCase())) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  refreshInstDraftOptions(): void {
+    // 1. Countries
+    const cQ = (this.instCountrySearch || '').trim().toLowerCase();
+    const selC = this.instDraftFilters.countries || [];
+    const countriesFiltered = cQ
+      ? this.instCountriesList.filter(
+          (c) => c.name.toLowerCase().includes(cQ) || selC.includes(c.code)
+        )
+      : [...this.instCountriesList];
+    this.filteredInstCountriesForDraft = countriesFiltered.sort((a, b) => {
+      const aSel = selC.includes(a.code);
+      const bSel = selC.includes(b.code);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    // 2. Cities (scoped to selected countries)
+    const selCountriesLower = selC.map((c) => c.toLowerCase());
+    const selCountryNamesLower = this.instCountriesList
+      .filter((c) => selCountriesLower.includes(c.code.toLowerCase()))
+      .map((c) => c.name.toLowerCase());
+    const cityMap = new Map<string, { code: string; name: string }>();
+    if (selCountriesLower.length > 0) {
+      for (const rec of this.instMasterRecords) {
+        const matchesCountry =
+          rec.country_codes.some((c) => selCountriesLower.includes(c.toLowerCase())) ||
+          rec.country_names.some(
+            (n) =>
+              selCountriesLower.includes(n.toLowerCase()) ||
+              selCountryNamesLower.includes(n.toLowerCase())
+          );
+        if (matchesCountry) {
+          for (const city of rec.cities) {
+            if (!cityMap.has(city.toLowerCase())) {
+              cityMap.set(city.toLowerCase(), { code: city, name: city });
+            }
+          }
+        }
+      }
+    }
+    const allCitiesForCountry = Array.from(cityMap.values());
+    const cityQ = (this.instCitySearch || '').trim().toLowerCase();
+    const selCities = this.instDraftFilters.cities || [];
+    const citiesFiltered = cityQ
+      ? allCitiesForCountry.filter(
+          (c) => c.name.toLowerCase().includes(cityQ) || selCities.includes(c.name)
+        )
+      : allCitiesForCountry;
+    this.filteredInstCitiesForDraft = citiesFiltered.sort((a, b) => {
+      const aSel = selCities.includes(a.name);
+      const bSel = selCities.includes(b.name);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    // 3. Industries
+    const indQ = (this.instIndustrySearch || '').trim().toLowerCase();
+    const selInd = this.instDraftFilters.industries || [];
+    const indFiltered = indQ
+      ? this.instIndustryTypes.filter(
+          (t) => t.toLowerCase().includes(indQ) || selInd.includes(t)
+        )
+      : [...this.instIndustryTypes];
+    this.filteredInstIndustriesForDraft = indFiltered.sort((a, b) => {
+      const aSel = selInd.includes(a);
+      const bSel = selInd.includes(b);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.localeCompare(b);
+    });
+
+    // 4. Sectors (scoped to selected industries)
+    const sectorSet = new Set<string>();
+    for (const ind of selInd) {
+      (this.instSectorMap[ind] || []).forEach((s) => sectorSet.add(s));
+    }
+    const scopedSectors = Array.from(sectorSet);
+    const secQ = (this.instSectorSearch || '').trim().toLowerCase();
+    const selSec = this.instDraftFilters.sectors || [];
+    const secFiltered = secQ
+      ? scopedSectors.filter((s) => s.toLowerCase().includes(secQ) || selSec.includes(s))
+      : scopedSectors;
+    this.filteredInstSectorsForDraft = secFiltered.sort((a, b) => {
+      const aSel = selSec.includes(a);
+      const bSel = selSec.includes(b);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return a.localeCompare(b);
+    });
+
+    // 5. Institutes (scoped by Country, City, Industry, Sector, Active Status)
+    const scopedInsts = this.getScopedInstRecordsForDraft();
+    const validIds = new Set(scopedInsts.map((r) => r.id));
+    if (this.instDraftFilters.institute_ids.length > 0) {
+      this.instDraftFilters.institute_ids = this.instDraftFilters.institute_ids.filter((id) =>
+        validIds.has(id)
+      );
+    }
+    const instQ = (this.instFilterNameSearch || '').trim().toLowerCase();
+    const selInstIds = this.instDraftFilters.institute_ids || [];
+    const instList = instQ
+      ? scopedInsts.filter(
+          (i) => i.name.toLowerCase().includes(instQ) || selInstIds.includes(i.id)
+        )
+      : scopedInsts;
+    this.filteredInstOptionsForDraft = instList
+      .map((i) => ({ id: i.id, name: i.name }))
+      .sort((a, b) => {
+        const aSel = selInstIds.includes(a.id);
+        const bSel = selInstIds.includes(b.id);
+        if (aSel && !bSel) return -1;
+        if (!aSel && bSel) return 1;
+        return a.name.localeCompare(b.name);
+      });
+  }
+
+  openInstFiltersOverlay(): void {
+    if (!this.instFiltersBtn) return;
+    if (this.instFiltersOverlayRef) {
+      this.closeInstFiltersOverlay();
+      return;
+    }
+
+    this.closeFiltersOverlay();
+    this.instDraftFilters = this.cloneInstFilters(this.instAppliedFilters);
+    if (this.instDraftFilters.active_status === null) {
+      this.instDraftFilters.active_status = true;
+    }
+    this.instFilterValidationAttempted = false;
+    this.instFilterValidationError = '';
+    this.instFilterNameSearch = '';
+    this.instCountrySearch = '';
+    this.instCitySearch = '';
+    this.instIndustrySearch = '';
+    this.instSectorSearch = '';
+    this.refreshInstDraftOptions();
+
+    const targetEl =
+      this.instFiltersBtn?.nativeElement ||
+      (this.instFiltersBtn as any)?._elementRef?.nativeElement ||
+      this.instFiltersBtn;
+
+    const positionStrategy = this.overlay
+      .position()
+      .flexibleConnectedTo(targetEl)
+      .withPositions([
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 8 },
+        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 8 },
+      ])
+      .withPush(true);
+
+    this.instFiltersOverlayRef = this.overlay.create({
+      positionStrategy,
+      hasBackdrop: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+    });
+
+    this.instFiltersOverlayRef.backdropClick().subscribe(() => this.closeInstFiltersOverlay());
+    this.instFiltersOverlayRef.keydownEvents().subscribe((ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') this.closeInstFiltersOverlay();
+    });
+
+    const portal = new TemplatePortal(this.instFiltersPanelTpl, this.vcr);
+    this.instFiltersOverlayRef.attach(portal);
+  }
+
+  closeInstFiltersOverlay(): void {
+    if (this.instFiltersOverlayRef) {
+      try {
+        this.instFiltersOverlayRef.dispose();
+      } catch (_) {}
+      this.instFiltersOverlayRef = null;
+    }
+  }
+
+  onInstDropdownSearchInput(event: Event): void {
+    event.stopPropagation();
+    this.refreshInstDraftOptions();
+  }
+
+  onInstFilterSelectOpened(
+    opened: boolean,
+    field: 'institute' | 'country' | 'city' | 'industry' | 'sector'
+  ): void {
+    if (!opened) {
+      if (field === 'institute') this.instFilterNameSearch = '';
+      else if (field === 'country') this.instCountrySearch = '';
+      else if (field === 'city') this.instCitySearch = '';
+      else if (field === 'industry') this.instIndustrySearch = '';
+      else if (field === 'sector') this.instSectorSearch = '';
+      this.refreshInstDraftOptions();
+    }
+  }
+
+  onInstSelectionChange(): void {
+    if (this.instFilterValidationAttempted) {
+      this.updateInstFilterValidationError();
+    }
+  }
+
+  onInstCountryFilterChange(): void {
+    if (!this.instDraftFilters.countries.length) {
+      this.instDraftFilters.cities = [];
+    }
+    this.refreshInstDraftOptions();
+    const validCities = new Set(this.filteredInstCitiesForDraft.map((c) => c.name));
+    this.instDraftFilters.cities = this.instDraftFilters.cities.filter((c) => validCities.has(c));
+    this.refreshInstDraftOptions();
+    if (this.instFilterValidationAttempted) {
+      this.updateInstFilterValidationError();
+    }
+  }
+
+  onInstCityFilterChange(): void {
+    this.refreshInstDraftOptions();
+    if (this.instFilterValidationAttempted) {
+      this.updateInstFilterValidationError();
+    }
+  }
+
+  onInstIndustryFilterChange(): void {
+    if (!this.instDraftFilters.industries.length) {
+      this.instDraftFilters.sectors = [];
+    }
+    this.refreshInstDraftOptions();
+    const validSectors = new Set(this.filteredInstSectorsForDraft);
+    this.instDraftFilters.sectors = this.instDraftFilters.sectors.filter((s) =>
+      validSectors.has(s)
+    );
+    this.refreshInstDraftOptions();
+    if (this.instFilterValidationAttempted) {
+      this.updateInstFilterValidationError();
+    }
+  }
+
+  onInstSectorFilterChange(): void {
+    this.refreshInstDraftOptions();
+    if (this.instFilterValidationAttempted) {
+      this.updateInstFilterValidationError();
+    }
+  }
+
+  onInstActiveStatusToggle(checked: boolean): void {
+    this.instDraftFilters.active_status = checked;
+    this.refreshInstDraftOptions();
+    if (this.instFilterValidationAttempted) {
+      this.updateInstFilterValidationError();
+    }
+  }
+
+  // Select All helpers for Institute Table Filter dropdowns
+  isAllInstFilterSelected(): boolean {
+    const ids = this.filteredInstOptionsForDraft.map((i) => i.id);
+    return ids.length > 0 && ids.every((id) => this.instDraftFilters.institute_ids.includes(id));
+  }
+
+  toggleSelectAllInstFilter(): void {
+    const ids = this.filteredInstOptionsForDraft.map((i) => i.id);
+    this.instDraftFilters.institute_ids = this.isAllInstFilterSelected() ? [] : [...ids];
+    this.onInstSelectionChange();
+  }
+
+  isAllInstCountriesSelected(): boolean {
+    const codes = this.filteredInstCountriesForDraft.map((c) => c.code);
+    return codes.length > 0 && codes.every((c) => this.instDraftFilters.countries.includes(c));
+  }
+
+  toggleSelectAllInstCountries(): void {
+    const codes = this.filteredInstCountriesForDraft.map((c) => c.code);
+    this.instDraftFilters.countries = this.isAllInstCountriesSelected() ? [] : [...codes];
+    this.onInstCountryFilterChange();
+  }
+
+  isAllInstCitiesSelected(): boolean {
+    const names = this.filteredInstCitiesForDraft.map((c) => c.name);
+    return names.length > 0 && names.every((n) => this.instDraftFilters.cities.includes(n));
+  }
+
+  toggleSelectAllInstCities(): void {
+    const names = this.filteredInstCitiesForDraft.map((c) => c.name);
+    this.instDraftFilters.cities = this.isAllInstCitiesSelected() ? [] : [...names];
+    this.onInstCityFilterChange();
+  }
+
+  isAllInstIndustriesSelected(): boolean {
+    const items = this.filteredInstIndustriesForDraft;
+    return items.length > 0 && items.every((i) => this.instDraftFilters.industries.includes(i));
+  }
+
+  toggleSelectAllInstIndustries(): void {
+    const items = this.filteredInstIndustriesForDraft;
+    this.instDraftFilters.industries = this.isAllInstIndustriesSelected() ? [] : [...items];
+    this.onInstIndustryFilterChange();
+  }
+
+  isAllInstSectorsSelected(): boolean {
+    const items = this.filteredInstSectorsForDraft;
+    return items.length > 0 && items.every((s) => this.instDraftFilters.sectors.includes(s));
+  }
+
+  toggleSelectAllInstSectors(): void {
+    const items = this.filteredInstSectorsForDraft;
+    this.instDraftFilters.sectors = this.isAllInstSectorsSelected() ? [] : [...items];
+    this.onInstSectorFilterChange();
+  }
+
+  isDraftInstInvalid(): boolean {
+    return false;
+  }
+
+  private updateInstFilterValidationError(): boolean {
+    this.instFilterValidationError = '';
+    return true;
+  }
+
+  applyInstFilters(): void {
+    this.instFilterValidationAttempted = false;
+    this.instFilterValidationError = '';
+    this.instAppliedFilters = this.cloneInstFilters(this.instDraftFilters);
+    this.hasAppliedInstFilters = true;
+    this.refreshInstAppliedFilterChips();
+    this.closeInstFiltersOverlay();
+    this.institutePageIndex = 0;
+    this.loadInstitutesOverview();
+  }
+
+  resetInstFilters(): void {
+    this.instDraftFilters = this.createEmptyInstFilters();
+    this.instAppliedFilters = this.createEmptyInstFilters();
+    this.hasAppliedInstFilters = false;
+    this.institutesOverview = [];
+    this.instFilterValidationAttempted = false;
+    this.instFilterValidationError = '';
+    this.instFilterNameSearch = '';
+    this.instCountrySearch = '';
+    this.instCitySearch = '';
+    this.instIndustrySearch = '';
+    this.instSectorSearch = '';
+    this.refreshInstDraftOptions();
+    this.refreshInstAppliedFilterChips();
+    this.closeInstFiltersOverlay();
+    this.institutePageIndex = 0;
+  }
+
+  removeInstAppliedFilter(key: InstAppliedFilterChip['key']): void {
+    switch (key) {
+      case 'institutes':
+        this.instAppliedFilters.institute_ids = [];
+        break;
+      case 'country':
+        this.instAppliedFilters.countries = [];
+        this.instAppliedFilters.cities = [];
+        break;
+      case 'city':
+        this.instAppliedFilters.cities = [];
+        break;
+      case 'industry':
+        this.instAppliedFilters.industries = [];
+        this.instAppliedFilters.sectors = [];
+        break;
+      case 'sector':
+        this.instAppliedFilters.sectors = [];
+        break;
+      case 'active_status':
+        this.instAppliedFilters.active_status = null;
+        break;
+    }
+    this.refreshInstAppliedFilterChips();
+    if (this.instActiveFilterCount === 0) {
+      this.hasAppliedInstFilters = false;
+      this.institutesOverview = [];
+      return;
+    }
+    this.institutePageIndex = 0;
+    this.loadInstitutesOverview();
+  }
+
+  private refreshInstAppliedFilterChips(): void {
+    if (!this.hasAppliedInstFilters) {
+      this.instAppliedFilterChips = [];
+      this.instActiveFilterCount = 0;
+      return;
+    }
+
+    const chips: InstAppliedFilterChip[] = [];
+    let count = 0;
+
+    if (this.instAppliedFilters.institute_ids.length > 0) {
+      count++;
+      let label: string;
+      if (this.instAppliedFilters.institute_ids.length === 1) {
+        const rec = this.instMasterRecords.find(
+          (r) => r.id === this.instAppliedFilters.institute_ids[0]
+        );
+        label = `Institute: ${rec?.name || '1 selected'}`;
+      } else {
+        label = `Institutes: ${this.instAppliedFilters.institute_ids.length} selected`;
+      }
+      chips.push({ key: 'institutes', label, required: false });
+    }
+
+    if (this.instAppliedFilters.countries.length > 0) {
+      count++;
+      const names = this.instAppliedFilters.countries.map((code) => {
+        const found = this.instCountriesList.find((c) => c.code === code);
+        return found?.name || code;
+      });
+      chips.push({ key: 'country', label: `Country: ${names.join(', ')}`, required: false });
+    }
+
+    if (this.instAppliedFilters.cities.length > 0) {
+      count++;
+      chips.push({
+        key: 'city',
+        label: `City: ${this.instAppliedFilters.cities.join(', ')}`,
+        required: false,
+      });
+    }
+
+    if (this.instAppliedFilters.industries.length > 0) {
+      count++;
+      chips.push({
+        key: 'industry',
+        label: `Industry: ${this.instAppliedFilters.industries.join(', ')}`,
+        required: false,
+      });
+    }
+
+    if (this.instAppliedFilters.sectors.length > 0) {
+      count++;
+      chips.push({
+        key: 'sector',
+        label: `Sector: ${this.instAppliedFilters.sectors.join(', ')}`,
+        required: false,
+      });
+    }
+
+    if (this.instAppliedFilters.active_status !== null) {
+      count++;
+      chips.push({
+        key: 'active_status',
+        label: `Status: ${this.instAppliedFilters.active_status ? 'Active' : 'Inactive'}`,
+        required: false,
+      });
+    }
+
+    this.instAppliedFilterChips = chips;
+    this.instActiveFilterCount = count;
+  }
+
+  loadInstitutesOverview(): void {
+    if (!this.isSuperAdmin || !this.hasAppliedInstFilters) return;
+
+    const params: string[] = [];
+    if (this.instAppliedFilters.institute_ids.length > 0) {
+      params.push(`institute_id=${encodeURIComponent(this.instAppliedFilters.institute_ids.join(','))}`);
+    }
+    if (this.instAppliedFilters.countries.length > 0) {
+      params.push(`country=${encodeURIComponent(this.instAppliedFilters.countries.join(','))}`);
+    }
+    if (this.instAppliedFilters.cities.length > 0) {
+      params.push(`city=${encodeURIComponent(this.instAppliedFilters.cities.join(','))}`);
+    }
+    if (this.instAppliedFilters.industries.length > 0) {
+      params.push(`industry=${encodeURIComponent(this.instAppliedFilters.industries.join(','))}`);
+    }
+    if (this.instAppliedFilters.sectors.length > 0) {
+      params.push(`sector=${encodeURIComponent(this.instAppliedFilters.sectors.join(','))}`);
+    }
+    if (this.instAppliedFilters.active_status !== null) {
+      params.push(`active_status=${this.instAppliedFilters.active_status ? 'true' : 'false'}`);
+    }
+
+    const qs = params.length ? `?${params.join('&')}` : '';
+    this.instOverviewLoading = true;
+
     this.http
       .get<{ status: boolean; data: InstituteOverviewItem[] }>(
-        `${API_BASE}/ai-credits/institutes-overview`,
+        `${API_BASE}/ai-credits/institutes-overview${qs}`,
         { headers: this.getAuthHeaders() }
       )
       .subscribe({
         next: (res) => {
+          this.instOverviewLoading = false;
           if (res && res.status && res.data) {
             this.institutesOverview = res.data;
             this.institutePageIndex = 0;
-            this.institutesList = res.data.map((item) => ({
-              institute_id: item.institute_id,
-              name: item.name,
-              short_name: item.short_name,
-              industry_type: item.industry_type,
-              industry_sector: item.industry_sector,
-            }));
-            this.refreshTerminology();
+          } else {
+            this.institutesOverview = [];
           }
         },
         error: (err) => {
+          this.instOverviewLoading = false;
+          this.institutesOverview = [];
           console.error('Error fetching institutes overview:', err);
         },
       });
@@ -1410,6 +2431,9 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
     if (this.isSuperAdmin && this.selectedInstituteId) {
       params.push(`institute_id=${encodeURIComponent(this.selectedInstituteId)}`);
+    }
+    if (this.isSuperAdmin && this.appliedFilters.institute_id) {
+      params.push(`filter_institute_id=${encodeURIComponent(this.appliedFilters.institute_id)}`);
     }
     if (this.testSearchTerm.trim()) {
       params.push(`search=${encodeURIComponent(this.testSearchTerm.trim())}`);
@@ -1693,6 +2717,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.closeFiltersOverlay();
+    this.closeInstFiltersOverlay();
     this.pageMeta.clear();
     this.subs.unsubscribe();
   }

@@ -149,15 +149,65 @@
         <mat-icon class="section-icon">domain</mat-icon>
         <div>
           <h3>All Institutes AI Credit Allocations</h3>
-          <p class="chart-subtitle">Quota allocation, consumption, and status across all registered institutes</p>
+          <p class="chart-subtitle">Quota allocation, consumption, and status across filtered institutes</p>
         </div>
       </div>
-      <span class="count-badge">
-        {{ institutesOverview.length }} Registered Institutes
-      </span>
+      <div class="inst-header-actions">
+        <span class="count-badge" *ngIf="hasAppliedInstFilters">
+          {{ institutesOverview.length }} {{ institutesOverview.length === 1 ? 'Institute' : 'Institutes' }}
+        </span>
+        <button
+          #instFiltersBtn
+          type="button"
+          class="open-filter-btn"
+          [class.has-active-filters]="instActiveFilterCount > 0"
+          (click)="$event.stopPropagation(); openInstFiltersOverlay()"
+        >
+          <mat-icon>tune</mat-icon>
+          <span>Filter</span>
+          <span class="filter-count-badge" *ngIf="instActiveFilterCount > 0">{{ instActiveFilterCount }}</span>
+        </button>
+      </div>
     </div>
 
-    <div class="table-responsive">
+    <!-- Applied Filters Bar for Institutes Table -->
+    <div class="applied-filters-bar" *ngIf="instAppliedFilterChips.length > 0">
+      <span class="applied-filters-label">APPLIED FILTERS</span>
+      <span
+        class="applied-filter-chip"
+        [class.required-chip]="chip.required"
+        *ngFor="let chip of instAppliedFilterChips"
+      >
+        <span>{{ chip.label }}</span>
+        <button
+          *ngIf="!chip.required"
+          type="button"
+          class="chip-remove-btn"
+          (click)="removeInstAppliedFilter(chip.key)"
+          aria-label="Remove filter"
+        >
+          <mat-icon>close</mat-icon>
+        </button>
+      </span>
+      <button type="button" class="clear-all-filters-btn" (click)="resetInstFilters()">
+        Clear all
+      </button>
+    </div>
+
+    <!-- Prompt State before Institute Filters Are Applied (hides all institutes) -->
+    <div class="no-filter-applied-state" *ngIf="!hasAppliedInstFilters">
+      <div class="prompt-icon-wrap">
+        <mat-icon>tune</mat-icon>
+      </div>
+      <h4>No Filters Applied</h4>
+      <p>
+        Use the <strong>Filter</strong> button above and click <strong>Apply</strong>
+        to view institute AI credit allocations.
+      </p>
+    </div>
+
+    <!-- Institutes Table (Shown ONLY after Filters Are Applied) -->
+    <div class="table-responsive" *ngIf="hasAppliedInstFilters">
       <table class="ai-table">
         <thead>
           <tr>
@@ -214,19 +264,20 @@
             </td>
           </tr>
 
-          <!-- Empty State -->
-          <tr *ngIf="!institutesOverview || institutesOverview.length === 0">
+          <!-- Empty State (after filters applied) -->
+          <tr *ngIf="!instOverviewLoading && (!institutesOverview || institutesOverview.length === 0)">
             <td colspan="7" class="empty-cell">
               <mat-icon class="empty-icon">business</mat-icon>
-              <p>No institutes found.</p>
+              <p>No institutes match the applied filters.</p>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
     <mat-paginator
-      *ngIf="institutesOverview && institutesOverview.length > 0"
+      *ngIf="hasAppliedInstFilters && institutesOverview && institutesOverview.length > 0"
       [length]="institutesOverview.length"
+      [pageIndex]="institutePageIndex"
       [pageSize]="institutePageSize"
       [pageSizeOptions]="institutePageSizeOptions"
       (page)="onInstitutePageChange($event)"
@@ -235,6 +286,293 @@
       aria-label="Select institute page"
     ></mat-paginator>
   </div>
+
+  <!-- Anchored Institute Filter Popover (Section 3) -->
+  <ng-template #instFiltersPanel>
+    <div class="filters-panel view-questions-filters-panel ai-credits-filters-panel" (click)="$event.stopPropagation()">
+      <div class="filters-panel-header">
+        <h4><mat-icon>tune</mat-icon> Filters</h4>
+      </div>
+
+      <div class="filter-block filter-grid">
+        <!-- Row 1 (Full Width): Institute (Optional) -->
+        <div class="filter-col-full">
+          <div class="filter-field-wrap">
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>Institute</mat-label>
+              <mat-select
+                multiple
+                [(ngModel)]="instDraftFilters.institute_ids"
+                placeholder="Select institute"
+                (selectionChange)="onInstSelectionChange()"
+                (openedChange)="onInstFilterSelectOpened($event, 'institute')"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="select-search-input"
+                    placeholder="Search institute..."
+                    [(ngModel)]="instFilterNameSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="onInstDropdownSearchInput($event)"
+                  />
+                </div>
+                <div
+                  class="select-all-option-row"
+                  *ngIf="filteredInstOptionsForDraft.length && !instFilterNameSearch.trim()"
+                  (click)="$event.stopPropagation(); toggleSelectAllInstFilter()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllInstFilterSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllInstFilterSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </div>
+                <mat-option disabled *ngIf="loadingInstFilterOptions">Loading institutes...</mat-option>
+                <mat-option disabled *ngIf="!loadingInstFilterOptions && !filteredInstOptionsForDraft.length">
+                  No institutes found
+                </mat-option>
+                <mat-option *ngFor="let inst of filteredInstOptionsForDraft" [value]="inst.id">
+                  {{ inst.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <!-- Row 2 (2 Columns): Country & City -->
+        <div class="filter-col-full filter-row-two-col">
+          <!-- Country -->
+          <div class="filter-field-wrap">
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>Country</mat-label>
+              <mat-select
+                multiple
+                [(ngModel)]="instDraftFilters.countries"
+                placeholder="Select Country"
+                (selectionChange)="onInstCountryFilterChange()"
+                (openedChange)="onInstFilterSelectOpened($event, 'country')"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="select-search-input"
+                    placeholder="Search country..."
+                    [(ngModel)]="instCountrySearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="onInstDropdownSearchInput($event)"
+                  />
+                </div>
+                <div
+                  class="select-all-option-row"
+                  *ngIf="filteredInstCountriesForDraft.length && !instCountrySearch.trim()"
+                  (click)="$event.stopPropagation(); toggleSelectAllInstCountries()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllInstCountriesSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllInstCountriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </div>
+                <mat-option disabled *ngIf="loadingInstCountries">Loading countries...</mat-option>
+                <mat-option disabled *ngIf="!loadingInstCountries && !filteredInstCountriesForDraft.length">
+                  No countries found
+                </mat-option>
+                <mat-option *ngFor="let c of filteredInstCountriesForDraft" [value]="c.code">
+                  {{ c.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <!-- City (disabled until Country selected) -->
+          <div class="filter-field-wrap">
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>City</mat-label>
+              <mat-select
+                multiple
+                [(ngModel)]="instDraftFilters.cities"
+                placeholder="Select City"
+                [disabled]="!instDraftFilters.countries.length"
+                (selectionChange)="onInstCityFilterChange()"
+                (openedChange)="onInstFilterSelectOpened($event, 'city')"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="select-search-input"
+                    placeholder="Search city..."
+                    [(ngModel)]="instCitySearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="onInstDropdownSearchInput($event)"
+                  />
+                </div>
+                <div
+                  class="select-all-option-row"
+                  *ngIf="filteredInstCitiesForDraft.length && !instCitySearch.trim()"
+                  (click)="$event.stopPropagation(); toggleSelectAllInstCities()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllInstCitiesSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllInstCitiesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </div>
+                <mat-option disabled *ngIf="!filteredInstCitiesForDraft.length">
+                  No cities found
+                </mat-option>
+                <mat-option *ngFor="let city of filteredInstCitiesForDraft" [value]="city.name">
+                  {{ city.name }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <!-- Row 3 (2 Columns): Industry & Sector -->
+        <div class="filter-col-full filter-row-two-col">
+          <!-- Industry -->
+          <div class="filter-field-wrap">
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>Industry</mat-label>
+              <mat-select
+                multiple
+                [(ngModel)]="instDraftFilters.industries"
+                placeholder="Select Industry"
+                (selectionChange)="onInstIndustryFilterChange()"
+                (openedChange)="onInstFilterSelectOpened($event, 'industry')"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="select-search-input"
+                    placeholder="Search industry..."
+                    [(ngModel)]="instIndustrySearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="onInstDropdownSearchInput($event)"
+                  />
+                </div>
+                <div
+                  class="select-all-option-row"
+                  *ngIf="filteredInstIndustriesForDraft.length && !instIndustrySearch.trim()"
+                  (click)="$event.stopPropagation(); toggleSelectAllInstIndustries()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllInstIndustriesSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllInstIndustriesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </div>
+                <mat-option disabled *ngIf="!filteredInstIndustriesForDraft.length">
+                  No industries found
+                </mat-option>
+                <mat-option *ngFor="let ind of filteredInstIndustriesForDraft" [value]="ind">
+                  {{ ind }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <!-- Sector (disabled until Industry selected) -->
+          <div class="filter-field-wrap">
+            <mat-form-field appearance="outline" class="filter-item">
+              <mat-label>Sector</mat-label>
+              <mat-select
+                multiple
+                [(ngModel)]="instDraftFilters.sectors"
+                placeholder="Select Sector"
+                [disabled]="!instDraftFilters.industries.length"
+                (selectionChange)="onInstSectorFilterChange()"
+                (openedChange)="onInstFilterSelectOpened($event, 'sector')"
+              >
+                <div class="select-search-option" (click)="$event.stopPropagation()">
+                  <input
+                    type="text"
+                    class="select-search-input"
+                    placeholder="Search sector..."
+                    [(ngModel)]="instSectorSearch"
+                    [ngModelOptions]="{ standalone: true }"
+                    (click)="$event.stopPropagation()"
+                    (keydown)="stopFilterSearchEvent($event)"
+                    (keyup)="stopFilterSearchEvent($event)"
+                    (input)="onInstDropdownSearchInput($event)"
+                  />
+                </div>
+                <div
+                  class="select-all-option-row"
+                  *ngIf="filteredInstSectorsForDraft.length && !instSectorSearch.trim()"
+                  (click)="$event.stopPropagation(); toggleSelectAllInstSectors()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllInstSectorsSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllInstSectorsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </div>
+                <mat-option disabled *ngIf="!filteredInstSectorsForDraft.length">
+                  No sectors found
+                </mat-option>
+                <mat-option *ngFor="let sec of filteredInstSectorsForDraft" [value]="sec">
+                  {{ sec }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Status Checkbox -->
+      <div class="filter-checks">
+        <div class="checkbox-item">
+          <mat-checkbox
+            [ngModel]="instDraftFilters.active_status !== false"
+            (change)="onInstActiveStatusToggle($event.checked)"
+            color="primary"
+          >
+            Active Status
+          </mat-checkbox>
+        </div>
+      </div>
+
+      <!-- Validation Alert Banner -->
+      <div class="filter-validation-banner" *ngIf="instFilterValidationError" role="alert">
+        <mat-icon>error_outline</mat-icon>
+        <span>{{ instFilterValidationError }}</span>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="filter-actions">
+        <button mat-flat-button type="button" (click)="resetInstFilters()" class="filter-reset-btn">
+          <mat-icon>refresh</mat-icon> Reset
+        </button>
+        <button mat-flat-button type="button" (click)="applyInstFilters()" class="filter-apply-btn">
+          <mat-icon>check</mat-icon> Apply
+        </button>
+      </div>
+    </div>
+  </ng-template>
 
   <!-- SECTION 4: AI Services Usage Breakdown Table -->
   <div class="section-card table-card">
@@ -572,6 +910,184 @@
       </div>
 
       <div class="filter-block filter-grid">
+        <!-- Super Admin Only: Country, City, Industry, Sector & Institute Scope -->
+        <ng-container *ngIf="isSuperAdmin">
+          <!-- Row A (2 Columns): Country & City -->
+          <div class="filter-col-full filter-row-two-col">
+            <div class="filter-field-wrap">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-label>Country</mat-label>
+                <mat-select
+                  [(ngModel)]="draftFilters.country"
+                  placeholder="All Countries"
+                  (selectionChange)="onTestDraftCountryChange()"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      type="text"
+                      class="select-search-input"
+                      placeholder="Search country..."
+                      [(ngModel)]="testCountryFilterSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="onDropdownSearchInput($event)"
+                    />
+                  </div>
+                  <mat-option value="">All Countries</mat-option>
+                  <mat-option *ngIf="filteredTestCountriesForDraft.length === 0" disabled>
+                    No countries found
+                  </mat-option>
+                  <mat-option *ngFor="let c of filteredTestCountriesForDraft" [value]="c.code">
+                    {{ c.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="filter-field-wrap">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-label>City</mat-label>
+                <mat-select
+                  [(ngModel)]="draftFilters.city"
+                  [disabled]="!draftFilters.country"
+                  [placeholder]="draftFilters.country ? 'All Cities' : 'Select country first'"
+                  (selectionChange)="onTestDraftCityChange()"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      type="text"
+                      class="select-search-input"
+                      placeholder="Search city..."
+                      [(ngModel)]="testCityFilterSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="onDropdownSearchInput($event)"
+                    />
+                  </div>
+                  <mat-option value="">All Cities</mat-option>
+                  <mat-option *ngIf="filteredTestCitiesForDraft.length === 0" disabled>
+                    No cities found
+                  </mat-option>
+                  <mat-option *ngFor="let city of filteredTestCitiesForDraft" [value]="city.name">
+                    {{ city.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Row B (2 Columns): Industry & Sector -->
+          <div class="filter-col-full filter-row-two-col">
+            <div class="filter-field-wrap">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-label>Industry</mat-label>
+                <mat-select
+                  [(ngModel)]="draftFilters.industry"
+                  placeholder="All Industries"
+                  (selectionChange)="onTestDraftIndustryChange()"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      type="text"
+                      class="select-search-input"
+                      placeholder="Search industry..."
+                      [(ngModel)]="testIndustryFilterSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="onDropdownSearchInput($event)"
+                    />
+                  </div>
+                  <mat-option value="">All Industries</mat-option>
+                  <mat-option *ngIf="filteredTestIndustriesForDraft.length === 0" disabled>
+                    No industries found
+                  </mat-option>
+                  <mat-option *ngFor="let ind of filteredTestIndustriesForDraft" [value]="ind">
+                    {{ ind }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="filter-field-wrap">
+              <mat-form-field appearance="outline" class="filter-item">
+                <mat-label>Sector</mat-label>
+                <mat-select
+                  [(ngModel)]="draftFilters.sector"
+                  [disabled]="!draftFilters.industry"
+                  [placeholder]="draftFilters.industry ? 'All Sectors' : 'Select industry first'"
+                  (selectionChange)="onTestDraftSectorChange()"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      type="text"
+                      class="select-search-input"
+                      placeholder="Search sector..."
+                      [(ngModel)]="testSectorFilterSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="onDropdownSearchInput($event)"
+                    />
+                  </div>
+                  <mat-option value="">All Sectors</mat-option>
+                  <mat-option *ngIf="filteredTestSectorsForDraft.length === 0" disabled>
+                    No sectors found
+                  </mat-option>
+                  <mat-option *ngFor="let sec of filteredTestSectorsForDraft" [value]="sec">
+                    {{ sec }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+
+          <!-- Row C (Full Width): Institute * (Mandatory for Super Admin) -->
+          <div class="filter-col-full">
+            <div class="filter-field-wrap">
+              <mat-form-field
+                appearance="outline"
+                class="filter-item"
+                [class.filter-field-invalid]="isDraftTestInstituteInvalid()"
+              >
+                <mat-label>Institute <span class="required-star">*</span></mat-label>
+                <mat-select
+                  [(ngModel)]="draftFilters.institute_id"
+                  placeholder="Select institute"
+                  (selectionChange)="onTestDraftInstituteChange()"
+                >
+                  <div class="select-search-option" (click)="$event.stopPropagation()">
+                    <input
+                      type="text"
+                      class="select-search-input"
+                      placeholder="Search institute..."
+                      [(ngModel)]="testInstFilterSearch"
+                      [ngModelOptions]="{ standalone: true }"
+                      (click)="$event.stopPropagation()"
+                      (keydown)="stopFilterSearchEvent($event)"
+                      (keyup)="stopFilterSearchEvent($event)"
+                      (input)="onDropdownSearchInput($event)"
+                    />
+                  </div>
+                  <mat-option *ngIf="filteredTestInstitutesForDraft.length === 0" disabled>
+                    No institutes found
+                  </mat-option>
+                  <mat-option *ngFor="let inst of filteredTestInstitutesForDraft; trackBy: trackById" [value]="inst.id">
+                    {{ inst.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+              <span class="field-error-text" *ngIf="isDraftTestInstituteInvalid()">Institute is required</span>
+            </div>
+          </div>
+        </ng-container>
+
         <!-- Row 1 (2 Columns): Class / Department & Section / Year / Team (Both Mandatory) -->
         <div class="filter-col-full filter-row-two-col">
           <!-- 1. Class / Department (Mandatory) -->
@@ -584,7 +1100,8 @@
               <mat-label>{{ terminology.deptLabel }} <span class="required-star">*</span></mat-label>
               <mat-select
                 [(ngModel)]="draftFilters.department_id"
-                [placeholder]="terminology.selectDeptPlaceholder"
+                [disabled]="isSuperAdmin && !draftFilters.institute_id"
+                [placeholder]="isSuperAdmin && !draftFilters.institute_id ? 'Select institute first' : terminology.selectDeptPlaceholder"
                 (selectionChange)="onDraftDepartmentChange()"
               >
                 <div class="select-search-option" (click)="$event.stopPropagation()">
@@ -608,7 +1125,9 @@
                 </mat-option>
               </mat-select>
             </mat-form-field>
-            <span class="field-error-text" *ngIf="isDraftDeptInvalid()">{{ terminology.deptRequired }}</span>
+            <span class="field-error-text" *ngIf="isDraftDeptInvalid()">
+              {{ isSuperAdmin && !draftFilters.institute_id ? 'Select institute first' : terminology.deptRequired }}
+            </span>
           </div>
 
           <!-- 2. Section / Year / Team (Mandatory) -->
@@ -663,7 +1182,8 @@
               <mat-label>Campus</mat-label>
               <mat-select
                 [(ngModel)]="draftFilters.campus_id"
-                placeholder="Select campus"
+                [disabled]="isSuperAdmin && !draftFilters.institute_id"
+                [placeholder]="isSuperAdmin && !draftFilters.institute_id ? 'Select institute first' : 'Select campus'"
                 (selectionChange)="onDraftCampusChange()"
               >
                 <div class="select-search-option" (click)="$event.stopPropagation()">
@@ -700,7 +1220,8 @@
               <mat-label>Subject <span class="required-star">*</span></mat-label>
               <mat-select
                 [(ngModel)]="draftFilters.subject"
-                placeholder="Select subject"
+                [disabled]="isSuperAdmin && !draftFilters.institute_id"
+                [placeholder]="isSuperAdmin && !draftFilters.institute_id ? 'Select institute first' : 'Select subject'"
                 (selectionChange)="onDraftSubjectChange()"
               >
                 <div class="select-search-option" (click)="$event.stopPropagation()">
@@ -724,7 +1245,9 @@
                 </mat-option>
               </mat-select>
             </mat-form-field>
-            <span class="field-error-text" *ngIf="isDraftSubjectInvalid()">Subject is required</span>
+            <span class="field-error-text" *ngIf="isDraftSubjectInvalid()">
+              {{ isSuperAdmin && !draftFilters.institute_id ? 'Select institute first' : 'Subject is required' }}
+            </span>
           </div>
         </div>
 

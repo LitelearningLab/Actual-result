@@ -10,6 +10,9 @@ from sqlalchemy import func, cast, Date, String, desc, or_, text
 from db.db import SQLiteDB
 from db.models import (
     Institute,
+    InstituteCampus,
+    Country,
+    City,
     openai_requests,
     User,
     Exam,
@@ -991,8 +994,15 @@ def get_ai_analytics_api():
 def get_all_institutes_overview_api():
     """
     GET /edu/api/ai-credits/institutes-overview
-    Super Admin endpoint to list all institutes with their allocated quota, 
+    Super Admin endpoint to list institutes with their allocated quota,
     used tokens, remaining quota, percentage used, and status.
+    Supports optional filter query params:
+      - institute_id / institute_ids (comma-separated UUIDs)
+      - country (comma-separated country IDs/codes/names)
+      - city (comma-separated city names/IDs)
+      - industry (comma-separated industry_type values)
+      - sector (comma-separated industry_sector values)
+      - active_status ('true' | 'false' | '1' | '0')
     """
     db = SQLiteDB()
     session = db.connect()
@@ -1000,9 +1010,93 @@ def get_all_institutes_overview_api():
         return jsonify({"status": False, "statusMessage": "Database connection error"}), 500
 
     try:
-        institutes = session.query(Institute).filter(
+        args = getattr(request, "args", {}) or {}
+        query = session.query(Institute).filter(
             or_(Institute.is_deleted == False, Institute.is_deleted == 0, Institute.is_deleted == None)
-        ).order_by(Institute.name.asc()).all()
+        )
+
+        inst_param = (args.get("institute_id") or args.get("institute_ids") or "").strip()
+        if inst_param:
+            inst_ids = [i.strip() for i in inst_param.split(",") if i.strip()]
+            if inst_ids:
+                query = query.filter(cast(Institute.institute_id, String).in_(inst_ids))
+
+        industry_param = (args.get("industry") or "").strip()
+        if industry_param:
+            ind_list = [i.strip().lower() for i in industry_param.split(",") if i.strip()]
+            if ind_list:
+                query = query.filter(func.lower(Institute.industry_type).in_(ind_list))
+
+        sector_param = (args.get("sector") or "").strip()
+        if sector_param:
+            sec_list = [s.strip().lower() for s in sector_param.split(",") if s.strip()]
+            if sec_list:
+                query = query.filter(func.lower(Institute.industry_sector).in_(sec_list))
+
+        active_param = args.get("active_status")
+        if active_param is not None and str(active_param).strip() != "":
+            active_norm = str(active_param).strip().lower()
+            is_active_val = 1 if active_norm in ("1", "true", "yes", "active") else 0
+            query = query.filter(Institute.active_status == is_active_val)
+
+        country_param = (args.get("country") or "").strip()
+        if country_param:
+            country_list = [c.strip() for c in country_param.split(",") if c.strip()]
+            if country_list:
+                country_lower = [c.lower() for c in country_list]
+                matched_countries = session.query(Country).filter(
+                    or_(
+                        cast(Country.country_id, String).in_(country_list),
+                        func.lower(Country.country_name).in_(country_lower)
+                    )
+                ).all()
+                all_cids = set(country_list)
+                all_cnames_lower = set(country_lower)
+                for c_obj in matched_countries:
+                    if c_obj.country_id:
+                        all_cids.add(str(c_obj.country_id).strip())
+                    if c_obj.country_name:
+                        all_cnames_lower.add(str(c_obj.country_name).strip().lower())
+                campus_inst_ids = [
+                    str(r[0]) for r in session.query(InstituteCampus.institute_id).filter(
+                        InstituteCampus.country_id.in_(list(all_cids))
+                    ).distinct().all()
+                    if r[0]
+                ]
+                country_conds = [func.lower(Institute.country).in_(list(all_cnames_lower))]
+                if campus_inst_ids:
+                    country_conds.append(cast(Institute.institute_id, String).in_(campus_inst_ids))
+                query = query.filter(or_(*country_conds))
+
+        city_param = (args.get("city") or "").strip()
+        if city_param:
+            city_list = [c.strip() for c in city_param.split(",") if c.strip()]
+            if city_list:
+                campus_city_conds = []
+                inst_city_conds = []
+                for c_val in city_list:
+                    campus_city_conds.append(InstituteCampus.city_name.ilike(f"%{c_val}%"))
+                    campus_city_conds.append(InstituteCampus.city_id == c_val)
+                    inst_city_conds.append(Institute.city.ilike(f"%{c_val}%"))
+                    matched_city_ids = [
+                        str(ct.city_id) for ct in session.query(City).filter(
+                            City.city_name.ilike(f"%{c_val}%")
+                        ).all()
+                        if ct.city_id
+                    ]
+                    if matched_city_ids:
+                        campus_city_conds.append(InstituteCampus.city_id.in_(matched_city_ids))
+                campus_inst_ids = [
+                    str(r[0]) for r in session.query(InstituteCampus.institute_id).filter(
+                        or_(*campus_city_conds)
+                    ).distinct().all()
+                    if r[0]
+                ]
+                if campus_inst_ids:
+                    inst_city_conds.append(cast(Institute.institute_id, String).in_(campus_inst_ids))
+                query = query.filter(or_(*inst_city_conds))
+
+        institutes = query.order_by(Institute.name.asc()).all()
 
         # Query all usage aggregated by institute_id
         usage_by_inst = session.query(
@@ -1048,6 +1142,7 @@ def get_all_institutes_overview_api():
                 "short_name": inst.short_name or "",
                 "industry_type": getattr(inst, 'industry_type', None) or "",
                 "industry_sector": getattr(inst, 'industry_sector', None) or "",
+                "active_status": bool(getattr(inst, 'active_status', 1)),
                 "allocated_credits": allocated,
                 "used_credits": used,
                 "remaining_credits": remaining,
@@ -1115,6 +1210,7 @@ def get_test_ai_usage_api():
     search_term = (request.args.get('search') or '').strip().lower()
 
     # Popup filter parameters (applied to tests table only; KPI totals remain untouched)
+    filter_institute_id = (request.args.get('filter_institute_id') or '').strip().lower()
     department_filter = (request.args.get('department_id') or '').strip().lower()
     team_filter = (request.args.get('team_id') or '').strip().lower()
     campus_filter = (request.args.get('campus_id') or '').strip().lower()
@@ -1528,6 +1624,7 @@ def get_test_ai_usage_api():
                         "id": group_key,
                         "exam_id": exam_key or group_key,
                         "schedule_id": sched_key,
+                        "institute_id": str(r.institute_id).strip() if getattr(r, "institute_id", None) else "",
                         "title": resolved_title,
                         "subject": resolved_subj,
                         "subject_id": meta.get("subject_id") or "",
@@ -1579,6 +1676,7 @@ def get_test_ai_usage_api():
                 "id": t["id"],
                 "exam_id": t["exam_id"],
                 "schedule_id": t["schedule_id"],
+                "institute_id": t.get("institute_id") or "",
                 "title": t["title"],
                 "test_type": t["test_type"],
                 "subject": t["subject"],
@@ -1673,6 +1771,7 @@ def get_test_ai_usage_api():
                             "id": sid,
                             "exam_id": eid,
                             "schedule_id": sid,
+                            "institute_id": str(ps.institute_id).strip() if getattr(ps, "institute_id", None) else "",
                             "title": ps.title or "Paper Test",
                             "test_type": "paper",
                             "subject": s_name,
@@ -1751,6 +1850,7 @@ def get_test_ai_usage_api():
                             "id": sid,
                             "exam_id": eid,
                             "schedule_id": sid,
+                            "institute_id": str(es.institute_id).strip() if getattr(es, "institute_id", None) else "",
                             "title": es.title or "Online Test",
                             "test_type": "online",
                             "subject": "",
@@ -1801,6 +1901,7 @@ def get_test_ai_usage_api():
                         "id": e["id"],
                         "exam_id": e["exam_id"],
                         "schedule_id": e["schedule_id"],
+                        "institute_id": e.get("institute_id") or "",
                         "title": e["title"],
                         "test_type": e["test_type"],
                         "subject": e["subject"],
@@ -1828,6 +1929,12 @@ def get_test_ai_usage_api():
 
         # Apply popup filters (all conditions work together via AND)
         tests_list = all_tests_unfiltered
+
+        if filter_institute_id:
+            tests_list = [
+                t for t in tests_list
+                if (t.get("institute_id") or "").strip().lower() == filter_institute_id
+            ]
 
         if department_filter:
             tests_list = [
