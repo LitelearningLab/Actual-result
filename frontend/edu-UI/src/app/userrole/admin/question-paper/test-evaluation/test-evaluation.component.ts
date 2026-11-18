@@ -1467,6 +1467,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     // If student has a matched local file that hasn't been uploaded to backend yet, upload & evaluate first
     if (student.rawFile && !student.isUploaded) {
       this.isLoadingEvaluation = true;
+      const prevMatchedFile = student.matchedFile;
       student.status = 'Evaluating...';
       student.matchedFile = undefined;
       const formData = new FormData();
@@ -1478,8 +1479,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
       this.http.post<any>(`${API_BASE}/test-evaluation/upload-answer-sheet`, formData).subscribe({
         next: (res) => {
-          student.isUploaded = true;
           if (res && res.status) {
+            student.isUploaded = true;
             const pagesCount = res.data?.total_pages || res.data?.pages?.length || 1;
             student.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
             student.status = 'AI Evaluated';
@@ -1502,16 +1503,24 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
                 u.percentage = res.data?.percentage != null ? res.data.percentage : u.percentage;
               }
             }
+            this.loadEvaluationDetails(this.selectedExamId, student.user_id!);
+          } else {
+            this.isLoadingEvaluation = false;
+            student.isUploaded = false;
+            student.status = 'Not Evaluated';
+            student.matchedFile = prevMatchedFile;
+            notify(res?.statusMessage || 'AI evaluation failed. Please retry.', 'error');
           }
-          this.loadEvaluationDetails(this.selectedExamId, student.user_id!);
         },
         error: (err) => {
           this.isLoadingEvaluation = false;
+          student.isUploaded = false;
+          student.status = 'Not Evaluated';
+          student.matchedFile = prevMatchedFile;
           console.error('Error auto-uploading matched sheet:', err);
           if (!this.aiCreditAlert.handleAiError(err, 'Paper Evaluation')) {
-            notify(err?.error?.statusMessage || 'Failed to upload answer sheet for evaluation.', 'error');
+            notify(err?.error?.statusMessage || err?.error?.message || err?.error?.error || 'Failed to upload answer sheet for evaluation. Please retry.', 'error');
           }
-          this.loadEvaluationDetails(this.selectedExamId, student.user_id!);
         }
       });
     } else {
@@ -2646,7 +2655,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
         console.error('Error uploading answer sheet:', err);
         if (!this.aiCreditAlert.handleAiError(err, 'Paper Evaluation')) {
-          notify(err?.error?.statusMessage || 'Error uploading answer sheet.', 'error');
+          notify(err?.error?.statusMessage || err?.error?.message || err?.error?.error || 'Error uploading answer sheet. Please retry.', 'error');
         }
       }
     });
@@ -3028,17 +3037,15 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             this.loadEvaluationDetails(examId, userId);
           }
         } else {
-          notify(res?.statusMessage || 'Failed to save scanned pages.', 'error');
-          this.closeScanModal();
+          notify(res?.statusMessage || 'Failed to evaluate scanned pages. Please retry.', 'error');
         }
       },
       error: (err) => {
         this.isUploading = false;
         console.error('Error saving scanned pages:', err);
         if (!this.aiCreditAlert.handleAiError(err, 'Answer Sheet Scanning')) {
-          notify(err?.error?.statusMessage || 'Error saving scanned pages.', 'error');
+          notify(err?.error?.statusMessage || err?.error?.message || err?.error?.error || 'Error evaluating scanned pages. Please retry.', 'error');
         }
-        this.closeScanModal();
       }
     });
   }

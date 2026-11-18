@@ -848,7 +848,14 @@ OUTPUT ONLY THIS JSON:
         if not response or getattr(response, "status_code", None) != 200:
             err_msg = "Failed to connect to AI vision detection service."
             if hasattr(response, "json"):
-                err_msg = response.json().get("error", err_msg)
+                try:
+                    raw_err = response.json().get("error", err_msg)
+                    if isinstance(raw_err, dict):
+                        err_msg = str(raw_err.get("message") or raw_err)
+                    elif raw_err:
+                        err_msg = str(raw_err)
+                except Exception:
+                    pass
             return {
                 "status": False,
                 "error": err_msg,
@@ -1217,9 +1224,16 @@ OUTPUT JSON STRUCTURE:
             t_fail_duration = time.perf_counter() - t_vision_eval_start
             err_msg = "Failed to connect to AI vision service."
             if hasattr(response, "json"):
-                err_msg = response.json().get("error", err_msg)
+                try:
+                    raw_err = response.json().get("error", err_msg)
+                    if isinstance(raw_err, dict):
+                        err_msg = str(raw_err.get("message") or raw_err)
+                    elif raw_err:
+                        err_msg = str(raw_err)
+                except Exception:
+                    pass
             print(
-                f"[PERF] [OPENAI_VISION_EVAL] status=failed duration={t_fail_duration:.4f}s page_count={len(page_images)}",
+                f"[PERF] [OPENAI_VISION_EVAL] status=failed duration={t_fail_duration:.4f}s page_count={len(page_images)} error={err_msg}",
                 flush=True,
             )
             return {"status": False, "error": err_msg, "evaluations": []}

@@ -5365,6 +5365,7 @@ def process_single_student_answer_sheet(
                 .first()
             )
 
+            is_new_attempt = attempt is None
             if not attempt:
                 attempt = Exam_Attempt(
                     attempt_id=str(uuid.uuid4()),
@@ -5377,6 +5378,7 @@ def process_single_student_answer_sheet(
                 session.flush()
 
             attempt_id = str(attempt.attempt_id)
+            attempt_schedule_id = str(attempt.schedule_id)
 
             # 3. Clean up old duplicate answer sheet pages strictly for this attempt / schedule
             all_attempt_rows = (
@@ -5666,8 +5668,27 @@ def process_single_student_answer_sheet(
             detected_pages_by_qid = {}
             detected_q_nums_set = set()
             pages_by_qnum = {}
+            uncertain_q_nums_set = set()
+
+            # Snapshot ORM-derived metadata before releasing the DB connection for multi-minute AI calls
+            total_pages_count = len(all_attempt_pages) if all_attempt_pages else len(created_pages)
+            created_page_ids = [str(p["page_id"]) for p in created_pages if p.get("page_id")]
+            auth_inst_id = str(getattr(exam_obj, "institute_id", "") or (getattr(current_user, "institute_id", "") if current_user else "")).strip() or None
+            eff_exam_id = str(exam_obj.exam_id) if exam_obj else str(exam_id)
+            eff_sched_id = str(ps.schedule_id) if ps else str(target_sched_id or schedule_id or exam_id)
+            exam_subject_name = str(getattr(exam_obj, "subject_name", "") or getattr(exam_obj, "title", "") or "")
+
+            # Release DB session cleanly before waiting on OpenAI (prevents SQL idle timeout / pool_recycle drop)
+            db.close()
+            session = None
+
+            ai_failure_msg = None
+            ai_failure_code = 502
+            detection_result = None
+            ai_eval_result = None
 
             try:
+                import httpx
                 from others.llm import (
                     vision_detect_question_anchors,
                     vision_evaluate_answersheet,
@@ -5675,30 +5696,30 @@ def process_single_student_answer_sheet(
                 )
 
                 client = openai_client()
-                auth_inst_id = str(getattr(exam_obj, "institute_id", "") or (getattr(current_user, "institute_id", "") if current_user else "")).strip() or None
-                eff_exam_id = str(exam_obj.exam_id) if exam_obj else str(exam_id)
-                eff_sched_id = str(ps.schedule_id) if ps else str(target_sched_id or schedule_id or exam_id)
+                paper_eval_timeout = httpx.Timeout(
+                    connect=30.0,
+                    read=600.0,
+                    write=60.0,
+                    pool=30.0,
+                )
 
-                # Phase 1: Visually detect physically written question numbers
+                # Phase 1: Visually detect physically written question numbers (600s read timeout)
                 detection_result = vision_detect_question_anchors(
                     client, ai_page_inputs, exam_question_numbers=all_exam_q_nums,
+                    timeout=paper_eval_timeout,
                     institute_id=auth_inst_id, feature_name="Question Anchor Detection", endpoint="/test-evaluation/upload-answer-sheet",
                     exam_id=eff_exam_id, schedule_id=eff_sched_id, test_type="paper"
                 )
 
-                if detection_result and not detection_result.get("status"):
-                    det_err = detection_result.get("error") or ""
+                if not detection_result or not detection_result.get("status"):
+                    raw_det_err = (detection_result or {}).get("error") or "AI question detection failed."
+                    det_err = str(raw_det_err.get("message") or raw_det_err) if isinstance(raw_det_err, dict) else str(raw_det_err)
                     if any(term in det_err.lower() for term in ("credit", "quota", "super admin", "ai access")):
-                        session.rollback()
-                        session.close()
-                        return {
-                            "status": False,
-                            "statusMessage": det_err,
-                            "error": det_err,
-                        }, 403
-
-                uncertain_q_nums_set = set()
-                if detection_result and detection_result.get("status"):
+                        ai_failure_code = 403
+                    elif "timed out" in det_err.lower():
+                        ai_failure_code = 504
+                    ai_failure_msg = det_err
+                else:
                     for p in detection_result.get("pages", []):
                         p_num = p.get("page_number", 1)
                         for q_entry in (
@@ -5728,57 +5749,59 @@ def process_single_student_answer_sheet(
                         except (ValueError, TypeError):
                             pass
 
-                # Phase 2: Evaluate detected and uncertain questions to keep token size safe and accurate
-                eval_sections = []
-                for sec in rubric_sections:
-                    eval_qs = [
-                        q for q in sec.get("questions", [])
-                        if int(q.get("question_number", 0)) in detected_q_nums_set
-                    ]
-                    if eval_qs:
-                        eval_sections.append({
-                            "section_name": sec.get("section_name", "Section"),
-                            "questions": eval_qs
-                        })
-                # If no questions detected at all, evaluate full rubric
-                if not eval_sections:
-                    eval_sections = rubric_sections
-                eval_rubric = {
-                    "exam_id": eff_exam_id,
-                    "schedule_id": eff_sched_id,
-                    "subject_name": str(getattr(exam_obj, "subject_name", "") or getattr(exam_obj, "title", "") or ""),
-                    "is_math": is_math_exam,
-                    "sections": eval_sections,
-                }
-                ai_eval_result = vision_evaluate_answersheet(
-                    client, eval_rubric, ai_page_inputs,
-                    institute_id=auth_inst_id, feature_name="Paper Evaluation", endpoint="/test-evaluation/upload-answer-sheet",
-                    exam_id=eff_exam_id, schedule_id=eff_sched_id, test_type="paper"
-                )
-                if ai_eval_result and not ai_eval_result.get("status"):
-                    eval_err = ai_eval_result.get("error") or ""
-                    if any(term in eval_err.lower() for term in ("credit", "quota", "super admin", "ai access")):
-                        session.rollback()
-                        session.close()
-                        return {
-                            "status": False,
-                            "statusMessage": eval_err,
-                            "error": eval_err,
-                        }, 403
-                if ai_eval_result and ai_eval_result.get("status"):
-                    for ev in ai_eval_result.get("evaluations", []):
-                        if ev.get("question_id"):
-                            qid = str(ev["question_id"])
-                            evaluations_by_qid[qid] = ev
-                            q_num_val = exam_q_num_by_qid.get(qid)
-                            if q_num_val and q_num_val in pages_by_qnum:
-                                detected_pages_by_qid[qid] = pages_by_qnum[
-                                    q_num_val
-                                ]
-                            elif ev.get("detected_on_pages"):
-                                detected_pages_by_qid[qid] = ev.get(
-                                    "detected_on_pages"
-                                )
+                    # Phase 2: Evaluate detected and uncertain questions to keep token size safe and accurate
+                    eval_sections = []
+                    for sec in rubric_sections:
+                        eval_qs = [
+                            q for q in sec.get("questions", [])
+                            if int(q.get("question_number", 0)) in detected_q_nums_set
+                        ]
+                        if eval_qs:
+                            eval_sections.append({
+                                "section_name": sec.get("section_name", "Section"),
+                                "questions": eval_qs
+                            })
+                    # If no questions detected at all, evaluate full rubric
+                    if not eval_sections:
+                        eval_sections = rubric_sections
+                    eval_rubric = {
+                        "exam_id": eff_exam_id,
+                        "schedule_id": eff_sched_id,
+                        "subject_name": exam_subject_name,
+                        "is_math": is_math_exam,
+                        "sections": eval_sections,
+                    }
+                    ai_eval_result = vision_evaluate_answersheet(
+                        client, eval_rubric, ai_page_inputs,
+                        timeout=paper_eval_timeout,
+                        institute_id=auth_inst_id, feature_name="Paper Evaluation", endpoint="/test-evaluation/upload-answer-sheet",
+                        exam_id=eff_exam_id, schedule_id=eff_sched_id, test_type="paper"
+                    )
+                    if not ai_eval_result or not ai_eval_result.get("status"):
+                        raw_eval_err = (ai_eval_result or {}).get("error") or "AI evaluation failed."
+                        eval_err = str(raw_eval_err.get("message") or raw_eval_err) if isinstance(raw_eval_err, dict) else str(raw_eval_err)
+                        if any(term in eval_err.lower() for term in ("credit", "quota", "super admin", "ai access")):
+                            ai_failure_code = 403
+                        elif "timed out" in eval_err.lower():
+                            ai_failure_code = 504
+                        ai_failure_msg = eval_err
+                    else:
+                        for ev in ai_eval_result.get("evaluations", []):
+                            if ev.get("question_id"):
+                                qid = str(ev["question_id"])
+                                evaluations_by_qid[qid] = ev
+                                q_num_val = exam_q_num_by_qid.get(qid)
+                                if q_num_val and q_num_val in pages_by_qnum:
+                                    detected_pages_by_qid[qid] = pages_by_qnum[
+                                        q_num_val
+                                    ]
+                                elif ev.get("detected_on_pages"):
+                                    detected_pages_by_qid[qid] = ev.get(
+                                        "detected_on_pages"
+                                    )
+                        if eval_sections and not evaluations_by_qid:
+                            ai_failure_msg = "AI evaluation returned no graded answers."
+                            ai_failure_code = 502
 
                 # --- Accurate Token Audit (Direct from OpenAI API usage) ---
                 det_usage = detection_result.get("usage") if (detection_result and isinstance(detection_result, dict)) else None
@@ -5824,7 +5847,71 @@ def process_single_student_answer_sheet(
                 print(f"   Total Billed Tokens  : {total_billed:,}{status_suffix}", flush=True)
                 print("=" * 65 + "\n", flush=True)
             except Exception as eval_err:
-                print(f"AI evaluation warning in upload_answer_sheet: {eval_err}")
+                print(f"AI evaluation error in upload_answer_sheet: {eval_err}")
+                ai_failure_msg = str(eval_err)
+                ai_failure_code = 502
+
+            # Re-open a fresh DB session after AI evaluation completes
+            session = db.connect()
+            if not session:
+                return {
+                    "status": False,
+                    "statusMessage": "Database connection lost after AI evaluation. Please retry.",
+                }, 500
+
+            # Never save zero marks or mark attempt as evaluated if AI evaluation failed
+            if ai_failure_msg:
+                try:
+                    if is_new_attempt:
+                        existing_ans_count = (
+                            session.query(Answer)
+                            .filter(func.cast(Answer.attempt_id, String) == str(attempt_id))
+                            .count()
+                        )
+                        if existing_ans_count == 0:
+                            if created_page_ids:
+                                session.query(AnswerSheetPage).filter(
+                                    func.cast(AnswerSheetPage.page_id, String).in_(created_page_ids)
+                                ).delete(synchronize_session=False)
+                            session.query(Exam_Attempt).filter(
+                                func.cast(Exam_Attempt.attempt_id, String) == str(attempt_id)
+                            ).delete(synchronize_session=False)
+                            session.commit()
+                    elif not replace_flag and created_page_ids:
+                        # In "Add More Pages" mode, remove only the newly appended pages on failure;
+                        # preserve all previously uploaded pages, answers, marks, and attempt status.
+                        session.query(AnswerSheetPage).filter(
+                            func.cast(AnswerSheetPage.page_id, String).in_(created_page_ids)
+                        ).delete(synchronize_session=False)
+                        session.commit()
+                except Exception as cleanup_err:
+                    print(f"[upload_answer_sheet] Cleanup warning after AI failure: {cleanup_err}")
+                    session.rollback()
+                db.close()
+                session = None
+                user_msg = (
+                    ai_failure_msg
+                    if ai_failure_code == 403
+                    else f"AI evaluation failed: {ai_failure_msg}. Please retry."
+                )
+                return {
+                    "status": False,
+                    "statusMessage": user_msg,
+                    "error": ai_failure_msg,
+                }, ai_failure_code
+
+            attempt = (
+                session.query(Exam_Attempt)
+                .filter(func.cast(Exam_Attempt.attempt_id, String) == str(attempt_id))
+                .first()
+            )
+            if not attempt:
+                db.close()
+                session = None
+                return {
+                    "status": False,
+                    "statusMessage": "Evaluation attempt record not found. Please retry.",
+                }, 500
 
             # Clean old review comments for this attempt before re-evaluating
             # Persist genuine evaluation results question-by-question with individual atomic commits
@@ -5957,7 +6044,7 @@ def process_single_student_answer_sheet(
                         ans = Answer(
                             answer_id=str(uuid.uuid4()),
                             attempt_id=str(attempt_id),
-                            schedule_id=str(attempt.schedule_id),
+                            schedule_id=attempt_schedule_id,
                             user_id=user_id,
                             question_id=qid_str,
                             written_answer=meta_payload,
@@ -6094,12 +6181,10 @@ def process_single_student_answer_sheet(
             attempt.status = "evaluated" if (failed_q_count == 0 and completed_q_count == total_q_count) else "in_progress"
             session.add(attempt)
 
-            # Calculate total pages from in-memory attempt pages before closing session
-            total_pages_count = len(all_attempt_pages) if all_attempt_pages else len(created_pages)
-
             # Final commit for attempt score and status
             session.commit()
-            session.close()
+            db.close()
+            session = None
 
             marks_display = (
                 f"{round(total_awarded, 1)} / {round(total_possible, 1)}"
@@ -6122,8 +6207,13 @@ def process_single_student_answer_sheet(
             }, 200
 
         except Exception as e:
-            session.rollback()
-            session.close()
+            if session:
+                try:
+                    session.rollback()
+                except Exception:
+                    pass
+            db.close()
+            session = None
             err_str = str(e)
             is_deadlock = (
                 "deadlock" in err_str.lower() or "1205" in err_str or "40001" in err_str
