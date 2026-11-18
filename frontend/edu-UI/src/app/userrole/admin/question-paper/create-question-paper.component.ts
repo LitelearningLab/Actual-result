@@ -248,6 +248,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   filterPaperCreatedDate = '';
   filterPaperCreatedDateStart: Date | null = null;
   filterPaperCreatedDateEnd: Date | null = null;
+  filterPaperCreatedByMe = false;
   editingScheduleId: string | null = null;
   initialSelectedPaperUsers: string[] = [];
   initialExamDate: string = '';
@@ -4135,6 +4136,20 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.filterPaperCreatedDate = '';
     this.filterPaperCreatedDateStart = null;
     this.filterPaperCreatedDateEnd = null;
+    this.filterPaperCreatedByMe = false;
+  }
+
+  onFilterPaperCriteriaChange(): void {
+    if (this.tempSelectedPaperId) {
+      const stillVisible = this.filteredTemplatesInFilter.some(
+        (p: any) => String(p.exam_id || p.test_id || p.id) === String(this.tempSelectedPaperId)
+      );
+      if (!stillVisible) {
+        this.tempSelectedPaperId = '';
+      }
+    }
+    this.buildPaperFilterChips();
+    this.cdr.detectChanges();
   }
 
   openFilterPaperDateRangePicker(): void {
@@ -4151,8 +4166,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         this.filterPaperCreatedDateStart = res.startDate;
         this.filterPaperCreatedDateEnd = res.endDate;
         this.filterPaperCreatedDate = this.getFilterPaperDateRangeDisplay();
-        this.buildPaperFilterChips();
-        this.cdr.detectChanges();
+        this.onFilterPaperCriteriaChange();
       }
     });
   }
@@ -4210,6 +4224,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     if (dateDisplay) {
       this.appliedPaperFilterChips.push({ key: 'date', label: `Date: ${dateDisplay}` });
     }
+    if (this.filterPaperCreatedByMe) {
+      this.appliedPaperFilterChips.push({ key: 'createdByMe', label: 'Created by me' });
+    }
   }
 
   removePaperFilter(key: string): void {
@@ -4225,6 +4242,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.filterPaperCreatedDate = '';
       this.filterPaperCreatedDateStart = null;
       this.filterPaperCreatedDateEnd = null;
+    } else if (key === 'createdByMe') {
+      this.filterPaperCreatedByMe = false;
     }
     this.buildPaperFilterChips();
   }
@@ -4320,7 +4339,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       list = list.filter(p => {
         const rawDate = p.created_date || p.created_at || p.created || '';
         if (!rawDate) return false;
-        const d = new Date(rawDate);
+        const normalizedRaw =
+          typeof rawDate === 'string' &&
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(rawDate.trim())
+            ? `${rawDate.trim()}Z`
+            : rawDate;
+        const d = new Date(normalizedRaw);
         if (isNaN(d.getTime())) return false;
 
         if (this.filterPaperCreatedDateStart) {
@@ -4348,7 +4372,32 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       });
     }
 
-    // 6. Search query
+    // 6. Filter by Created by me
+    if (this.filterPaperCreatedByMe) {
+      const currentUserId = this.getCurrentUserId();
+      const identifiers = new Set<string>();
+      if (currentUserId) identifiers.add(currentUserId.trim().toLowerCase());
+      try {
+        const raw = sessionStorage.getItem('user_profile') || sessionStorage.getItem('user');
+        if (raw) {
+          const u = JSON.parse(raw);
+          [u?.user_id, u?.id, u?.userId, u?.username, u?.user_name, u?.email]
+            .filter(Boolean)
+            .forEach((v: any) => identifiers.add(String(v).trim().toLowerCase()));
+        }
+      } catch (_) {}
+
+      if (identifiers.size > 0) {
+        list = list.filter(p => {
+          const creator = String(p.created_by ?? p.createdBy ?? '').trim().toLowerCase();
+          return !!creator && identifiers.has(creator);
+        });
+      } else {
+        list = [];
+      }
+    }
+
+    // 7. Search query
     if (this.filterPaperSearchQuery.trim()) {
       const q = this.filterPaperSearchQuery.trim().toLowerCase();
       list = list.filter(p => (p.title || p.name || '').toLowerCase().includes(q));

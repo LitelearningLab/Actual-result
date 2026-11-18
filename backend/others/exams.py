@@ -2377,9 +2377,10 @@ def get_exam_details(request):
                         "is_published": True if exam.published == 1 else False,
                         "is_draft": getattr(exam, "is_draft", 0),
                         "status": computed_status,
-                        "created_date": safe_isoformat(exam.created_date),
-                        "created_at": safe_isoformat(exam.created_date),
-                        "updated_date": safe_isoformat(exam.updated_date),
+                        "created_by": str(exam.created_by) if getattr(exam, "created_by", None) is not None else None,
+                        "created_date": safe_utc_isoformat(exam.created_date),
+                        "created_at": safe_utc_isoformat(exam.created_date),
+                        "updated_date": safe_utc_isoformat(exam.updated_date),
                         "test_mode": getattr(exam, "test_mode", None) or "online",
                         "is_editable": is_editable,
                     })

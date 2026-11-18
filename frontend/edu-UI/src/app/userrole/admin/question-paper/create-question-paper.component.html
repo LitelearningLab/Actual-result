@@ -512,6 +512,15 @@
                                 <mat-icon matSuffix *ngIf="!filterPaperCreatedDateStart && !filterPaperCreatedDateEnd && !filterPaperCreatedDate"
                                     style="color: #64748b; font-size: 18px; width: 18px; height: 18px; cursor: pointer;">calendar_today</mat-icon>
                             </mat-form-field>
+
+                            <!-- ── CREATED BY ME CHECKBOX ── -->
+                            <div style="padding: 2px 2px 4px;">
+                                <mat-checkbox [(ngModel)]="filterPaperCreatedByMe"
+                                    (change)="onFilterPaperCriteriaChange()"
+                                    aria-label="Show only question papers created by me">
+                                    Created by me
+                                </mat-checkbox>
+                            </div>
                         </div>
 
                         <!-- Footer Actions -->
