@@ -1099,7 +1099,8 @@
             >
               <mat-label>{{ terminology.deptLabel }} <span class="required-star">*</span></mat-label>
               <mat-select
-                [(ngModel)]="draftFilters.department_id"
+                multiple
+                [(ngModel)]="draftFilters.department_ids"
                 [disabled]="isSuperAdmin && !draftFilters.institute_id"
                 [placeholder]="isSuperAdmin && !draftFilters.institute_id ? 'Select institute first' : terminology.selectDeptPlaceholder"
                 (selectionChange)="onDraftDepartmentChange()"
@@ -1116,6 +1117,19 @@
                     (keyup)="stopFilterSearchEvent($event)"
                     (input)="onDropdownSearchInput($event)"
                   />
+                </div>
+                <div
+                  class="select-all-option-row"
+                  *ngIf="filteredDepartmentsForDraft.length > 0 && !deptFilterSearch.trim()"
+                  (click)="$event.stopPropagation(); toggleSelectAllDraftDepts()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllDraftDeptsSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllDraftDeptsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
                 </div>
                 <mat-option *ngIf="filteredDepartmentsForDraft.length === 0" disabled>
                   {{ terminology.noDeptsFound }}
@@ -1139,9 +1153,10 @@
             >
               <mat-label>{{ terminology.teamLabel }} <span class="required-star">*</span></mat-label>
               <mat-select
-                [(ngModel)]="draftFilters.team_id"
-                [disabled]="!draftFilters.department_id"
-                [placeholder]="draftFilters.department_id ? terminology.selectTeamPlaceholder : terminology.selectDeptFirst"
+                multiple
+                [(ngModel)]="draftFilters.team_ids"
+                [disabled]="!draftFilters.department_ids.length"
+                [placeholder]="draftFilters.department_ids.length ? terminology.selectTeamPlaceholder : terminology.selectDeptFirst"
                 (selectionChange)="onDraftTeamChange()"
               >
                 <div class="select-search-option" (click)="$event.stopPropagation()">
@@ -1157,6 +1172,19 @@
                     (input)="onDropdownSearchInput($event)"
                   />
                 </div>
+                <div
+                  class="select-all-option-row"
+                  *ngIf="filteredTeamsForDraft.length > 0 && !teamFilterSearch.trim()"
+                  (click)="$event.stopPropagation(); toggleSelectAllDraftTeams()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllDraftTeamsSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllDraftTeamsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </div>
                 <mat-option *ngIf="filteredTeamsForDraft.length === 0" disabled>
                   {{ terminology.noTeamsForDept }}
                 </mat-option>
@@ -1166,7 +1194,7 @@
               </mat-select>
             </mat-form-field>
             <span class="field-error-text" *ngIf="isDraftTeamInvalid()">
-              {{ draftFilters.department_id ? terminology.teamRequired : terminology.selectDeptFirst }}
+              {{ draftFilters.department_ids.length ? terminology.teamRequired : terminology.selectDeptFirst }}
             </span>
           </div>
         </div>
@@ -1181,9 +1209,10 @@
             <mat-form-field appearance="outline" class="filter-item">
               <mat-label>Campus</mat-label>
               <mat-select
-                [(ngModel)]="draftFilters.campus_id"
+                multiple
+                [(ngModel)]="draftFilters.campus_ids"
                 [disabled]="isSuperAdmin && !draftFilters.institute_id"
-                [placeholder]="isSuperAdmin && !draftFilters.institute_id ? 'Select institute first' : 'Select campus'"
+                [placeholder]="isSuperAdmin && !draftFilters.institute_id ? 'Select institute first' : 'Any'"
                 (selectionChange)="onDraftCampusChange()"
               >
                 <div class="select-search-option" (click)="$event.stopPropagation()">
@@ -1199,7 +1228,19 @@
                     (input)="onDropdownSearchInput($event)"
                   />
                 </div>
-                <mat-option value="">Any</mat-option>
+                <div
+                  class="select-all-option-row"
+                  *ngIf="filteredCampusesForDraft.length > 0 && !campusFilterSearch.trim()"
+                  (click)="$event.stopPropagation(); toggleSelectAllDraftCampuses()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllDraftCampusesSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllDraftCampusesSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
+                </div>
                 <mat-option *ngIf="filteredCampusesForDraft.length === 0" disabled>
                   No campuses found
                 </mat-option>
@@ -1219,7 +1260,8 @@
             >
               <mat-label>Subject <span class="required-star">*</span></mat-label>
               <mat-select
-                [(ngModel)]="draftFilters.subject"
+                multiple
+                [(ngModel)]="draftFilters.subjects"
                 [disabled]="isSuperAdmin && !draftFilters.institute_id"
                 [placeholder]="isSuperAdmin && !draftFilters.institute_id ? 'Select institute first' : 'Select subject'"
                 (selectionChange)="onDraftSubjectChange()"
@@ -1236,6 +1278,19 @@
                     (keyup)="stopFilterSearchEvent($event)"
                     (input)="onDropdownSearchInput($event)"
                   />
+                </div>
+                <div
+                  class="select-all-option-row"
+                  *ngIf="filteredSubjectsForDraft.length > 0 && !subjectFilterSearch.trim()"
+                  (click)="$event.stopPropagation(); toggleSelectAllDraftSubjects()"
+                >
+                  <mat-icon
+                    class="select-all-checkbox-icon"
+                    [style.color]="isAllDraftSubjectsSelected() ? '#2563eb' : '#64748b'"
+                  >
+                    {{ isAllDraftSubjectsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                  </mat-icon>
+                  <strong>Select All</strong>
                 </div>
                 <mat-option *ngIf="filteredSubjectsForDraft.length === 0" disabled>
                   No subjects found
@@ -1256,8 +1311,10 @@
           <mat-form-field appearance="outline" class="filter-item">
             <mat-label>{{ testTypeFilter === 'paper' ? 'Paper Test (Optional)' : 'Online Test (Optional)' }}</mat-label>
             <mat-select
-              [(ngModel)]="draftFilters.test_id"
-              [placeholder]="testTypeFilter === 'paper' ? 'Select paper test (optional)' : 'Select online test (optional)'"
+              multiple
+              [(ngModel)]="draftFilters.test_ids"
+              [placeholder]="testTypeFilter === 'paper' ? 'All Paper Tests' : 'All Online Tests'"
+              (selectionChange)="onDraftTestSelectionChange()"
             >
               <div class="select-search-option" (click)="$event.stopPropagation()">
                 <input
@@ -1272,7 +1329,19 @@
                   (input)="onDropdownSearchInput($event)"
                 />
               </div>
-              <mat-option value="">{{ testTypeFilter === 'paper' ? 'All Paper Tests' : 'All Online Tests' }}</mat-option>
+              <div
+                class="select-all-option-row"
+                *ngIf="filteredTestsForDraft.length > 0 && !testFilterSearch.trim()"
+                (click)="$event.stopPropagation(); toggleSelectAllDraftTests()"
+              >
+                <mat-icon
+                  class="select-all-checkbox-icon"
+                  [style.color]="isAllDraftTestsSelected() ? '#2563eb' : '#64748b'"
+                >
+                  {{ isAllDraftTestsSelected() ? 'check_box' : 'check_box_outline_blank' }}
+                </mat-icon>
+                <strong>Select All</strong>
+              </div>
               <mat-option *ngIf="filteredTestsForDraft.length === 0" disabled>
                 {{ testTypeFilter === 'paper' ? 'No matching paper tests found' : 'No matching online tests found' }}
               </mat-option>

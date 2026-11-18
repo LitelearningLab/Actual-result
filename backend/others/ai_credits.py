@@ -1210,12 +1210,14 @@ def get_test_ai_usage_api():
     search_term = (request.args.get('search') or '').strip().lower()
 
     # Popup filter parameters (applied to tests table only; KPI totals remain untouched)
+    # Supports single or comma-separated multi-select values for department_id, team_id, campus_id, subject, test_id
     filter_institute_id = (request.args.get('filter_institute_id') or '').strip().lower()
-    department_filter = (request.args.get('department_id') or '').strip().lower()
-    team_filter = (request.args.get('team_id') or '').strip().lower()
-    campus_filter = (request.args.get('campus_id') or '').strip().lower()
-    subject_filter = (request.args.get('subject') or '').strip().lower()
-    test_id_filter = (request.args.get('test_id') or '').strip().lower()
+    department_filters = {v.strip().lower() for v in (request.args.get('department_id') or '').split(',') if v.strip()}
+    team_filters = {v.strip().lower() for v in (request.args.get('team_id') or '').split(',') if v.strip()}
+    campus_filters = {v.strip().lower() for v in (request.args.get('campus_id') or '').split(',') if v.strip()}
+    subject_raw_list = [v.strip() for v in (request.args.get('subject') or '').split(',') if v.strip()]
+    subject_filters = {v.lower() for v in subject_raw_list}
+    test_id_filters = {v.strip().lower() for v in (request.args.get('test_id') or '').split(',') if v.strip()}
     created_by_filter = (request.args.get('created_by') or '').strip().lower()
     created_by_me_flag = str(request.args.get('created_by_me') or '').strip().lower() in ('1', 'true', 'yes')
     created_start_date = _parse_iso_date_only(
@@ -1405,7 +1407,7 @@ def get_test_ai_usage_api():
                     ).all()
                     user_dt_map = {}
                     for u_row in mapped_users:
-                        user_dt_map[str(u_row.user_id).strip()] = (
+                        user_dt_map[str(u_row.user_id).strip().lower()] = (
                             str(u_row.department_id).strip() if u_row.department_id else None,
                             str(u_row.team_id).strip() if u_row.team_id else None,
                             str(u_row.campus_id).strip() if getattr(u_row, "campus_id", None) else None,
@@ -1415,7 +1417,7 @@ def get_test_ai_usage_api():
                         if not meta:
                             continue
                         for uid in uids:
-                            ud, ut, uc = user_dt_map.get(uid, (None, None, None))
+                            ud, ut, uc = user_dt_map.get(uid.lower(), (None, None, None))
                             if ud:
                                 meta["department_ids"].add(ud)
                             if ut:
@@ -1719,33 +1721,34 @@ def get_test_ai_usage_api():
                     ps_dept_map, ps_team_map, ps_campus_map, ps_user_links = {}, {}, {}, {}
                     ps_uid_set = set()
                     for m in session.query(PaperScheduleMapping).filter(PaperScheduleMapping.schedule_id.in_(extra_sids)).all():
-                        sid = str(m.schedule_id)
+                        sid_key = str(m.schedule_id).strip().lower()
                         if m.department_id:
-                            ps_dept_map.setdefault(sid, set()).add(str(m.department_id).strip())
+                            ps_dept_map.setdefault(sid_key, set()).add(str(m.department_id).strip())
                         if m.team_id:
-                            ps_team_map.setdefault(sid, set()).add(str(m.team_id).strip())
+                            ps_team_map.setdefault(sid_key, set()).add(str(m.team_id).strip())
                         if getattr(m, "campus_id", None):
-                            ps_campus_map.setdefault(sid, set()).add(str(m.campus_id).strip())
+                            ps_campus_map.setdefault(sid_key, set()).add(str(m.campus_id).strip())
                         if m.user_id:
                             uid = str(m.user_id).strip()
-                            ps_user_links.setdefault(sid, set()).add(uid)
+                            ps_user_links.setdefault(sid_key, set()).add(uid.lower())
                             ps_uid_set.add(uid)
                     if ps_uid_set:
                         for u_row in session.query(User.user_id, User.department_id, User.team_id, User.campus_id).filter(
                             cast(User.user_id, String).in_(list(ps_uid_set))
                         ).all():
-                            uid_s = str(u_row.user_id).strip()
-                            for sid, uids in ps_user_links.items():
-                                if uid_s in uids:
+                            uid_key = str(u_row.user_id).strip().lower()
+                            for sid_key, uids in ps_user_links.items():
+                                if uid_key in uids:
                                     if u_row.department_id:
-                                        ps_dept_map.setdefault(sid, set()).add(str(u_row.department_id).strip())
+                                        ps_dept_map.setdefault(sid_key, set()).add(str(u_row.department_id).strip())
                                     if u_row.team_id:
-                                        ps_team_map.setdefault(sid, set()).add(str(u_row.team_id).strip())
+                                        ps_team_map.setdefault(sid_key, set()).add(str(u_row.team_id).strip())
                                     if getattr(u_row, "campus_id", None):
-                                        ps_campus_map.setdefault(sid, set()).add(str(u_row.campus_id).strip())
+                                        ps_campus_map.setdefault(sid_key, set()).add(str(u_row.campus_id).strip())
 
                     ex_subj_map = {}
                     ex_creator_map = {}
+                    ex_inst_map = {}
                     if extra_eids:
                         ex_rows = session.query(Exam).filter(Exam.exam_id.in_(extra_eids)).all()
                         extra_subj_ids = {str(ex.subject_id).strip() for ex in ex_rows if getattr(ex, "subject_id", None)}
@@ -1754,31 +1757,37 @@ def get_test_ai_usage_api():
                             for sb in session.query(Subject).filter(Subject.subject_id.in_(list(extra_subj_ids))).all():
                                 extra_subj_names[str(sb.subject_id).strip()] = (sb.subject_name or "").strip()
                         for ex in ex_rows:
+                            ex_k = str(ex.exam_id).strip().lower()
                             s_id = str(ex.subject_id or "").strip()
                             raw_s_name = extra_subj_names.get(s_id) or (ex.subject_name or "").strip()
                             s_name = "" if raw_s_name.lower() in ("general", "paper test", "online test") else raw_s_name
-                            ex_subj_map[str(ex.exam_id)] = (s_id, s_name)
+                            ex_subj_map[ex_k] = (s_id, s_name)
                             if getattr(ex, "created_by", None):
-                                ex_creator_map[str(ex.exam_id)] = str(ex.created_by).strip()
+                                ex_creator_map[ex_k] = str(ex.created_by).strip()
+                            if getattr(ex, "institute_id", None):
+                                ex_inst_map[ex_k] = str(ex.institute_id).strip()
 
                     for ps in extra_ps:
-                        sid = str(ps.schedule_id)
-                        eid = str(ps.exam_id) if ps.exam_id else sid
-                        s_id, s_name = ex_subj_map.get(eid, ("", ""))
-                        cb_raw = str(ps.created_by or "").strip() or ex_creator_map.get(eid, "")
+                        sid = str(ps.schedule_id).strip()
+                        sid_key = sid.lower()
+                        eid = str(ps.exam_id).strip() if ps.exam_id else sid
+                        eid_key = eid.lower()
+                        s_id, s_name = ex_subj_map.get(eid_key, ("", ""))
+                        cb_raw = str(ps.created_by or "").strip() or ex_creator_map.get(eid_key, "")
+                        ps_inst = (str(ps.institute_id).strip() if getattr(ps, "institute_id", None) else "") or ex_inst_map.get(eid_key, "")
                         dt = ps.created_date or ps.start_time
                         extra_test_entries.append({
                             "id": sid,
                             "exam_id": eid,
                             "schedule_id": sid,
-                            "institute_id": str(ps.institute_id).strip() if getattr(ps, "institute_id", None) else "",
+                            "institute_id": ps_inst,
                             "title": ps.title or "Paper Test",
                             "test_type": "paper",
                             "subject": s_name,
                             "subject_id": s_id,
-                            "department_ids": sorted(list(ps_dept_map.get(sid, set()))),
-                            "team_ids": sorted(list(ps_team_map.get(sid, set()))),
-                            "campus_ids": sorted(list(ps_campus_map.get(sid, set()))),
+                            "department_ids": sorted(list(ps_dept_map.get(sid_key, set()))),
+                            "team_ids": sorted(list(ps_team_map.get(sid_key, set()))),
+                            "campus_ids": sorted(list(ps_campus_map.get(sid_key, set()))),
                             "created_by_id": cb_raw,
                             "created_by_name": cb_raw,
                             "created_date": dt.strftime("%Y-%m-%d") if isinstance(dt, (datetime.datetime, datetime.date)) else "",
@@ -1797,11 +1806,26 @@ def get_test_ai_usage_api():
                     or_(ExamSchedule.is_deleted == False, ExamSchedule.is_deleted == 0, ExamSchedule.is_deleted == None)
                 )
                 if str(inst_id).lower() != 'all':
-                    es_q = es_q.filter(ExamSchedule.institute_id == str(inst_id))
+                    inst_exam_ids = [
+                        str(r[0]) for r in session.query(Exam.exam_id).filter(
+                            Exam.institute_id == str(inst_id)
+                        ).all()
+                        if r[0]
+                    ]
+                    if inst_exam_ids:
+                        es_q = es_q.filter(
+                            or_(
+                                ExamSchedule.institute_id == str(inst_id),
+                                ExamSchedule.exam_id.in_(inst_exam_ids)
+                            )
+                        )
+                    else:
+                        es_q = es_q.filter(ExamSchedule.institute_id == str(inst_id))
+                existing_lower = {str(x).strip().lower() for x in existing_sched_and_exam_ids}
                 extra_es = [
                     es for es in es_q.all()
-                    if str(es.schedule_id) not in existing_sched_and_exam_ids
-                    and (not es.exam_id or str(es.exam_id) not in existing_sched_and_exam_ids)
+                    if str(es.schedule_id).strip().lower() not in existing_lower
+                    and (not es.exam_id or str(es.exam_id).strip().lower() not in existing_lower)
                 ]
 
                 if extra_es:
@@ -1810,54 +1834,108 @@ def get_test_ai_usage_api():
                     es_dept_map, es_team_map, es_campus_map, es_user_links = {}, {}, {}, {}
                     es_uid_set = set()
                     for m in session.query(ExamScheduleMapping).filter(ExamScheduleMapping.schedule_id.in_(extra_sids)).all():
-                        sid = str(m.schedule_id)
+                        sid_key = str(m.schedule_id).strip().lower()
                         if m.department_id:
-                            es_dept_map.setdefault(sid, set()).add(str(m.department_id).strip())
+                            es_dept_map.setdefault(sid_key, set()).add(str(m.department_id).strip())
                         if m.team_id:
-                            es_team_map.setdefault(sid, set()).add(str(m.team_id).strip())
+                            es_team_map.setdefault(sid_key, set()).add(str(m.team_id).strip())
                         if getattr(m, "campus_id", None):
-                            es_campus_map.setdefault(sid, set()).add(str(m.campus_id).strip())
+                            es_campus_map.setdefault(sid_key, set()).add(str(m.campus_id).strip())
                         if m.user_id:
                             uid = str(m.user_id).strip()
-                            es_user_links.setdefault(sid, set()).add(uid)
+                            es_user_links.setdefault(sid_key, set()).add(uid.lower())
                             es_uid_set.add(uid)
                     if es_uid_set:
                         for u_row in session.query(User.user_id, User.department_id, User.team_id, User.campus_id).filter(
                             cast(User.user_id, String).in_(list(es_uid_set))
                         ).all():
-                            uid_s = str(u_row.user_id).strip()
-                            for sid, uids in es_user_links.items():
-                                if uid_s in uids:
+                            uid_key = str(u_row.user_id).strip().lower()
+                            for sid_key, uids in es_user_links.items():
+                                if uid_key in uids:
                                     if u_row.department_id:
-                                        es_dept_map.setdefault(sid, set()).add(str(u_row.department_id).strip())
+                                        es_dept_map.setdefault(sid_key, set()).add(str(u_row.department_id).strip())
                                     if u_row.team_id:
-                                        es_team_map.setdefault(sid, set()).add(str(u_row.team_id).strip())
+                                        es_team_map.setdefault(sid_key, set()).add(str(u_row.team_id).strip())
                                     if getattr(u_row, "campus_id", None):
-                                        es_campus_map.setdefault(sid, set()).add(str(u_row.campus_id).strip())
+                                        es_campus_map.setdefault(sid_key, set()).add(str(u_row.campus_id).strip())
 
                     ex_creator_map = {}
+                    ex_inst_map = {}
                     if extra_eids:
                         for ex in session.query(Exam).filter(Exam.exam_id.in_(extra_eids)).all():
+                            ex_k = str(ex.exam_id).strip().lower()
                             if getattr(ex, "created_by", None):
-                                ex_creator_map[str(ex.exam_id)] = str(ex.created_by).strip()
+                                ex_creator_map[ex_k] = str(ex.created_by).strip()
+                            if getattr(ex, "institute_id", None):
+                                ex_inst_map[ex_k] = str(ex.institute_id).strip()
+
+                    # Fallback via ExamMapping -> CategoriesDepartments / CategoriesTeams for schedules missing dept/team
+                    unmapped_es_eids = list({
+                        str(es.exam_id).strip() for es in extra_es
+                        if es.exam_id and (
+                            not es_dept_map.get(str(es.schedule_id).strip().lower())
+                            or not es_team_map.get(str(es.schedule_id).strip().lower())
+                        )
+                    })
+                    if unmapped_es_eids:
+                        try:
+                            em_rows = session.query(ExamMapping.exam_id, ExamMapping.category_id).filter(
+                                ExamMapping.exam_id.in_(unmapped_es_eids)
+                            ).all()
+                            es_exam_cat_map = {}
+                            es_cat_ids = set()
+                            for em_r in em_rows:
+                                if em_r.category_id:
+                                    cid = str(em_r.category_id).strip()
+                                    es_exam_cat_map.setdefault(str(em_r.exam_id).strip().lower(), set()).add(cid)
+                                    es_cat_ids.add(cid)
+                            if es_cat_ids:
+                                es_cat_depts = {}
+                                for cd in session.query(CategoriesDepartments).filter(
+                                    cast(CategoriesDepartments.category_id, String).in_(list(es_cat_ids))
+                                ).all():
+                                    if cd.department_id:
+                                        es_cat_depts.setdefault(str(cd.category_id).strip().lower(), set()).add(str(cd.department_id).strip())
+                                es_cat_teams = {}
+                                for ct in session.query(CategoriesTeams).filter(
+                                    cast(CategoriesTeams.category_id, String).in_(list(es_cat_ids))
+                                ).all():
+                                    if ct.team_id:
+                                        es_cat_teams.setdefault(str(ct.category_id).strip().lower(), set()).add(str(ct.team_id).strip())
+                                for es in extra_es:
+                                    if not es.exam_id:
+                                        continue
+                                    sid_key = str(es.schedule_id).strip().lower()
+                                    eid_key = str(es.exam_id).strip().lower()
+                                    for cid in es_exam_cat_map.get(eid_key, set()):
+                                        cid_k = cid.lower()
+                                        if not es_dept_map.get(sid_key) and cid_k in es_cat_depts:
+                                            es_dept_map.setdefault(sid_key, set()).update(es_cat_depts[cid_k])
+                                        if not es_team_map.get(sid_key) and cid_k in es_cat_teams:
+                                            es_team_map.setdefault(sid_key, set()).update(es_cat_teams[cid_k])
+                        except Exception as _es_cat_err:
+                            print(f"[get_test_ai_usage_api] Extra online schedule category fallback error: {_es_cat_err}")
 
                     for es in extra_es:
-                        sid = str(es.schedule_id)
-                        eid = str(es.exam_id) if es.exam_id else sid
-                        cb_raw = str(es.created_by or "").strip() or ex_creator_map.get(eid, "")
+                        sid = str(es.schedule_id).strip()
+                        sid_key = sid.lower()
+                        eid = str(es.exam_id).strip() if es.exam_id else sid
+                        eid_key = eid.lower()
+                        cb_raw = str(es.created_by or "").strip() or ex_creator_map.get(eid_key, "")
+                        es_inst = (str(es.institute_id).strip() if getattr(es, "institute_id", None) else "") or ex_inst_map.get(eid_key, "")
                         dt = es.created_date or es.start_time
                         extra_test_entries.append({
                             "id": sid,
                             "exam_id": eid,
                             "schedule_id": sid,
-                            "institute_id": str(es.institute_id).strip() if getattr(es, "institute_id", None) else "",
+                            "institute_id": es_inst,
                             "title": es.title or "Online Test",
                             "test_type": "online",
                             "subject": "",
                             "subject_id": "",
-                            "department_ids": sorted(list(es_dept_map.get(sid, set()))),
-                            "team_ids": sorted(list(es_team_map.get(sid, set()))),
-                            "campus_ids": sorted(list(es_campus_map.get(sid, set()))),
+                            "department_ids": sorted(list(es_dept_map.get(sid_key, set()))),
+                            "team_ids": sorted(list(es_team_map.get(sid_key, set()))),
+                            "campus_ids": sorted(list(es_campus_map.get(sid_key, set()))),
                             "created_by_id": cb_raw,
                             "created_by_name": cb_raw,
                             "created_date": dt.strftime("%Y-%m-%d") if isinstance(dt, (datetime.datetime, datetime.date)) else "",
@@ -1936,32 +2014,32 @@ def get_test_ai_usage_api():
                 if (t.get("institute_id") or "").strip().lower() == filter_institute_id
             ]
 
-        if department_filter:
+        if department_filters:
             tests_list = [
                 t for t in tests_list
-                if any(d.lower() == department_filter for d in (t.get("department_ids") or []))
+                if any(d.lower() in department_filters for d in (t.get("department_ids") or []))
             ]
 
-        if team_filter:
+        if team_filters:
             tests_list = [
                 t for t in tests_list
-                if any(tm.lower() == team_filter for tm in (t.get("team_ids") or []))
+                if any(tm.lower() in team_filters for tm in (t.get("team_ids") or []))
             ]
 
-        if campus_filter:
+        if campus_filters:
             tests_list = [
                 t for t in tests_list
-                if any(c.lower() == campus_filter for c in (t.get("campus_ids") or []))
+                if any(c.lower() in campus_filters for c in (t.get("campus_ids") or []))
             ]
 
-        if subject_filter:
+        if subject_filters:
             # Resolve subject_id -> subject_name as well so UUID and name filters both match
-            subject_match_values = {subject_filter}
+            subject_match_values = set(subject_filters)
             try:
                 matched_sb = session.query(Subject).filter(
                     or_(
-                        Subject.subject_id == request.args.get('subject', '').strip(),
-                        func.lower(Subject.subject_name) == subject_filter
+                        cast(Subject.subject_id, String).in_(subject_raw_list),
+                        func.lower(Subject.subject_name).in_(list(subject_filters))
                     )
                 ).all()
                 for sb in matched_sb:
@@ -1977,12 +2055,12 @@ def get_test_ai_usage_api():
                 or (t.get("subject") or "").lower() in subject_match_values
             ]
 
-        if test_id_filter:
+        if test_id_filters:
             tests_list = [
                 t for t in tests_list
-                if (t.get("id") or "").lower() == test_id_filter
-                or (t.get("schedule_id") or "").lower() == test_id_filter
-                or (t.get("exam_id") or "").lower() == test_id_filter
+                if (t.get("id") or "").lower() in test_id_filters
+                or (t.get("schedule_id") or "").lower() in test_id_filters
+                or (t.get("exam_id") or "").lower() in test_id_filters
             ]
 
         if created_by_me_flag:

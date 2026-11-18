@@ -238,11 +238,11 @@ export interface TestFilterState {
   industry: string;
   sector: string;
   institute_id: string;
-  department_id: string;
-  team_id: string;
-  campus_id: string;
-  subject: string;
-  test_id: string;
+  department_ids: string[];
+  team_ids: string[];
+  campus_ids: string[];
+  subjects: string[];
+  test_ids: string[];
   created_by_me: boolean;
   start_date: Date | null;
   end_date: Date | null;
@@ -476,11 +476,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       industry: '',
       sector: '',
       institute_id: '',
-      department_id: '',
-      team_id: '',
-      campus_id: '',
-      subject: '',
-      test_id: '',
+      department_ids: [],
+      team_ids: [],
+      campus_ids: [],
+      subjects: [],
+      test_ids: [],
       created_by_me: false,
       start_date: null,
       end_date: null,
@@ -494,11 +494,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       industry: src.industry || '',
       sector: src.sector || '',
       institute_id: src.institute_id || '',
-      department_id: src.department_id || '',
-      team_id: src.team_id || '',
-      campus_id: src.campus_id || '',
-      subject: src.subject || '',
-      test_id: src.test_id || '',
+      department_ids: [...(src.department_ids || [])],
+      team_ids: [...(src.team_ids || [])],
+      campus_ids: [...(src.campus_ids || [])],
+      subjects: [...(src.subjects || [])],
+      test_ids: [...(src.test_ids || [])],
       created_by_me: !!src.created_by_me,
       start_date: src.start_date ? new Date(src.start_date.getTime()) : null,
       end_date: src.end_date ? new Date(src.end_date.getTime()) : null,
@@ -568,15 +568,22 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   private computeAvailableTeamsForDraft(): TeamOptionItem[] {
-    const deptId = (this.draftFilters.department_id || '').trim();
-    if (!deptId) return [];
-    const selectedDept = this.departmentsList.find((d) => String(d.id) === deptId);
-    const deptNameLower = (selectedDept?.name || '').trim().toLowerCase();
+    const deptIds = (this.draftFilters.department_ids || [])
+      .map((d) => String(d || '').trim())
+      .filter(Boolean);
+    if (deptIds.length === 0) return [];
+    const deptIdLowerSet = new Set(deptIds.map((d) => d.toLowerCase()));
+    const deptNameLowerSet = new Set(
+      this.departmentsList
+        .filter((d) => deptIdLowerSet.has(String(d.id).toLowerCase()))
+        .map((d) => (d.name || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
     return this.allTeamsList.filter((t) => {
-      const tDeptId = (t.department_id || '').trim();
+      const tDeptId = (t.department_id || '').trim().toLowerCase();
       const tDeptName = (t.department_name || '').trim().toLowerCase();
-      if (tDeptId && tDeptId.toLowerCase() === deptId.toLowerCase()) return true;
-      if (deptNameLower && tDeptName && tDeptName === deptNameLower) return true;
+      if (tDeptId && deptIdLowerSet.has(tDeptId)) return true;
+      if (tDeptName && deptNameLowerSet.has(tDeptName)) return true;
       return false;
     });
   }
@@ -588,8 +595,12 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   private computeAvailableSubjectsForDraft(): FilterOptionItem[] {
     const instId = this.isSuperAdmin ? (this.draftFilters.institute_id || '').trim().toLowerCase() : '';
-    const deptId = (this.draftFilters.department_id || '').trim().toLowerCase();
-    const teamId = (this.draftFilters.team_id || '').trim().toLowerCase();
+    const deptSet = new Set(
+      (this.draftFilters.department_ids || []).map((d) => String(d || '').trim().toLowerCase()).filter(Boolean)
+    );
+    const teamSet = new Set(
+      (this.draftFilters.team_ids || []).map((tm) => String(tm || '').trim().toLowerCase()).filter(Boolean)
+    );
 
     const mergedMap = new Map<string, FilterOptionItem>();
     for (const s of this.subjectsList) {
@@ -609,7 +620,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       a.name.localeCompare(b.name)
     );
 
-    if (!deptId && !teamId) {
+    if (deptSet.size === 0 && teamSet.size === 0) {
       return allSortedSubjects;
     }
 
@@ -620,10 +631,10 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       if (instId && t.institute_id && t.institute_id.toLowerCase() !== instId) {
         return false;
       }
-      if (deptId && !(t.department_ids || []).some((d) => d.toLowerCase() === deptId)) {
+      if (deptSet.size > 0 && !(t.department_ids || []).some((d) => deptSet.has(d.toLowerCase()))) {
         return false;
       }
-      if (teamId && !(t.team_ids || []).some((tm) => tm.toLowerCase() === teamId)) {
+      if (teamSet.size > 0 && !(t.team_ids || []).some((tm) => teamSet.has(tm.toLowerCase()))) {
         return false;
       }
       return true;
@@ -650,18 +661,28 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   private computeAvailableTestsForDraft(availableSubjects: FilterOptionItem[]): FilterTestMeta[] {
     const instId = this.isSuperAdmin ? (this.draftFilters.institute_id || '').trim().toLowerCase() : '';
-    const deptId = (this.draftFilters.department_id || '').trim().toLowerCase();
-    const teamId = (this.draftFilters.team_id || '').trim().toLowerCase();
-    const campusId = (this.draftFilters.campus_id || '').trim().toLowerCase();
-    const subjVal =
-      this.testTypeFilter === 'paper'
-        ? (this.draftFilters.subject || '').trim().toLowerCase()
-        : '';
-
-    const selectedSubjObj = availableSubjects.find(
-      (s) => s.id.toLowerCase() === subjVal || s.name.toLowerCase() === subjVal
+    const deptSet = new Set(
+      (this.draftFilters.department_ids || []).map((d) => String(d || '').trim().toLowerCase()).filter(Boolean)
     );
-    const subjNameLower = (selectedSubjObj?.name || subjVal).toLowerCase();
+    const teamSet = new Set(
+      (this.draftFilters.team_ids || []).map((tm) => String(tm || '').trim().toLowerCase()).filter(Boolean)
+    );
+    const campusSet = new Set(
+      (this.draftFilters.campus_ids || []).map((c) => String(c || '').trim().toLowerCase()).filter(Boolean)
+    );
+    const subjVals =
+      this.testTypeFilter === 'paper'
+        ? (this.draftFilters.subjects || []).map((s) => String(s || '').trim().toLowerCase()).filter(Boolean)
+        : [];
+    const subjMatchSet = new Set<string>(subjVals);
+    if (subjVals.length > 0) {
+      for (const s of availableSubjects) {
+        if (subjMatchSet.has(s.id.toLowerCase()) || subjMatchSet.has(s.name.toLowerCase())) {
+          subjMatchSet.add(s.id.toLowerCase());
+          subjMatchSet.add(s.name.toLowerCase());
+        }
+      }
+    }
 
     return this.allTestsMeta.filter((t) => {
       if (t.test_type !== this.testTypeFilter) {
@@ -670,19 +691,19 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
       if (instId && t.institute_id && t.institute_id.toLowerCase() !== instId) {
         return false;
       }
-      if (deptId && !(t.department_ids || []).some((d) => d.toLowerCase() === deptId)) {
+      if (deptSet.size > 0 && !(t.department_ids || []).some((d) => deptSet.has(d.toLowerCase()))) {
         return false;
       }
-      if (teamId && !(t.team_ids || []).some((tm) => tm.toLowerCase() === teamId)) {
+      if (teamSet.size > 0 && !(t.team_ids || []).some((tm) => teamSet.has(tm.toLowerCase()))) {
         return false;
       }
-      if (campusId && !(t.campus_ids || []).some((c) => c.toLowerCase() === campusId)) {
+      if (campusSet.size > 0 && !(t.campus_ids || []).some((c) => campusSet.has(c.toLowerCase()))) {
         return false;
       }
-      if (subjVal) {
+      if (subjMatchSet.size > 0) {
         const tSubjId = (t.subject_id || '').toLowerCase();
         const tSubjName = (t.subject || '').toLowerCase();
-        if (tSubjId !== subjVal && tSubjName !== subjVal && tSubjName !== subjNameLower) {
+        if (!subjMatchSet.has(tSubjId) && !subjMatchSet.has(tSubjName)) {
           return false;
         }
       }
@@ -792,36 +813,85 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     }
 
     const deptQ = (this.deptFilterSearch || '').trim().toLowerCase();
-    this.filteredDepartmentsForDraft = deptQ
-      ? this.departmentsList.filter((d) => (d.name || '').toLowerCase().includes(deptQ))
-      : this.departmentsList;
+    const selDepts = this.draftFilters.department_ids || [];
+    const deptFiltered = deptQ
+      ? this.departmentsList.filter(
+          (d) => (d.name || '').toLowerCase().includes(deptQ) || selDepts.includes(d.id)
+        )
+      : [...this.departmentsList];
+    this.filteredDepartmentsForDraft = deptFiltered.sort((a, b) => {
+      const aSel = selDepts.includes(a.id);
+      const bSel = selDepts.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
 
     const availTeams = this.computeAvailableTeamsForDraft();
     const teamQ = (this.teamFilterSearch || '').trim().toLowerCase();
-    this.filteredTeamsForDraft = teamQ
-      ? availTeams.filter((t) => (t.name || '').toLowerCase().includes(teamQ))
-      : availTeams;
+    const selTeams = this.draftFilters.team_ids || [];
+    const teamFiltered = teamQ
+      ? availTeams.filter(
+          (t) => (t.name || '').toLowerCase().includes(teamQ) || selTeams.includes(t.id)
+        )
+      : [...availTeams];
+    this.filteredTeamsForDraft = teamFiltered.sort((a, b) => {
+      const aSel = selTeams.includes(a.id);
+      const bSel = selTeams.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
 
     const campusQ = (this.campusFilterSearch || '').trim().toLowerCase();
-    this.filteredCampusesForDraft = campusQ
-      ? this.campusesList.filter((c) => (c.name || '').toLowerCase().includes(campusQ))
-      : this.campusesList;
+    const selCampuses = this.draftFilters.campus_ids || [];
+    const campusFiltered = campusQ
+      ? this.campusesList.filter(
+          (c) => (c.name || '').toLowerCase().includes(campusQ) || selCampuses.includes(c.id)
+        )
+      : [...this.campusesList];
+    this.filteredCampusesForDraft = campusFiltered.sort((a, b) => {
+      const aSel = selCampuses.includes(a.id);
+      const bSel = selCampuses.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
 
     const availSubjects = this.computeAvailableSubjectsForDraft();
     const subjQ = (this.subjectFilterSearch || '').trim().toLowerCase();
-    this.filteredSubjectsForDraft = subjQ
-      ? availSubjects.filter((s) => (s.name || '').toLowerCase().includes(subjQ))
-      : availSubjects;
+    const selSubjs = this.draftFilters.subjects || [];
+    const subjFiltered = subjQ
+      ? availSubjects.filter(
+          (s) => (s.name || '').toLowerCase().includes(subjQ) || selSubjs.includes(s.id)
+        )
+      : [...availSubjects];
+    this.filteredSubjectsForDraft = subjFiltered.sort((a, b) => {
+      const aSel = selSubjs.includes(a.id);
+      const bSel = selSubjs.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
 
     const availTests = this.computeAvailableTestsForDraft(availSubjects);
     const testQ = (this.testFilterSearch || '').trim().toLowerCase();
-    this.filteredTestsForDraft = testQ
+    const selTests = this.draftFilters.test_ids || [];
+    const testFiltered = testQ
       ? availTests.filter(
           (t) =>
             (t.title || '').toLowerCase().includes(testQ) ||
-            (t.subject || '').toLowerCase().includes(testQ)
+            (t.subject || '').toLowerCase().includes(testQ) ||
+            selTests.includes(t.id)
         )
-      : availTests;
+      : [...availTests];
+    this.filteredTestsForDraft = testFiltered.sort((a, b) => {
+      const aSel = selTests.includes(a.id);
+      const bSel = selTests.includes(b.id);
+      if (aSel && !bSel) return -1;
+      if (!aSel && bSel) return 1;
+      return (a.title || '').localeCompare(b.title || '');
+    });
   }
 
   private refreshAppliedFilterChips(): void {
@@ -839,57 +909,64 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         required: true,
       });
     }
-    if (this.appliedFilters.department_id) {
+    if (this.appliedFilters.department_ids.length > 0) {
       count++;
-      const d = this.departmentsList.find((x) => x.id === this.appliedFilters.department_id);
-      chips.push({
-        key: 'department',
-        label: `${this.terminology.deptLabel}: ${d?.name || this.appliedFilters.department_id}`,
-        required: true,
-      });
+      let label: string;
+      if (this.appliedFilters.department_ids.length === 1) {
+        const d = this.departmentsList.find((x) => x.id === this.appliedFilters.department_ids[0]);
+        label = `${this.terminology.deptLabel}: ${d?.name || this.appliedFilters.department_ids[0]}`;
+      } else {
+        label = `${this.terminology.deptPluralLabel}: ${this.appliedFilters.department_ids.length} selected`;
+      }
+      chips.push({ key: 'department', label, required: true });
     }
-    if (this.appliedFilters.team_id) {
+    if (this.appliedFilters.team_ids.length > 0) {
       count++;
-      const t = this.allTeamsList.find((x) => x.id === this.appliedFilters.team_id);
-      chips.push({
-        key: 'team',
-        label: `${this.terminology.teamLabel}: ${t?.name || this.appliedFilters.team_id}`,
-        required: true,
-      });
+      let label: string;
+      if (this.appliedFilters.team_ids.length === 1) {
+        const t = this.allTeamsList.find((x) => x.id === this.appliedFilters.team_ids[0]);
+        label = `${this.terminology.teamLabel}: ${t?.name || this.appliedFilters.team_ids[0]}`;
+      } else {
+        label = `${this.terminology.teamPluralLabel}: ${this.appliedFilters.team_ids.length} selected`;
+      }
+      chips.push({ key: 'team', label, required: true });
     }
-    if (this.appliedFilters.campus_id) {
+    if (this.appliedFilters.campus_ids.length > 0) {
       count++;
-      const cp = this.campusesList.find((x) => x.id === this.appliedFilters.campus_id);
-      chips.push({
-        key: 'campus',
-        label: `Campus: ${cp?.name || this.appliedFilters.campus_id}`,
-        required: false,
-      });
+      let label: string;
+      if (this.appliedFilters.campus_ids.length === 1) {
+        const cp = this.campusesList.find((x) => x.id === this.appliedFilters.campus_ids[0]);
+        label = `Campus: ${cp?.name || this.appliedFilters.campus_ids[0]}`;
+      } else {
+        label = `Campuses: ${this.appliedFilters.campus_ids.length} selected`;
+      }
+      chips.push({ key: 'campus', label, required: false });
     }
-    if (this.appliedFilters.subject) {
+    if (this.appliedFilters.subjects.length > 0) {
       count++;
-      const s = this.subjectsList.find(
-        (x) => x.id === this.appliedFilters.subject || x.name === this.appliedFilters.subject
-      );
-      chips.push({
-        key: 'subject',
-        label: `Subject: ${s?.name || this.appliedFilters.subject}`,
-        required: this.testTypeFilter === 'paper',
-      });
+      let label: string;
+      if (this.appliedFilters.subjects.length === 1) {
+        const sVal = this.appliedFilters.subjects[0];
+        const s = this.subjectsList.find((x) => x.id === sVal || x.name === sVal);
+        label = `Subject: ${s?.name || sVal}`;
+      } else {
+        label = `Subjects: ${this.appliedFilters.subjects.length} selected`;
+      }
+      chips.push({ key: 'subject', label, required: this.testTypeFilter === 'paper' });
     }
-    if (this.appliedFilters.test_id) {
+    if (this.appliedFilters.test_ids.length > 0) {
       count++;
-      const tst = this.allTestsMeta.find(
-        (x) =>
-          x.id === this.appliedFilters.test_id ||
-          x.schedule_id === this.appliedFilters.test_id ||
-          x.exam_id === this.appliedFilters.test_id
-      );
-      chips.push({
-        key: 'test',
-        label: `Test: ${tst?.title || this.appliedFilters.test_id}`,
-        required: false,
-      });
+      let label: string;
+      if (this.appliedFilters.test_ids.length === 1) {
+        const tid = this.appliedFilters.test_ids[0];
+        const tst = this.allTestsMeta.find(
+          (x) => x.id === tid || x.schedule_id === tid || x.exam_id === tid
+        );
+        label = `Test: ${tst?.title || tid}`;
+      } else {
+        label = `Tests: ${this.appliedFilters.test_ids.length} selected`;
+      }
+      chips.push({ key: 'test', label, required: false });
     }
     if (this.appliedFilters.created_by_me) {
       count++;
@@ -1057,13 +1134,16 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     if (this.isSuperAdmin && !(this.draftFilters.institute_id || '').trim()) {
       missing.push('Institute');
     }
-    if (!(this.draftFilters.department_id || '').trim()) {
+    if (!this.draftFilters.department_ids || this.draftFilters.department_ids.length === 0) {
       missing.push(this.terminology.deptLabel);
     }
-    if (!(this.draftFilters.team_id || '').trim()) {
+    if (!this.draftFilters.team_ids || this.draftFilters.team_ids.length === 0) {
       missing.push(this.terminology.teamLabel);
     }
-    if (this.testTypeFilter === 'paper' && !(this.draftFilters.subject || '').trim()) {
+    if (
+      this.testTypeFilter === 'paper' &&
+      (!this.draftFilters.subjects || this.draftFilters.subjects.length === 0)
+    ) {
       missing.push('Subject');
     }
     return missing;
@@ -1096,18 +1176,24 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   isDraftDeptInvalid(): boolean {
-    return this.filterValidationAttempted && !(this.draftFilters.department_id || '').trim();
+    return (
+      this.filterValidationAttempted &&
+      (!this.draftFilters.department_ids || this.draftFilters.department_ids.length === 0)
+    );
   }
 
   isDraftTeamInvalid(): boolean {
-    return this.filterValidationAttempted && !(this.draftFilters.team_id || '').trim();
+    return (
+      this.filterValidationAttempted &&
+      (!this.draftFilters.team_ids || this.draftFilters.team_ids.length === 0)
+    );
   }
 
   isDraftSubjectInvalid(): boolean {
     return (
       this.filterValidationAttempted &&
       this.testTypeFilter === 'paper' &&
-      !(this.draftFilters.subject || '').trim()
+      (!this.draftFilters.subjects || this.draftFilters.subjects.length === 0)
     );
   }
 
@@ -1232,11 +1318,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   onTestDraftInstituteChange(): void {
-    this.draftFilters.department_id = '';
-    this.draftFilters.team_id = '';
-    this.draftFilters.campus_id = '';
-    this.draftFilters.subject = '';
-    this.draftFilters.test_id = '';
+    this.draftFilters.department_ids = [];
+    this.draftFilters.team_ids = [];
+    this.draftFilters.campus_ids = [];
+    this.draftFilters.subjects = [];
+    this.draftFilters.test_ids = [];
     this.refreshTerminology();
     this.loadFilterMasterData(true, this.draftFilters.institute_id || '');
     this.refreshDraftOptions();
@@ -1245,10 +1331,26 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     }
   }
 
+  private pruneTestDraftDependentSelections(): void {
+    const validTeamIds = new Set(this.computeAvailableTeamsForDraft().map((t) => t.id));
+    this.draftFilters.team_ids = (this.draftFilters.team_ids || []).filter((id) =>
+      validTeamIds.has(id)
+    );
+
+    const availSubjs = this.computeAvailableSubjectsForDraft();
+    const validSubjIds = new Set(availSubjs.map((s) => s.id));
+    this.draftFilters.subjects = (this.draftFilters.subjects || []).filter((id) =>
+      validSubjIds.has(id)
+    );
+
+    const validTestIds = new Set(this.computeAvailableTestsForDraft(availSubjs).map((t) => t.id));
+    this.draftFilters.test_ids = (this.draftFilters.test_ids || []).filter((id) =>
+      validTestIds.has(id)
+    );
+  }
+
   onDraftDepartmentChange(): void {
-    this.draftFilters.team_id = '';
-    this.draftFilters.subject = '';
-    this.draftFilters.test_id = '';
+    this.pruneTestDraftDependentSelections();
     this.refreshDraftOptions();
     if (this.filterValidationAttempted) {
       this.updateFilterValidationError();
@@ -1256,8 +1358,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   onDraftTeamChange(): void {
-    this.draftFilters.subject = '';
-    this.draftFilters.test_id = '';
+    this.pruneTestDraftDependentSelections();
     this.refreshDraftOptions();
     if (this.filterValidationAttempted) {
       this.updateFilterValidationError();
@@ -1265,26 +1366,92 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   onDraftCampusChange(): void {
-    this.draftFilters.test_id = '';
+    const availSubjs = this.computeAvailableSubjectsForDraft();
+    const validTestIds = new Set(this.computeAvailableTestsForDraft(availSubjs).map((t) => t.id));
+    this.draftFilters.test_ids = (this.draftFilters.test_ids || []).filter((id) =>
+      validTestIds.has(id)
+    );
     this.refreshDraftOptions();
   }
 
   onDraftSubjectChange(): void {
-    this.draftFilters.test_id = '';
+    const availSubjs = this.computeAvailableSubjectsForDraft();
+    const validTestIds = new Set(this.computeAvailableTestsForDraft(availSubjs).map((t) => t.id));
+    this.draftFilters.test_ids = (this.draftFilters.test_ids || []).filter((id) =>
+      validTestIds.has(id)
+    );
     this.refreshDraftOptions();
     if (this.filterValidationAttempted) {
       this.updateFilterValidationError();
     }
   }
 
+  onDraftTestSelectionChange(): void {
+    this.refreshDraftOptions();
+  }
+
   onDraftCreatedByMeChange(): void {
     this.refreshDraftOptions();
-    if (this.draftFilters.test_id) {
-      const stillValid = this.filteredTestsForDraft.some((t) => t.id === this.draftFilters.test_id);
-      if (!stillValid) {
-        this.draftFilters.test_id = '';
-      }
+    if (this.draftFilters.test_ids && this.draftFilters.test_ids.length > 0) {
+      const validIds = new Set(this.filteredTestsForDraft.map((t) => t.id));
+      this.draftFilters.test_ids = this.draftFilters.test_ids.filter((id) => validIds.has(id));
     }
+  }
+
+  // Select All helpers for Section 5 Multi-Select Dropdowns
+  isAllDraftDeptsSelected(): boolean {
+    const ids = this.filteredDepartmentsForDraft.map((d) => d.id);
+    return ids.length > 0 && ids.every((id) => this.draftFilters.department_ids.includes(id));
+  }
+
+  toggleSelectAllDraftDepts(): void {
+    const ids = this.filteredDepartmentsForDraft.map((d) => d.id);
+    this.draftFilters.department_ids = this.isAllDraftDeptsSelected() ? [] : [...ids];
+    this.onDraftDepartmentChange();
+  }
+
+  isAllDraftTeamsSelected(): boolean {
+    const ids = this.filteredTeamsForDraft.map((t) => t.id);
+    return ids.length > 0 && ids.every((id) => this.draftFilters.team_ids.includes(id));
+  }
+
+  toggleSelectAllDraftTeams(): void {
+    const ids = this.filteredTeamsForDraft.map((t) => t.id);
+    this.draftFilters.team_ids = this.isAllDraftTeamsSelected() ? [] : [...ids];
+    this.onDraftTeamChange();
+  }
+
+  isAllDraftCampusesSelected(): boolean {
+    const ids = this.filteredCampusesForDraft.map((c) => c.id);
+    return ids.length > 0 && ids.every((id) => this.draftFilters.campus_ids.includes(id));
+  }
+
+  toggleSelectAllDraftCampuses(): void {
+    const ids = this.filteredCampusesForDraft.map((c) => c.id);
+    this.draftFilters.campus_ids = this.isAllDraftCampusesSelected() ? [] : [...ids];
+    this.onDraftCampusChange();
+  }
+
+  isAllDraftSubjectsSelected(): boolean {
+    const ids = this.filteredSubjectsForDraft.map((s) => s.id);
+    return ids.length > 0 && ids.every((id) => this.draftFilters.subjects.includes(id));
+  }
+
+  toggleSelectAllDraftSubjects(): void {
+    const ids = this.filteredSubjectsForDraft.map((s) => s.id);
+    this.draftFilters.subjects = this.isAllDraftSubjectsSelected() ? [] : [...ids];
+    this.onDraftSubjectChange();
+  }
+
+  isAllDraftTestsSelected(): boolean {
+    const ids = this.filteredTestsForDraft.map((t) => t.id);
+    return ids.length > 0 && ids.every((id) => this.draftFilters.test_ids.includes(id));
+  }
+
+  toggleSelectAllDraftTests(): void {
+    const ids = this.filteredTestsForDraft.map((t) => t.id);
+    this.draftFilters.test_ids = this.isAllDraftTestsSelected() ? [] : [...ids];
+    this.onDraftTestSelectionChange();
   }
 
   onDropdownSearchInput(event: Event): void {
@@ -1375,15 +1542,15 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     }
     switch (key) {
       case 'campus':
-        this.appliedFilters.campus_id = '';
-        this.appliedFilters.test_id = '';
+        this.appliedFilters.campus_ids = [];
+        this.appliedFilters.test_ids = [];
         break;
       case 'subject':
-        this.appliedFilters.subject = '';
-        this.appliedFilters.test_id = '';
+        this.appliedFilters.subjects = [];
+        this.appliedFilters.test_ids = [];
         break;
       case 'test':
-        this.appliedFilters.test_id = '';
+        this.appliedFilters.test_ids = [];
         break;
       case 'created_by_me':
         this.appliedFilters.created_by_me = false;
@@ -2438,20 +2605,24 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     if (this.testSearchTerm.trim()) {
       params.push(`search=${encodeURIComponent(this.testSearchTerm.trim())}`);
     }
-    if (this.appliedFilters.department_id) {
-      params.push(`department_id=${encodeURIComponent(this.appliedFilters.department_id)}`);
+    if (this.appliedFilters.department_ids && this.appliedFilters.department_ids.length > 0) {
+      params.push(`department_id=${encodeURIComponent(this.appliedFilters.department_ids.join(','))}`);
     }
-    if (this.appliedFilters.team_id) {
-      params.push(`team_id=${encodeURIComponent(this.appliedFilters.team_id)}`);
+    if (this.appliedFilters.team_ids && this.appliedFilters.team_ids.length > 0) {
+      params.push(`team_id=${encodeURIComponent(this.appliedFilters.team_ids.join(','))}`);
     }
-    if (this.appliedFilters.campus_id) {
-      params.push(`campus_id=${encodeURIComponent(this.appliedFilters.campus_id)}`);
+    if (this.appliedFilters.campus_ids && this.appliedFilters.campus_ids.length > 0) {
+      params.push(`campus_id=${encodeURIComponent(this.appliedFilters.campus_ids.join(','))}`);
     }
-    if (this.testTypeFilter === 'paper' && this.appliedFilters.subject) {
-      params.push(`subject=${encodeURIComponent(this.appliedFilters.subject)}`);
+    if (
+      this.testTypeFilter === 'paper' &&
+      this.appliedFilters.subjects &&
+      this.appliedFilters.subjects.length > 0
+    ) {
+      params.push(`subject=${encodeURIComponent(this.appliedFilters.subjects.join(','))}`);
     }
-    if (this.appliedFilters.test_id) {
-      params.push(`test_id=${encodeURIComponent(this.appliedFilters.test_id)}`);
+    if (this.appliedFilters.test_ids && this.appliedFilters.test_ids.length > 0) {
+      params.push(`test_id=${encodeURIComponent(this.appliedFilters.test_ids.join(','))}`);
     }
     if (this.appliedFilters.created_by_me) {
       params.push(`created_by_me=true`);
