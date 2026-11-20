@@ -2,6 +2,7 @@ import base64
 import io
 import os
 import traceback
+from flask import g
 from others.llm import openai_client
 
 def extract_text_from_image(request):
@@ -74,12 +75,28 @@ def extract_text_from_image(request):
                     }
                 ]
 
+                target_inst_id = (
+                    request.form.get("institute_id")
+                    if hasattr(request, "form") else None
+                ) or (
+                    request.args.get("institute_id")
+                    if hasattr(request, "args") else None
+                ) or (
+                    (request.get_json(silent=True) or {}).get("institute_id")
+                    if hasattr(request, "get_json") else None
+                ) or (
+                    getattr(g, 'current_user', None) and getattr(g.current_user, 'institute_id', None)
+                )
+
                 response = client.chat_completion(
                     system_message=system_prompt,
                     InputData=user_content,
                     aimodel=1,
                     max_tokens=2000,
-                    temperature=0.1
+                    temperature=0.1,
+                    institute_id=target_inst_id,
+                    feature_name="OCR Extraction",
+                    endpoint="/ocr-extract"
                 )
 
                 if response.status_code == 200:

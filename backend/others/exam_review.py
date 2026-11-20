@@ -911,6 +911,8 @@ def _validate_answers_impl(attempt_id):
         return {"statusMessage": "Error connecting to database", "status": False}, 500
     
     evaluation_failures = 0
+    credit_exhausted_flag = False
+    credit_exhausted_message = ""
 
     # Retrieve authoritative attempt and schedule metadata for object path authorization
     t_db_query_start = time.perf_counter()
@@ -921,6 +923,28 @@ def _validate_answers_impl(attempt_id):
     user_rec = session.query(User).filter_by(user_id=attempt_rec.user_id).first() if attempt_rec else None
     user_name = user_rec.user_name if user_rec else "unknown"
     signed_url_cache = {}
+
+    # Pre-flight check via AICreditManager
+    if auth_inst_id:
+        try:
+            from others.ai_credits import AICreditManager
+            has_acc, c_msg, c_code, _ = AICreditManager.check_and_reserve(
+                institute_id=auth_inst_id,
+                user_id=user_name,
+                estimated_tokens=500,
+                feature_name="AI Evaluation",
+                session=session
+            )
+            if not has_acc:
+                session.close()
+                return {
+                    "status": False,
+                    "statusMessage": c_msg,
+                    "code": "AI_CREDIT_EXHAUSTED",
+                    "error": c_msg
+                }, 403
+        except Exception as _pfc_err:
+            print(f"[validate_answers] Pre-flight credit check warning: {_pfc_err}")
 
     # get answer records
     answers = session.query(Answer).filter_by(attempt_id=attempt_id).all()
@@ -1128,16 +1152,37 @@ def _validate_answers_impl(attempt_id):
                     )
 
                 if not evaluation.get("status", False):
-                    evaluation_failures += 1
-                    error_detail = evaluation.get("error") or "The AI evaluation service did not return a valid result."
-                    print(f"AI evaluation failed for answer {ans.answer_id}: {error_detail}")
-                    ans.feedback = "Evaluation incomplete: Answer could not be processed by AI."
-                    ans.ai_confidence = None
-                    ans.is_validated = 1
-                    ans.marks_awarded = 0.0
-                    ans.is_correct = 0
-                    session.add(ans)
-                    continue
+                    error_detail = str(evaluation.get("error") or evaluation.get("statusMessage") or "The AI evaluation service did not return a valid result.")
+                    is_credit_exhausted = (
+                        evaluation.get("code") == "AI_CREDIT_EXHAUSTED"
+                        or evaluation.get("status_code") == 403
+                        or "credit" in error_detail.lower()
+                        or "quota" in error_detail.lower()
+                    )
+                    if is_credit_exhausted:
+                        # Decision 1: Do NOT zero-out or validate! Leave unvalidated so it can be resumed
+                        ans.feedback = "Evaluation pending: Waiting for AI credits to complete grading."
+                        ans.ai_confidence = None
+                        ans.is_validated = 0
+                        session.add(ans)
+                        try:
+                            session.commit()
+                        except Exception:
+                            pass
+                        credit_exhausted_flag = True
+                        credit_exhausted_message = error_detail
+                        print(f"[EVAL CREDIT PAUSE] Attempt {attempt_id} paused at question {question_id} due to credit exhaustion: {error_detail}")
+                        break
+                    else:
+                        evaluation_failures += 1
+                        print(f"AI evaluation failed for answer {ans.answer_id}: {error_detail}")
+                        ans.feedback = "Evaluation incomplete: Answer could not be processed by AI."
+                        ans.ai_confidence = None
+                        ans.is_validated = 1
+                        ans.marks_awarded = 0.0
+                        ans.is_correct = 0
+                        session.add(ans)
+                        continue
                 score = evaluation.get("score", 0)
                 try:
                     score_val = float(score)
@@ -1286,6 +1331,9 @@ def _validate_answers_impl(attempt_id):
         except Exception as _commit_err:
             print(f"[EVAL] Warning committing question {question_id} progress: {_commit_err}", flush=True)
 
+        if credit_exhausted_flag:
+            break
+
     # Sanitize all answer rows for this attempt so marks_awarded never exceeds question marks
     all_ans = session.query(Answer).filter_by(attempt_id=attempt_id).all()
     for ans_rec in all_ans:
@@ -1326,8 +1374,10 @@ def _validate_answers_impl(attempt_id):
                 attempt.feedback = 'Failed'
             attempt.percentage = round((total_score / total_possible_marks * 100), 2) if total_possible_marks > 0 else 0
             all_answers_validated = all(getattr(ans, 'is_validated', 0) == 1 for ans in latest_answers_by_qid.values()) if latest_answers_by_qid else True
-            if all_answers_validated:
+            if all_answers_validated and not credit_exhausted_flag:
                 attempt.status = 'evaluated'
+            else:
+                attempt.status = 'partial_credits_pending' if credit_exhausted_flag else attempt.status
             session.add(attempt)
             session.commit()
         t_commit_score_duration = time.perf_counter() - t_commit_score_start
@@ -1339,6 +1389,15 @@ def _validate_answers_impl(attempt_id):
         return {"statusMessage": f"Error updating exam attempt score: {str(e)}", "status": False}, 500
     finally:
         session.close()
+
+    if credit_exhausted_flag:
+        return {
+            "status": True,
+            "partial": True,
+            "credit_exhausted": True,
+            "score": attempt.score if attempt else 0,
+            "statusMessage": f"Evaluation paused: {credit_exhausted_message}. Evaluated question scores are saved. Pending questions will be evaluated once credits are added."
+        }, 200
 
     if evaluation_failures:
         return {
@@ -1638,6 +1697,43 @@ def update_descriptive_marks(request, current_user=None):
         return {"statusMessage": f"Error updating descriptive marks: {str(e)}", "status": False}, 500
     finally:
         session.close()
+
+
+def auto_resume_pending_online_evaluations(institute_id):
+    """
+    Finds any online exam attempts for this institute that have pending unvalidated
+    answers (e.g. paused due to previous credit exhaustion) and evaluates them automatically.
+    """
+    if not institute_id:
+        return 0
+    resumed_attempts = 0
+    try:
+        db = SQLiteDB()
+        session = db.connect()
+        if not session:
+            return 0
+        pending_attempts = (
+            session.query(Exam_Attempt)
+            .join(ExamSchedule, Exam_Attempt.schedule_id == ExamSchedule.schedule_id)
+            .filter(
+                ExamSchedule.institute_id == str(institute_id),
+                Exam_Attempt.status.in_(["submitted", "evaluating", "partial_credits_pending"])
+            )
+            .all()
+        )
+        attempt_ids = [str(a.attempt_id) for a in pending_attempts if a.attempt_id]
+        session.close()
+
+        for att_id in attempt_ids:
+            try:
+                res, st_code = _validate_answers_impl(att_id)
+                if st_code == 200 and isinstance(res, dict) and not res.get("credit_exhausted"):
+                    resumed_attempts += 1
+            except Exception as e:
+                print(f"[AutoResumeOnline] Error resuming attempt {att_id}: {e}")
+    except Exception as err:
+        print(f"[AutoResumeOnline] Error querying pending attempts: {err}")
+    return resumed_attempts
 
 
 if __name__ == "__main__":

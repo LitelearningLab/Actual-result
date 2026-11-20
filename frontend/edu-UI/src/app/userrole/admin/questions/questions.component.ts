@@ -1680,7 +1680,7 @@ export class AdminQuestionsComponent {
   private isAllowedCategoryForInstitute(item: any, scopedInstitute: string): boolean {
     if (!scopedInstitute) return true;
     const itemInst = this.getCategoryInstituteId(item);
-    if (!itemInst) return true;
+    if (!itemInst) return false;
     return String(itemInst) === String(scopedInstitute);
   }
   private resolveCityId(cityName: string): string {
@@ -2294,6 +2294,10 @@ export class AdminQuestionsComponent {
         const scopedInstitute = this.getScopedInstituteId(instId);
         const mapped = arr
           .filter((r: any) => this.isAllowedCategoryForInstitute(r, scopedInstitute))
+          .filter((r: any) => {
+            const activeVal = r.active_status ?? r.active;
+            return activeVal === true || activeVal === 1 || activeVal === 'true';
+          })
           .map((r: any) => ({
             name: r.name || r.category_name || '',
             category_id: r.category_id || r.id,
@@ -2402,6 +2406,7 @@ export class AdminQuestionsComponent {
   private buildCategoryFilterParams(instId?: string): string[] {
     const params: string[] = [];
     if (instId) params.push(`institute_id=${encodeURIComponent(instId)}`);
+    params.push('active_status=true');
     if (this.selectedDepartments.length)
       params.push(`departments=${encodeURIComponent(this.selectedDepartments.join(','))}`);
     if (this.selectedTeams.length)

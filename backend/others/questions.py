@@ -1647,26 +1647,37 @@ def create_question_using_llm(request):
 
     openai_client_instance = openai_client()
 
-    # Dynamically scale token estimate to match configured character count
-    total_tokens_estimate = max((number_of_questions * (question_char_limit + answer_max_char_limit) // 4) + 1500, 3500)
+    # Calculate target word count targets from character limits
+    # Average English academic text is ~5 characters per word
+    min_answer_words = max(int(answer_min_char_limit / 5), 50)
+    max_answer_words = max(int(answer_max_char_limit / 4.5), 100)
 
-    system_message = f"""You are an expert academic examination setter and evaluator for school and college curricula. Your primary objective is to generate academically authoritative, scientifically accurate examination questions and comprehensive model answers based on the provided source text and parameters.
+    # Dynamic token allocation to allow full generation in a single shot
+    total_tokens_estimate = max((number_of_questions * (question_char_limit + answer_max_char_limit) // 3) + 2000, 4500)
 
-Academic Marking & Depth Standards:
-- Academic Completeness: The answer must provide full academic coverage appropriate for {question_mark} marks, including core definitions, underlying principles, mechanisms, and balanced reactions/equations wherever applicable.
-- Contextual Expansion (Minimum Threshold): If the core answer is shorter than the configured minimum of {answer_min_char_limit} characters, expand it meaningfully using related academic details (such as operating conditions, industrial purpose, reaction details, or examples). Do NOT add irrelevant filler, repetitive phrases, or generic intros/outros.
-- Strict Upper Ceilings:
-  * The question text ('question_text') must strictly not exceed {question_char_limit} characters.
-  * The model answer ('answer_text' and 'correct_answer') must strictly not exceed {answer_max_char_limit} characters.
-- Grounded Knowledge: Base all facts on the provided source text and standard curriculum principles. Do not invent unverified facts.
+    system_message = f"""You are an expert academic examination setter and evaluator for school and college curricula. Your primary objective is to generate academically authoritative, scientifically rigorous examination questions and comprehensive model answers in a SINGLE, COMPLETE generation.
+
+Mandatory Length & Depth Requirements:
+- The model answer ('answer_text' and 'correct_answer') MUST satisfy the institute's required length: Minimum {answer_min_char_limit} characters (at least {min_answer_words} words) to Maximum {answer_max_char_limit} characters.
+- You MUST achieve this minimum on your FIRST attempt. Do NOT produce a short summary or brief calculation.
+- For descriptive questions matching {question_mark} marks with a minimum of {answer_min_char_limit} characters, you MUST structure the model answer into comprehensive academic sections:
+  1. Core Principles & Definitions: Fundamental laws, definitions, and underlying scientific concepts.
+  2. Step-by-Step Calculations / Derivations: Full mathematical or chemical progression with all formulas, substitutions, intermediate steps, and units explicitly shown.
+  3. Physical & Analytical Interpretation: In-depth comparison, physical significance of the results, and behavioral trends.
+  4. Operational Assumptions & Boundary Conditions: Applicable conditions, validity limits, and circuit/system assumptions.
+  5. Practical / Real-World Applications: Contextual significance, engineering/industrial relevance, or real-world examples.
+- Upper Limits:
+  * 'question_text' must strictly not exceed {question_char_limit} characters.
+  * 'answer_text' must strictly not exceed {answer_max_char_limit} characters.
+- Quality: Ground all facts in standard curricula. Do NOT add irrelevant filler or repetitive sentences.
 
 Question Type Specifications:
-- 'fill': Fill-in-the-blanks (use '______' in question_text, and provide ONLY the exact missing word/phrase in correct_answer and answer_text without repeating the full sentence).
-- 'choose': Multiple choice single answer with concise, plausible options.
+- 'fill': Fill-in-the-blanks (use '______' in question_text; correct_answer is strictly the missing word/phrase).
+- 'choose': Multiple choice single answer with concise options.
 - 'multi': Multiple choice multiple answers with concise options.
-- 'descriptive': Subjective examination question. The model answer ('answer_text' and 'correct_answer') must provide an academically complete model answer matching the assigned marks.
+- 'descriptive': Comprehensive model answer satisfying all marking depth criteria and character limits.
 """
-    user_message = f"""Using the following parameters, generate {number_of_questions} question(s) along with their correct model answer(s):
+    user_message = f"""Generate {number_of_questions} question(s) with correct model answer(s) using the following parameters:
 - Language: {language}
 - Topic: {topic}
 - Industry: {industry}
@@ -1680,31 +1691,27 @@ Question Type Specifications:
 - Additional Instructions: {additional_instructions}
 - Assigned Marks: {question_mark} marks per question
 - Question Character Ceiling: Maximum {question_char_limit} characters for "question_text"
-- Model Answer Character Range: Minimum {answer_min_char_limit} characters to Maximum {answer_max_char_limit} characters for "answer_text"
+- MANDATORY Model Answer Range: Minimum {answer_min_char_limit} characters (at least {min_answer_words}+ words) to Maximum {answer_max_char_limit} characters for "answer_text"
 
-Instructions for Question and Model Answer Generation:
-1. Academic Depth & Accuracy:
-   - Provide complete scientific explanations, conditions, and reactions matching {question_mark} marks.
-   - If the definition alone is shorter than {answer_min_char_limit} characters, expand it with relevant academic details (such as purpose, reaction conditions, or industrial significance) to satisfy the minimum length naturally.
-2. Strict Character Bounds:
-   - "question_text" must be <= {question_char_limit} characters.
-   - "answer_text" must be between {answer_min_char_limit} and {answer_max_char_limit} characters.
-3. Clean Formatting: Do NOT include mark annotations (such as "({question_mark} marks)", "[{question_mark} Marks]") inside "question_text". Marks belong exclusively in the "mark" field.
+CRITICAL INSTRUCTIONS FOR FIRST-SHOT LENGTH COMPLIANCE:
+1. The model answer MUST reach at least {answer_min_char_limit} characters (minimum {min_answer_words} words) directly in this response.
+2. Provide full academic depth across the 5 structured sections (Theory, Step-by-Step Derivations/Calculations, Interpretation, Assumptions, Practical Applications). Do NOT stop once the numerical result is found.
+3. "question_text" must be <= {question_char_limit} characters.
+4. Clean Formatting: Do NOT include mark annotations like "({question_mark} marks)" inside "question_text".
 
-Provide the output as a JSON array of objects (one object per question). Each object should follow this format:
+Provide the output as a JSON array of objects (one object per question). Each object format:
 [
     {{
         "question_text": "<The text of the question>",
         "options": ["<Option 1>", "<Option 2>", "..."] (only for 'choose' and 'multi' types),
-        "correct_answer": "<The correct answer text, indices of correct options, or comprehensive model answer for descriptive questions>",
-        "answer_text": "<Detailed model answer with academic depth and structure appropriate for {question_mark} marks>",
+        "correct_answer": "<The correct answer text or comprehensive model answer for descriptive questions>",
+        "answer_text": "<In-depth model answer satisfying the {answer_min_char_limit} to {answer_max_char_limit} character requirement>",
         "type": "{type}",
         "mark": {question_mark}
     }}
 ]
 
-If only a single question is requested, returning a single JSON object is also acceptable. Ensure the output is valid JSON with no surrounding markdown or text.
-"""
+Return strictly valid JSON with no surrounding markdown or conversational text."""
     # Token calculation based on number of questions and character/ word count
     total_tokens_estimate = number_of_questions * character_count // 4
     try:
@@ -1792,7 +1799,7 @@ Task: Expand the answer by adding essential scientific/academic details, underly
                     )
                     if expand_res.status_code == 200:
                         new_ans = expand_res.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
-                        if len(new_ans) >= answer_min_char_limit:
+                        if len(new_ans) >= answer_min_char_limit or len(new_ans) > ans_len:
                             q_item["answer_text"] = new_ans
                             q_item["correct_answer"] = new_ans
 

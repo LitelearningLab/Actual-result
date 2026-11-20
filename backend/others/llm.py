@@ -9,9 +9,10 @@ from dotenv import dotenv_values
 
 
 class _ErrorResponse:
-    def __init__(self, status_code, message):
+    def __init__(self, status_code, message, code=None):
         self.status_code = status_code
         self._message = message
+        self.code = code or ("AI_CREDIT_EXHAUSTED" if status_code == 403 else "AI_ERROR")
 
     def json(self):
         return {
@@ -19,6 +20,8 @@ class _ErrorResponse:
             "statusMessage": self._message,
             "message": self._message,
             "status": False,
+            "code": self.code,
+            "status_code": self.status_code,
         }
 
 
@@ -84,17 +87,19 @@ class openai_client:
                 "OpenAI API key is not configured. Set OPENAI_API_KEY on the backend service.",
             )
 
-        # Check AI credit allocation & access permission for this institute
+        # Check AI credit allocation & access permission for this institute via centralized AICreditManager
         try:
-            from others.ai_credits import check_institute_ai_access
-            has_access, err_msg, err_code = check_institute_ai_access(
+            from others.ai_credits import AICreditManager
+            has_access, err_msg, err_code, _ = AICreditManager.check_and_reserve(
                 institute_id=institute_id,
-                user_id=None
+                user_id=user_name,
+                estimated_tokens=max_tokens if max_tokens else 1000,
+                feature_name=feature_name or "AI Operation"
             )
             if not has_access:
-                return _ErrorResponse(err_code, err_msg)
+                return _ErrorResponse(err_code, err_msg, code="AI_CREDIT_EXHAUSTED")
         except Exception as e:
-            print(f"AI access check warning: {e}")
+            print(f"[AICreditManager Gate] Access check warning: {e}")
 
         messages = []
         if system_message:
@@ -149,9 +154,9 @@ class openai_client:
                     flush=True,
                 )
 
-                # Persist to database for institute usage and analytics
+                # Persist to database for institute usage and analytics via centralized AICreditManager
                 try:
-                    from others.ai_credits import record_ai_usage
+                    from others.ai_credits import AICreditManager, normalize_feature_name
                     inferred_feature = feature_name
                     if not inferred_feature:
                         sys_str = str(system_message or "").lower()
@@ -176,7 +181,7 @@ class openai_client:
                         else:
                             inferred_feature = "AI Question Generation"
 
-                    record_ai_usage(
+                    AICreditManager.record_and_reconcile(
                         resp_json,
                         institute_id=institute_id,
                         user_id=user_name,

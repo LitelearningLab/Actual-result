@@ -1167,6 +1167,14 @@ def update_institute_credits(request):
         remaining = max(0, new_credits - used_credits) if new_credits > 0 else 0
 
         session.close()
+
+        # Trigger background auto-resumption for any paused bulk evaluations or pending online evaluations
+        try:
+            from others.ai_credits import AICreditManager
+            AICreditManager.trigger_auto_resume_for_institute(str(institute_id))
+        except Exception as _ar_err:
+            print(f"[Institute Credits] Auto-resume trigger warning: {_ar_err}")
+
         return {
             "status": True,
             "statusMessage": "Institute credits updated successfully",
@@ -1241,6 +1249,13 @@ def add_or_deduct_institute_credits(request):
         session.add(tx)
         session.commit()
         session.close()
+
+        # Trigger background auto-resumption for any paused bulk evaluations or pending online evaluations
+        try:
+            from others.ai_credits import AICreditManager
+            AICreditManager.trigger_auto_resume_for_institute(str(institute_id))
+        except Exception as _ar_err:
+            print(f"[Institute Credits] Auto-resume trigger warning: {_ar_err}")
 
         return {
             "status": True,

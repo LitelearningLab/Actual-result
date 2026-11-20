@@ -77,6 +77,8 @@ class BulkEvaluationManager:
                             self.jobs[data["job_id"]] = data
                             with open(fpath, "w", encoding="utf-8") as f:
                                 json.dump(data, f, indent=2)
+                        elif data.get("status") == "paused_insufficient_credits":
+                            self.jobs[data["job_id"]] = data
                     except Exception:
                         pass
         except Exception as e:
@@ -101,6 +103,13 @@ class BulkEvaluationManager:
                 "user_name": str(getattr(current_user, "user_name", "")),
                 "user_role": str(getattr(current_user, "user_role", ""))
             }
+
+        # Resolve institute_id
+        inst_id = None
+        if current_user:
+            inst_id = getattr(current_user, "institute_id", None)
+            if not inst_id and isinstance(current_user, dict):
+                inst_id = current_user.get("institute_id")
 
         # Query actual exam question IDs and order numbers from database mapping
         actual_questions = []
@@ -177,12 +186,14 @@ class BulkEvaluationManager:
                 "job_id": job_id,
                 "exam_id": str(exam_id),
                 "schedule_id": resolved_schedule_id,
+                "institute_id": str(inst_id) if inst_id else None,
                 "status": "in_progress",
                 "created_at": datetime.utcnow().isoformat(),
                 "total_students": len(student_tasks),
                 "completed_students": 0,
                 "failed_students": 0,
                 "students": students_map,
+                "raw_tasks": {str(t["user_id"]): t for t in student_tasks},
                 "user_info": user_info
             }
             self._persist_job(job_id)
@@ -199,14 +210,42 @@ class BulkEvaluationManager:
         student_name = task.get("student_name") or "Student"
         file_items = task.get("file_items") or []
 
-        # Check before starting if job or student was cancelled
+        # Check before starting if job or student was cancelled or paused
         with self.lock:
             job = self.jobs.get(job_id)
-            if not job or job.get("cancelled"):
+            if not job or job.get("cancelled") or job.get("status") == "paused_insufficient_credits":
                 return
             st_record = job["students"].get(user_id)
-            if not st_record or st_record.get("cancelled"):
+            if not st_record or st_record.get("cancelled") or st_record.get("status") == "completed":
                 return
+
+        # Pre-flight check via AICreditManager
+        from others.ai_credits import AICreditManager
+        target_inst_id = job.get("institute_id")
+        has_access, err_msg, err_code, _ = AICreditManager.check_and_reserve(
+            institute_id=target_inst_id,
+            user_id=user_id,
+            estimated_tokens=2500,
+            feature_name="Paper Evaluation"
+        )
+        if not has_access:
+            with self.lock:
+                job["status"] = "paused_insufficient_credits"
+                st_record["status"] = "paused"
+                st_record["status_phase"] = "Paused – Waiting for AI credits"
+                for sid, s in job.get("students", {}).items():
+                    if s.get("status") == "queued":
+                        s["status"] = "paused"
+                        s["status_phase"] = "Paused – Waiting for AI credits"
+                self._persist_job(job_id)
+            self._emit_event(job_id, "job_paused_credits", {
+                "job_id": job_id,
+                "status": "paused_insufficient_credits",
+                "user_id": user_id,
+                "student_name": student_name,
+                "message": err_msg or "AI credit quota exhausted. Bulk evaluation safely paused. Work is saved."
+            })
+            return
 
         # 1. Update status to 'evaluating' and notify
         with self.lock:
@@ -360,6 +399,34 @@ class BulkEvaluationManager:
 
             else:
                 err_msg = res_data.get("statusMessage") or f"Evaluation failed with status {status_code}"
+                is_credit_exhausted = (
+                    status_code == 403 or
+                    res_data.get("code") == "AI_CREDIT_EXHAUSTED" or
+                    "credit" in str(err_msg).lower() or
+                    "quota" in str(err_msg).lower()
+                )
+                if is_credit_exhausted:
+                    with self.lock:
+                        job = self.jobs.get(job_id)
+                        if job:
+                            job["status"] = "paused_insufficient_credits"
+                            st_record = job["students"].get(user_id)
+                            if st_record:
+                                st_record["status"] = "paused"
+                                st_record["status_phase"] = "Paused – Waiting for AI credits"
+                            for sid, s in job.get("students", {}).items():
+                                if s.get("status") in ("queued", "evaluating"):
+                                    s["status"] = "paused"
+                                    s["status_phase"] = "Paused – Waiting for AI credits"
+                            self._persist_job(job_id)
+                    self._emit_event(job_id, "job_paused_credits", {
+                        "job_id": job_id,
+                        "status": "paused_insufficient_credits",
+                        "user_id": user_id,
+                        "student_name": student_name,
+                        "message": f"Bulk evaluation safely paused: {err_msg}. Successfully evaluated sheets are saved. Evaluation will resume automatically when credits are allocated."
+                    })
+                    return
                 self._handle_sheet_error(job_id, user_id, student_name, err_msg)
 
         except Exception as e:
@@ -520,6 +587,49 @@ class BulkEvaluationManager:
                 q.put_nowait(payload)
             except Exception:
                 pass
+
+    def auto_resume_institute_jobs(self, institute_id: str):
+        """
+        Decision 2 Implementation:
+        Automatically resumes paused bulk evaluations in the background when
+        additional credits are allocated by the Super Admin.
+        """
+        if not institute_id:
+            return 0
+        total_resumed = 0
+        with self.lock:
+            for job_id, job in list(self.jobs.items()):
+                if str(job.get("institute_id")) == str(institute_id) and job.get("status") == "paused_insufficient_credits":
+                    job["status"] = "in_progress"
+                    job["cancelled"] = False
+                    user_info = job.get("user_info")
+                    raw_tasks = job.get("raw_tasks") or {}
+
+                    resumed_students_in_job = 0
+                    for uid, st in job.get("students", {}).items():
+                        # Only resume students who are NOT completed
+                        if st.get("status") in ("paused", "queued"):
+                            st["status"] = "queued"
+                            st["status_phase"] = "Waiting in queue (Auto-resumed)"
+                            task = raw_tasks.get(uid) or {
+                                "user_id": uid,
+                                "student_name": st.get("student_name"),
+                                "roll_no": st.get("roll_no"),
+                                "file_items": []
+                            }
+                            self.executor.submit(self._worker_process_sheet, job_id, task, user_info)
+                            resumed_students_in_job += 1
+                            total_resumed += 1
+
+                    self._persist_job(job_id)
+                    self._emit_event(job_id, "job_resumed", {
+                        "job_id": job_id,
+                        "status": "in_progress",
+                        "resumed_count": resumed_students_in_job,
+                        "message": f"AI credits replenished. Background bulk evaluation automatically resumed for {resumed_students_in_job} pending students."
+                    })
+                    logger.info(f"[BulkEvalManager] Auto-resumed job {job_id} for institute {institute_id} ({resumed_students_in_job} students).")
+        return total_resumed
 
     def get_job_summary(self, job_id: str) -> dict:
         """Returns snapshot summary of the job state."""

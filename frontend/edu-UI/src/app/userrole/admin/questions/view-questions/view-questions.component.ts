@@ -2135,6 +2135,7 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     }
     let url = this.categoryDetailsUrl;
     if (scopedInstitute) url += `?institute_id=${encodeURIComponent(scopedInstitute)}`;
+    url += (url.includes('?') ? '&' : '?') + 'active_status=true';
 
     if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
       url +=
@@ -2174,6 +2175,8 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
         this.categories = arr
           .filter((c: any) => {
             if (!this.isAllowedForInstitute(c, scopedInstitute)) return false;
+            const activeVal = c.active_status ?? c.active;
+            if (activeVal === false || activeVal === 0 || activeVal === 'false') return false;
 
             // Client-side filter for selected question type(s)
             if (this.selectedQuestionTypes && this.selectedQuestionTypes.length) {
