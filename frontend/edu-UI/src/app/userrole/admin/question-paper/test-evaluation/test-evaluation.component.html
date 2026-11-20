@@ -804,6 +804,10 @@
               <span class="progress-error-info" *ngIf="bulkProgress.failed > 0">
                 {{ bulkProgress.failed }} failed (retryable)
               </span>
+              <button type="button" class="btn-resume-eval-banner" *ngIf="!isBulkEvaluating && activeBulkJobId && (bulkProgress.total > 0 && bulkProgress.percentage < 100)" (click)="resumePausedEvaluationJob()">
+                <mat-icon class="resume-icon">play_arrow</mat-icon>
+                <span>Resume Pending Evaluations</span>
+              </button>
             </div>
 
             <!-- Nested Student-Wise Progress List (Inside Existing Container) -->
@@ -1079,6 +1083,11 @@
         <div class="bulk-table-footer-bar" *ngIf="uploadTab === 'bulk'">
           <span class="files-uploaded-count">{{ bulkFiles.length }} file(s) uploaded &bull; {{ students.length }} student(s) enrolled</span>
           <div class="bulk-footer-actions-group">
+            <button type="button" class="btn-resume-eval-footer" *ngIf="!isBulkEvaluating && activeBulkJobId && (bulkProgress.total > 0 && bulkProgress.percentage < 100)"
+              (click)="resumePausedEvaluationJob()" matTooltip="Resume pending evaluations for remaining students">
+              <mat-icon class="resume-icon">play_arrow</mat-icon>
+              <span>Resume Evaluation</span>
+            </button>
             <button type="button" class="btn-evaluate-matched" *ngIf="!isBulkEvaluating" [disabled]="isUploading"
               (click)="evaluateAllMatchedBulk()">
               <mat-icon class="sparkle-icon">auto_awesome</mat-icon>

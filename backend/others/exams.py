@@ -5083,7 +5083,7 @@ def finalize_student_evaluation(request, current_user=None):
 
 
 def process_single_student_answer_sheet(
-    exam_id, user_id, file_items, replace=True, current_user=None, on_progress=None, schedule_id=None
+    exam_id, user_id, file_items, replace=True, current_user=None, on_progress=None, schedule_id=None, institute_id=None
 ):
     """
     Core function to process and AI-evaluate a single student's answer sheet.
@@ -5104,6 +5104,35 @@ def process_single_student_answer_sheet(
 
     if not file_items or len(file_items) == 0:
         return {"statusMessage": "No files found in upload", "status": False}, 400
+
+    # Pre-flight check via AICreditManager enforcing 8,000 tokens/page and 1,000 token reserve
+    from others.ai_credits import AICreditManager, TOKENS_PER_EVAL_PAGE
+    target_inst = institute_id
+    if not target_inst:
+        target_inst = AICreditManager.resolve_institute_id(
+            request_obj=None,
+            explicit_inst_id=institute_id,
+            exam_id=schedule_id or exam_id,
+            user_id=user_id
+        )
+    if not target_inst and current_user:
+        target_inst = getattr(current_user, "institute_id", None)
+        if not target_inst and isinstance(current_user, dict):
+            target_inst = current_user.get("institute_id")
+    est_single_pages = max(1, len(file_items))
+    has_acc, c_msg, c_code, _ = AICreditManager.check_and_reserve(
+        institute_id=target_inst,
+        user_id=user_id,
+        estimated_tokens=est_single_pages * TOKENS_PER_EVAL_PAGE,
+        feature_name="Single Paper Evaluation",
+        enforce_reserve=True
+    )
+    if not has_acc:
+        return {
+            "status": False,
+            "code": "AI_CREDIT_EXHAUSTED",
+            "statusMessage": c_msg or "Insufficient AI credits to evaluate answer sheet. Minimum 1,000 token reserve required."
+        }, c_code
 
     # Base upload directory: backend/static/uploads/answer_sheets/<exam_id>/<user_id>/
     static_dir = os.path.join(
@@ -5674,7 +5703,12 @@ def process_single_student_answer_sheet(
             # Snapshot ORM-derived metadata before releasing the DB connection for multi-minute AI calls
             total_pages_count = len(all_attempt_pages) if all_attempt_pages else len(created_pages)
             created_page_ids = [str(p["page_id"]) for p in created_pages if p.get("page_id")]
-            auth_inst_id = str(getattr(exam_obj, "institute_id", "") or (getattr(current_user, "institute_id", "") if current_user else "")).strip() or None
+            auth_inst_id = str(
+                target_inst
+                or getattr(ps, "institute_id", "")
+                or getattr(exam_obj, "institute_id", "")
+                or (getattr(current_user, "institute_id", "") if current_user else "")
+            ).strip() or None
             eff_exam_id = str(exam_obj.exam_id) if exam_obj else str(exam_id)
             eff_sched_id = str(ps.schedule_id) if ps else str(target_sched_id or schedule_id or exam_id)
             exam_subject_name = str(getattr(exam_obj, "subject_name", "") or getattr(exam_obj, "title", "") or "")
@@ -6254,6 +6288,7 @@ def upload_answer_sheet(request, current_user=None):
         return {"statusMessage": "No files found in upload", "status": False}, 400
 
     file_items = [(f.filename, f.read()) for f in files if f.filename]
+    target_inst = (request.form.get("institute_id") or "").strip() or None
     return process_single_student_answer_sheet(
         exam_id=exam_id,
         user_id=user_id,
@@ -6261,6 +6296,7 @@ def upload_answer_sheet(request, current_user=None):
         replace=replace,
         current_user=current_user,
         schedule_id=schedule_id,
+        institute_id=target_inst
     )
 
 
@@ -6749,31 +6785,68 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
     if total_pages == 0:
         return {"status": False, "statusMessage": "The uploaded PDF has 0 pages."}, 400
 
-    # 2. Retrieve Exam Student Roster
+    # 2. Retrieve Exam Student Roster & Owning Institute
     db = SQLiteDB()
     session = db.connect()
     students_roster = []
+    target_exam_institute_id = None
     if session:
         try:
-            assigned_users = (
-                session.query(User)
-                .filter(
-                    User.user_id.in_(
-                        session.query(QuestionPaperUserAssignment.user_id).filter(
-                            QuestionPaperUserAssignment.exam_id == exam_id
+            from db.models import PaperSchedule, PaperScheduleMapping
+            # Check PaperSchedule first (for paper-based evaluations)
+            ps_row = session.query(PaperSchedule).filter(
+                (PaperSchedule.schedule_id == str(exam_id)) | (PaperSchedule.exam_id == str(exam_id))
+            ).first()
+            if ps_row:
+                if ps_row.institute_id:
+                    target_exam_institute_id = str(ps_row.institute_id).strip()
+                # Query assigned candidates via PaperScheduleMapping
+                ps_mappings = session.query(PaperScheduleMapping).filter(
+                    PaperScheduleMapping.schedule_id == ps_row.schedule_id,
+                    PaperScheduleMapping.user_id.isnot(None)
+                ).all()
+                assigned_uids = [m.user_id for m in ps_mappings if m.user_id]
+                if assigned_uids:
+                    ps_users = session.query(User).filter(User.user_id.in_(assigned_uids)).all()
+                    students_roster = [
+                        {
+                            "user_id": str(u.user_id),
+                            "name": u.full_name or u.user_name or "",
+                            "roll_no": getattr(u, "roll_no", "") or u.user_name or "",
+                        }
+                        for u in ps_users
+                    ]
+
+            # If not found in PaperSchedule or empty roster, try QuestionPaperUserAssignment
+            if not students_roster:
+                assigned_users = (
+                    session.query(User)
+                    .filter(
+                        User.user_id.in_(
+                            session.query(QuestionPaperUserAssignment.user_id).filter(
+                                QuestionPaperUserAssignment.exam_id == exam_id
+                            )
                         )
                     )
+                    .all()
                 )
-                .all()
-            )
-            students_roster = [
-                {
-                    "user_id": str(u.user_id),
-                    "name": u.full_name or u.user_name or "",
-                    "roll_no": getattr(u, "roll_no", "") or u.user_name or "",
-                }
-                for u in assigned_users
-            ]
+                if assigned_users:
+                    students_roster = [
+                        {
+                            "user_id": str(u.user_id),
+                            "name": u.full_name or u.user_name or "",
+                            "roll_no": getattr(u, "roll_no", "") or u.user_name or "",
+                        }
+                        for u in assigned_users
+                    ]
+
+            # If institute not yet determined, check Exam table
+            if not target_exam_institute_id:
+                ex_row = session.query(Exam).filter(
+                    (Exam.exam_id == str(exam_id)) | (Exam.schedule_id == str(exam_id))
+                ).first()
+                if ex_row and ex_row.institute_id:
+                    target_exam_institute_id = str(ex_row.institute_id).strip()
         except Exception as roster_err:
             print(f"[split_multi_student_pdf] Roster query error: {roster_err}")
         finally:
@@ -6812,6 +6885,24 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
             "img_bytes": img_bytes,
             "thumb_b64": thumb_b64,
         })
+
+    # Pre-extract request parameters on the main thread (worker threads do not have request context)
+    split_inst_id = (
+        (request.form.get("institute_id") or "").strip()
+        or target_exam_institute_id
+        or (getattr(current_user, "institute_id", None) if current_user else None)
+    )
+    if not split_inst_id and exam_id:
+        try:
+            from others.ai_credits import AICreditManager
+            split_inst_id = AICreditManager.resolve_institute_id(
+                explicit_inst_id=None,
+                exam_id=exam_id
+            )
+        except Exception:
+            pass
+    split_exam_id = request.form.get("exam_id") or request.form.get("schedule_id")
+    split_sched_id = request.form.get("schedule_id") or request.form.get("exam_id")
 
     # Helper function to inspect a single page
     def _inspect_page(p_info):
@@ -6874,20 +6965,15 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                     {"type": "text", "text": f"Analyze Page {p_num}: detect student name and roll number, match against candidate roster, and check if it starts a student sheet."},
                     {"type": "image_url", "image_url": {"url": data_uri}}
                 ]
-                split_inst_id = (
-                    request.form.get("institute_id")
-                    or (getattr(current_user, "institute_id", None) if current_user else None)
-                )
-                split_exam_id = request.form.get("exam_id") or request.form.get("schedule_id")
-                split_sched_id = request.form.get("schedule_id") or request.form.get("exam_id")
                 resp = client.chat_completion(
                     system_message=system_prompt,
                     InputData=user_content,
                     aimodel=1,
-                    max_tokens=300,
+                    max_tokens=800,
                     temperature=0.1,
+                    response_format={"type": "json_object"},
                     institute_id=split_inst_id,
-                    feature_name="PDF Sheet Splitting",
+                    feature_name="Student Identification",
                     endpoint="/test-evaluation/split-multi-student-pdf",
                     exam_id=split_exam_id,
                     schedule_id=split_sched_id,
@@ -6902,30 +6988,62 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                             if lines[0].startswith("```"): lines = lines[1:]
                             if lines and lines[-1].startswith("```"): lines = lines[:-1]
                             raw_c = "\n".join(lines).strip()
-                        parsed = json.loads(raw_c)
-                        parsed["page_num"] = p_num
-                        parsed["matched_by"] = f"AI Vision on Page {p_num}"
 
-                        # If AI detected the roll number or name but left user_id blank, link with roster:
-                        if not parsed.get("user_id") and (parsed.get("roll_no") or parsed.get("student_name")):
-                            d_roll = str(parsed.get("roll_no") or "").strip().lower()
-                            d_name = str(parsed.get("student_name") or "").strip().lower()
-                            for st in students_roster:
-                                s_roll = str(st.get("roll_no") or "").strip().lower()
-                                s_name = str(st.get("name") or "").strip().lower()
-                                if (d_roll and s_roll and (d_roll == s_roll or d_roll in s_roll)) or (
-                                    d_name and s_name and (d_name == s_name or d_name in s_name)
-                                ):
-                                    parsed["user_id"] = str(st.get("user_id"))
-                                    parsed["student_name"] = st.get("name")
-                                    parsed["roll_no"] = st.get("roll_no")
-                                    parsed["matched"] = True
-                                    parsed["is_start"] = True
-                                    break
+                        parsed = None
+                        try:
+                            parsed = json.loads(raw_c)
+                        except Exception as j_err:
+                            # Fallback regex parsing if AI responded with markdown bullet points
+                            import re
+                            clean_name = None
+                            clean_roll = None
+                            name_match = re.search(r"(?:student|name)[:\*\s]+([A-Za-z0-9_\s\-]+)", raw_c, re.IGNORECASE)
+                            if name_match:
+                                clean_name = name_match.group(1).split("\n")[0].strip()
+                            roll_match = re.search(r"(?:roll|reg(?:ister)?)[^\w\d]*([A-Za-z0-9\-]+)", raw_c, re.IGNORECASE)
+                            if roll_match:
+                                clean_roll = roll_match.group(1).strip()
+                            is_start_inferred = bool("is_start" in raw_c.lower() and "false" not in raw_c.lower() or "starts a student" in raw_c.lower() or clean_name or clean_roll)
+                            parsed = {
+                                "is_start": is_start_inferred,
+                                "matched": False,
+                                "student_name": clean_name,
+                                "roll_no": clean_roll,
+                                "user_id": None,
+                                "confidence": 85 if (clean_name or clean_roll) else 0,
+                                "detected_text": f"{clean_name or ''} {clean_roll or ''}".strip()
+                            }
 
-                        return parsed
+                        if parsed:
+                            parsed["page_num"] = p_num
+                            parsed["matched_by"] = f"AI Vision on Page {p_num}"
+
+                            # If AI detected the roll number or name but left user_id blank, link with roster:
+                            if not parsed.get("user_id") and (parsed.get("roll_no") or parsed.get("student_name")):
+                                d_roll = str(parsed.get("roll_no") or "").strip().lower()
+                                d_name = str(parsed.get("student_name") or "").strip().lower()
+                                for st in students_roster:
+                                    s_roll = str(st.get("roll_no") or "").strip().lower()
+                                    s_name = str(st.get("name") or "").strip().lower()
+                                    if (d_roll and s_roll and (d_roll == s_roll or d_roll in s_roll or s_roll in d_roll)) or (
+                                        d_name and s_name and (d_name == s_name or d_name in s_name or s_name in d_name)
+                                    ):
+                                        parsed["user_id"] = str(st.get("user_id"))
+                                        parsed["student_name"] = st.get("name")
+                                        parsed["roll_no"] = st.get("roll_no")
+                                        parsed["matched"] = True
+                                        parsed["is_start"] = True
+                                        break
+
+                            # If a student was matched, mark as start boundary for that student's section
+                            if parsed.get("matched") and (parsed.get("user_id") or parsed.get("student_name")):
+                                parsed["is_start"] = True
+
+                            return parsed
+                else:
+                    print(f"[split_multi_student_pdf] OpenAI Vision error on page {p_num}: HTTP {resp.status_code}", flush=True)
             except Exception as vis_err:
-                print(f"[split_multi_student_pdf] Vision error on page {p_num}: {vis_err}")
+                print(f"[split_multi_student_pdf] Vision error on page {p_num}: {vis_err}", flush=True)
 
         return {
             "page_num": p_num,
@@ -7114,6 +7232,25 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
     matched_count = sum(1 for s in segments if s.get("is_matched") and s.get("user_id"))
     unmatched_count = len(segments) - matched_count
 
+    credit_estimation = None
+    try:
+        from others.ai_credits import AICreditManager
+        target_inst = split_inst_id
+        if not target_inst:
+            target_inst = AICreditManager.resolve_institute_id(
+                request_obj=request,
+                explicit_inst_id=request.form.get("institute_id"),
+                exam_id=exam_id,
+                user_id=current_user
+            )
+        student_pages_list = [
+            {"user_id": s.get("user_id"), "student_name": s.get("student_name"), "pages": s.get("total_pages", 1)}
+            for s in segments
+        ]
+        credit_estimation = AICreditManager.calculate_evaluation_capacity(target_inst, student_pages_list)
+    except Exception as ce_err:
+        print(f"[split_multi_student_pdf] Credit capacity calc error: {ce_err}")
+
     return {
         "status": True,
         "batch_id": batch_id,
@@ -7121,7 +7258,8 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
         "total_students": len(segments),
         "identified_count": matched_count,
         "unmatched_count": unmatched_count,
-        "segments": segments
+        "segments": segments,
+        "credit_estimation": credit_estimation
     }, 200
 
 
@@ -7129,6 +7267,7 @@ def confirm_and_enqueue_split_evaluations(request, current_user=None):
     """
     Takes confirmed student-to-page mappings from teacher and enqueues
     the extracted individual student PDFs directly into BulkEvaluationManager.
+    Supports partial queuing (e.g. allowed_user_ids or limit) when credits are partial.
     """
     import os
     import json
@@ -7138,6 +7277,14 @@ def confirm_and_enqueue_split_evaluations(request, current_user=None):
     batch_id = req_data.get("batch_id")
     exam_id = req_data.get("exam_id")
     confirmed_mappings = req_data.get("mappings") or []
+
+    # Support partial queuing if selected by user
+    allowed_uids = req_data.get("allowed_user_ids")
+    if allowed_uids and isinstance(allowed_uids, list):
+        allowed_set = set(str(uid) for uid in allowed_uids if uid)
+        confirmed_mappings = [m for m in confirmed_mappings if str(m.get("user_id") or "") in allowed_set]
+    elif req_data.get("limit") and int(req_data.get("limit")) > 0:
+        confirmed_mappings = confirmed_mappings[:int(req_data.get("limit"))]
 
     if not batch_id or not exam_id:
         return {"status": False, "statusMessage": "batch_id and exam_id are required"}, 400
@@ -7176,10 +7323,21 @@ def confirm_and_enqueue_split_evaluations(request, current_user=None):
     if not student_tasks:
         return {"status": False, "statusMessage": "No valid student mappings confirmed to evaluate."}, 400
 
+    target_inst_id = req_data.get("institute_id")
+    if not target_inst_id:
+        from others.ai_credits import AICreditManager
+        target_inst_id = AICreditManager.resolve_institute_id(
+            request_obj=request,
+            explicit_inst_id=req_data.get("institute_id"),
+            exam_id=exam_id,
+            user_id=current_user
+        )
+
     job_id = bulk_eval_manager.create_job(
         exam_id=exam_id,
         student_tasks=student_tasks,
-        current_user=current_user
+        current_user=current_user,
+        explicit_inst_id=target_inst_id
     )
 
     return {

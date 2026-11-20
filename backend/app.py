@@ -790,11 +790,24 @@ def start_bulk_evaluation_route():
     if not student_tasks:
         return jsonify({"status": False, "statusMessage": "No matched student answer sheets found to evaluate"}), 400
 
+    # Support partial queuing if selected by user
+    allowed_uids = request.form.getlist('allowed_user_ids')
+    if allowed_uids:
+        allowed_set = set(str(u) for u in allowed_uids if u)
+        student_tasks = [t for t in student_tasks if str(t.get('user_id')) in allowed_set]
+    elif request.form.get('limit') and int(request.form.get('limit')) > 0:
+        student_tasks = student_tasks[:int(request.form.get('limit'))]
+
+    if not student_tasks:
+        return jsonify({"status": False, "statusMessage": "No students selected within the permitted credit limit."}), 400
+
+    target_inst_id = (request.form.get('institute_id') or '').strip() or None
     job_id = bulk_eval_manager.create_job(
         exam_id=exam_id,
         student_tasks=student_tasks,
         current_user=current_user,
-        schedule_id=schedule_id
+        schedule_id=schedule_id,
+        explicit_inst_id=target_inst_id
     )
 
     return jsonify({
@@ -863,6 +876,23 @@ def confirm_split_evaluation_route():
     current_user = get_current_user_from_request()
     response_data, status_code = confirm_and_enqueue_split_evaluations(request, current_user)
     return jsonify(response_data), status_code
+
+@edu_blueprint.route('/test-evaluation/estimate-credits', methods=['POST'])
+@admin_required
+def estimate_evaluation_credits_route():
+    from others.ai_credits import estimate_evaluation_credits_api
+    return estimate_evaluation_credits_api(request)
+
+@edu_blueprint.route('/test-evaluation/resume-bulk-job', methods=['POST'])
+@admin_required
+def resume_bulk_job_route():
+    from others.bulk_eval_manager import bulk_eval_manager
+    data = request.get_json(silent=True) or {}
+    job_id = data.get("job_id")
+    if not job_id:
+        return jsonify({"status": False, "statusMessage": "job_id is required"}), 400
+    res = bulk_eval_manager.resume_evaluation_job(job_id)
+    return jsonify(res), 200 if res.get("status") else 400
 
 @edu_blueprint.route('/uploads/answer_sheets/<path:filename>', methods=['GET'])
 def serve_answer_sheet_file(filename):

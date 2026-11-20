@@ -28,41 +28,155 @@ from db.models import (
 )
 
 
-def resolve_institute_id(request_obj=None, explicit_inst_id=None, user_id=None):
+def resolve_institute_id(request_obj=None, explicit_inst_id=None, user_id=None, exam_id=None, schedule_id=None):
     """
-    Helper to resolve institute_id from explicit argument, request headers, 
-    Flask g.current_user, or user database record.
+    Helper to resolve institute_id with strict multi-tenant priority:
+    1. Explicit institute_id argument
+    2. Form data / JSON payload / Query args / HTTP Headers (X-Institute-Id)
+    3. Exam / Schedule lookup in database (PaperSchedule, Exam, ExamSchedule)
+    4. User database record (if user is not super_admin)
+    5. Flask g.current_user (if not super_admin)
+    6. Super admin default fallback
     """
     if explicit_inst_id and str(explicit_inst_id).strip():
         return str(explicit_inst_id).strip()
 
-    req = request_obj or request
+    req = request_obj
+    if req is None:
+        try:
+            from flask import request as flask_req
+            req = flask_req
+        except Exception:
+            req = None
+
+    resolved_exam_id = exam_id
+    resolved_sched_id = schedule_id
+
     if req:
-        args_inst = req.args.get('institute_id') if hasattr(req, 'args') else None
-        if args_inst and str(args_inst).strip():
-            return str(args_inst).strip()
+        # Check Form Data (multipart/form-data)
+        if hasattr(req, 'form') and req.form:
+            f_inst = req.form.get('institute_id')
+            if f_inst and str(f_inst).strip():
+                return str(f_inst).strip()
+            if not resolved_exam_id:
+                resolved_exam_id = req.form.get('exam_id')
+            if not resolved_sched_id:
+                resolved_sched_id = req.form.get('schedule_id')
 
-        header_inst = req.headers.get('X-Institute-Id') or req.headers.get('X-Global-Institute-Id')
-        if header_inst and str(header_inst).strip():
-            return str(header_inst).strip()
+        # Check JSON payload
+        if hasattr(req, 'get_json'):
+            try:
+                j_data = req.get_json(silent=True) or {}
+                if isinstance(j_data, dict):
+                    j_inst = j_data.get('institute_id')
+                    if j_inst and str(j_inst).strip():
+                        return str(j_inst).strip()
+                    if not resolved_exam_id:
+                        resolved_exam_id = j_data.get('exam_id')
+                    if not resolved_sched_id:
+                        resolved_sched_id = j_data.get('schedule_id')
+            except Exception:
+                pass
 
-    if hasattr(g, 'current_user') and g.current_user and getattr(g.current_user, 'institute_id', None):
-        return str(g.current_user.institute_id).strip()
+        # Check Query String
+        if hasattr(req, 'args') and req.args:
+            args_inst = req.args.get('institute_id')
+            if args_inst and str(args_inst).strip():
+                return str(args_inst).strip()
+            if not resolved_exam_id:
+                resolved_exam_id = req.args.get('exam_id')
+            if not resolved_sched_id:
+                resolved_sched_id = req.args.get('schedule_id')
 
-    if user_id:
+        # Check Headers
+        if hasattr(req, 'headers') and req.headers:
+            header_inst = req.headers.get('X-Institute-Id') or req.headers.get('X-Global-Institute-Id')
+            if header_inst and str(header_inst).strip():
+                return str(header_inst).strip()
+
+    # Look up institute from exam_id / schedule_id in DB (guarantees school credits for exams)
+    target_id = resolved_exam_id or resolved_sched_id
+    if target_id and str(target_id).strip():
         try:
             db = SQLiteDB()
             session = db.connect()
-            u = session.query(User).filter_by(user_id=user_id).first()
-            if u and u.institute_id:
-                inst = str(u.institute_id).strip()
+            str_target = str(target_id).strip()
+            # 1. Check PaperSchedule
+            ps = session.query(PaperSchedule).filter(
+                (PaperSchedule.schedule_id == str_target) | (PaperSchedule.exam_id == str_target)
+            ).first()
+            if ps and ps.institute_id:
+                inst = str(ps.institute_id).strip()
                 session.close()
                 return inst
+
+            # 2. Check Exam
+            ex = session.query(Exam).filter(
+                (Exam.exam_id == str_target) | (Exam.schedule_id == str_target)
+            ).first()
+            if ex and ex.institute_id:
+                inst = str(ex.institute_id).strip()
+                session.close()
+                return inst
+
+            # 3. Check ExamSchedule
+            es = session.query(ExamSchedule).filter(
+                (ExamSchedule.schedule_id == str_target) | (ExamSchedule.exam_id == str_target)
+            ).first()
+            if es and es.institute_id:
+                inst = str(es.institute_id).strip()
+                session.close()
+                return inst
+
             session.close()
         except Exception:
             pass
 
+    # Check user record if user is non-superadmin
+    if user_id:
+        try:
+            db = SQLiteDB()
+            session = db.connect()
+            u_val = user_id
+            if hasattr(u_val, "user_id"):
+                u_val = getattr(u_val, "user_id")
+            elif isinstance(u_val, dict) and "user_id" in u_val:
+                u_val = u_val["user_id"]
+            u = session.query(User).filter_by(user_id=str(u_val)).first()
+            if u and u.institute_id:
+                role = str(getattr(u, 'role', '') or getattr(u, 'user_role', '')).lower()
+                inst = str(u.institute_id).strip()
+                session.close()
+                if 'super' not in role:
+                    return inst
+            else:
+                session.close()
+        except Exception:
+            pass
+
+    # Check g.current_user (if not super admin)
+    if hasattr(g, 'current_user') and g.current_user and getattr(g.current_user, 'institute_id', None):
+        u_role = str(getattr(g.current_user, 'role', '') or getattr(g.current_user, 'user_role', '')).lower()
+        if 'super' not in u_role:
+            return str(g.current_user.institute_id).strip()
+
+    # Final fallback for super admin or unmapped operations
+    if hasattr(g, 'current_user') and g.current_user and getattr(g.current_user, 'institute_id', None):
+        return str(g.current_user.institute_id).strip()
+
     return None
+
+
+TOKENS_PER_EVAL_PAGE = 8000
+EVAL_MINIMUM_TOKEN_RESERVE = 1000
+
+EVALUATION_FEATURES = {
+    "paper evaluation",
+    "single paper evaluation",
+    "bulk paper evaluation",
+    "answer sheet evaluation",
+    "test evaluation"
+}
 
 
 class AICreditManager:
@@ -70,9 +184,17 @@ class AICreditManager:
     Centralized AI Credit Manager enforcing strict, atomic credit controls
     across ALL AI features in the application.
     """
+    TOKENS_PER_EVAL_PAGE = TOKENS_PER_EVAL_PAGE
+    EVAL_MINIMUM_TOKEN_RESERVE = EVAL_MINIMUM_TOKEN_RESERVE
+
     @staticmethod
-    def resolve_institute_id(request_obj=None, explicit_inst_id=None, user_id=None):
-        return resolve_institute_id(request_obj, explicit_inst_id, user_id)
+    def is_evaluation_feature(feature_name):
+        fn = str(feature_name or "").strip().lower()
+        return any(k in fn for k in EVALUATION_FEATURES)
+
+    @staticmethod
+    def resolve_institute_id(request_obj=None, explicit_inst_id=None, user_id=None, exam_id=None, schedule_id=None):
+        return resolve_institute_id(request_obj, explicit_inst_id, user_id, exam_id, schedule_id)
 
     @staticmethod
     def get_institute_balance(session, institute_id):
@@ -98,19 +220,38 @@ class AICreditManager:
         return int(allocated), int(used_tokens), remaining, True
 
     @staticmethod
+    def get_usable_balance(session, institute_id, feature_name="Paper Evaluation"):
+        """
+        Returns usable balance for an institute.
+        For evaluation features: preserves the 1,000 token minimum reserve.
+        For non-evaluation features: usable = all remaining tokens down to 0.
+        """
+        allocated, used_tokens, remaining, has_alloc = AICreditManager.get_institute_balance(session, institute_id)
+        if not has_alloc:
+            return 0, 0, 0, remaining, False
+        reserve_floor = EVAL_MINIMUM_TOKEN_RESERVE if AICreditManager.is_evaluation_feature(feature_name) else 0
+        usable = max(0, remaining - reserve_floor)
+        return int(allocated), int(used_tokens), usable, int(remaining), True
+
+    @staticmethod
     def check_and_reserve(
         institute_id=None,
         user_id=None,
         estimated_tokens=1000,
         feature_name="AI Operation",
         request_obj=None,
-        session=None
+        session=None,
+        enforce_reserve=None,
+        exam_id=None,
+        schedule_id=None
     ):
         """
         Centralized pre-flight check and token quota enforcement.
+        - Evaluation features: enforces mandatory 1,000-token safety reserve balance.
+        - Other AI features (Questions, Answers, OCR): reserve floor is 0 (can use all tokens).
         Returns: (has_access: bool, error_message: str or None, status_code: int, remaining: int)
         """
-        inst_id = resolve_institute_id(request_obj, institute_id, user_id)
+        inst_id = resolve_institute_id(request_obj, institute_id, user_id, exam_id=exam_id, schedule_id=schedule_id)
         if not inst_id:
             # Check if global super admin
             if hasattr(g, 'current_user') and g.current_user:
@@ -122,6 +263,9 @@ class AICreditManager:
         # Handle mock/test environments
         if "magicmock" in str(inst_id).lower() or getattr(inst_id, "_mock_name", None) is not None:
             return True, None, 200, 999999999
+
+        is_eval = bool(enforce_reserve) if enforce_reserve is not None else AICreditManager.is_evaluation_feature(feature_name)
+        reserve_floor = EVAL_MINIMUM_TOKEN_RESERVE if is_eval else 0
 
         own_session = False
         try:
@@ -140,11 +284,27 @@ class AICreditManager:
             if not has_allocation:
                 return False, "AI access has not been granted by the Super Admin. Please contact your Super Admin to allocate AI credits.", 403, 0
 
-            if remaining <= 0 or used_tokens >= allocated:
-                return False, f"AI credit quota exhausted ({int(used_tokens):,} / {int(allocated):,} credits used). Please contact your Super Admin to allocate more credits.", 403, 0
+            # Check reserve floor
+            if remaining <= reserve_floor:
+                if is_eval:
+                    return False, f"Evaluation paused: Institute balance has reached the mandatory {EVAL_MINIMUM_TOKEN_RESERVE:,} token reserve. Please contact your Super Admin to allocate credits.", 403, int(remaining)
+                else:
+                    return False, f"AI credit quota exhausted ({int(used_tokens):,} / {int(allocated):,} credits used). Please contact your Super Admin to allocate more credits.", 403, 0
 
-            if estimated_tokens > 0 and remaining < estimated_tokens:
-                return False, f"Insufficient AI credits to perform {feature_name} (Estimated required: {int(estimated_tokens):,}, Available: {int(remaining):,}). Please contact your Super Admin to allocate more credits.", 403, int(remaining)
+            usable = max(0, remaining - reserve_floor)
+            if estimated_tokens > 0 and usable < estimated_tokens:
+                if is_eval:
+                    return False, (
+                        f"Insufficient AI credits to perform {feature_name} "
+                        f"(Estimated required: {int(estimated_tokens):,}, Usable balance preserving {EVAL_MINIMUM_TOKEN_RESERVE:,} reserve: {int(usable):,}, Total balance: {int(remaining):,}). "
+                        f"Please contact your Super Admin to allocate more credits."
+                    ), 403, int(remaining)
+                else:
+                    return False, (
+                        f"Insufficient AI credits to perform {feature_name} "
+                        f"(Estimated required: {int(estimated_tokens):,}, Available: {int(remaining):,}). "
+                        f"Please contact your Super Admin to allocate more credits."
+                    ), 403, int(remaining)
 
             return True, None, 200, int(remaining)
 
@@ -159,6 +319,73 @@ class AICreditManager:
             if "operationalerror" in str(e).lower() or "10013" in str(e):
                 return True, None, 200, 999999999
             return False, "AI access verification failed. Please contact your administrator.", 403, 0
+
+    @staticmethod
+    def calculate_evaluation_capacity(institute_id, student_pages_list, session=None):
+        """
+        Calculates evaluation capacity for a batch of students based on pages and credit balance.
+        Enforces the 1,000 token reserve floor specifically for evaluations.
+        student_pages_list: list of dicts [{'user_id': str, 'student_name': str, 'pages': int}, ...]
+        """
+        own_session = False
+        try:
+            if not session:
+                db = SQLiteDB()
+                session = db.connect()
+                own_session = True
+
+            allocated, used_tokens, remaining, has_alloc = AICreditManager.get_institute_balance(session, institute_id)
+            if own_session:
+                session.close()
+
+            total_pages = sum(max(1, int(s.get("pages") or s.get("total_pages") or 1)) for s in student_pages_list)
+            total_estimated_tokens = total_pages * TOKENS_PER_EVAL_PAGE
+            usable_credits = max(0, remaining - EVAL_MINIMUM_TOKEN_RESERVE) if has_alloc else 0
+            has_sufficient = (usable_credits >= total_estimated_tokens) if (has_alloc and remaining > EVAL_MINIMUM_TOKEN_RESERVE) else False
+
+            accumulated_tokens = 0
+            feasible_students = []
+            pending_students = []
+
+            for s in student_pages_list:
+                uid = str(s.get("user_id") or "")
+                p_count = max(1, int(s.get("pages") or s.get("total_pages") or 1))
+                needed_tokens = p_count * TOKENS_PER_EVAL_PAGE
+                if has_alloc and (accumulated_tokens + needed_tokens <= usable_credits):
+                    accumulated_tokens += needed_tokens
+                    feasible_students.append(uid)
+                else:
+                    pending_students.append(uid)
+
+            return {
+                "status": True,
+                "has_allocation": bool(has_alloc),
+                "total_students": len(student_pages_list),
+                "total_pages": total_pages,
+                "estimated_tokens": total_estimated_tokens,
+                "available_credits": remaining,
+                "minimum_reserve": EVAL_MINIMUM_TOKEN_RESERVE,
+                "usable_credits": usable_credits,
+                "has_sufficient": bool(has_sufficient),
+                "feasible_count": len(feasible_students),
+                "pending_count": len(pending_students),
+                "feasible_user_ids": feasible_students,
+                "pending_user_ids": pending_students
+            }
+        except Exception as e:
+            print(f"[AICreditManager] Error in calculate_evaluation_capacity: {e}")
+            if own_session and session:
+                try:
+                    session.close()
+                except Exception:
+                    pass
+            return {
+                "status": False,
+                "error": str(e),
+                "has_sufficient": False,
+                "feasible_count": 0,
+                "pending_count": len(student_pages_list)
+            }
 
     @staticmethod
     def record_and_reconcile(
@@ -2246,3 +2473,22 @@ def get_test_ai_usage_api():
     except Exception as e:
         session.close()
         return jsonify({"status": False, "statusMessage": f"Error fetching test AI usage: {str(e)}"}), 500
+
+
+def estimate_evaluation_credits_api(request_obj=None):
+    """
+    API endpoint calculating evaluation tokens and partial capacity,
+    enforcing the 1,000 token minimum reserve specifically for exam evaluations.
+    """
+    req = request_obj or request
+    data = req.get_json(silent=True) or {}
+    students = data.get("students") or []
+    inst_id = AICreditManager.resolve_institute_id(
+        request_obj=req,
+        explicit_inst_id=data.get("institute_id"),
+        exam_id=data.get("exam_id"),
+        schedule_id=data.get("schedule_id")
+    )
+    res = AICreditManager.calculate_evaluation_capacity(inst_id, students)
+    return jsonify(res), 200 if res.get("status") else 500
+

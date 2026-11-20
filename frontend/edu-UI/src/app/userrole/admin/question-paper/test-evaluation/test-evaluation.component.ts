@@ -88,6 +88,21 @@ export interface MultiStudentSplitBatch {
   identified_count: number;
   unmatched_count: number;
   segments: MultiStudentSplitSegment[];
+  credit_estimation?: {
+    status: boolean;
+    has_allocation: boolean;
+    total_students: number;
+    total_pages: number;
+    estimated_tokens: number;
+    available_credits: number;
+    minimum_reserve: number;
+    usable_credits: number;
+    has_sufficient: boolean;
+    feasible_count: number;
+    pending_count: number;
+    feasible_user_ids: string[];
+    pending_user_ids: string[];
+  };
 }
 
 export interface StudentLiveProgress {
@@ -231,6 +246,18 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       else if (lower.includes('college')) industry = 'College';
     }
     return getInstituteTerminology(industry);
+  }
+
+  getTargetInstituteId(): string {
+    if (this.selectedInstitute && String(this.selectedInstitute).trim()) {
+      return String(this.selectedInstitute).trim();
+    }
+    const saved = sessionStorage.getItem('test_eval_institute');
+    if (saved && String(saved).trim()) {
+      return String(saved).trim();
+    }
+    const u = this.auth.currentUserValue || JSON.parse(sessionStorage.getItem('user') || '{}');
+    return (u && u.institute_id) ? String(u.institute_id).trim() : '';
   }
 
   // ─── Filter Selectors State ───
@@ -2579,6 +2606,40 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Pre-flight estimation check for single student paper
+    const estPages = Math.max(1, this.uploadedRawFiles.length);
+    const targetInstId = this.getTargetInstituteId();
+    this.http.post<any>(`${API_BASE}/test-evaluation/estimate-credits`, {
+      exam_id: examId,
+      institute_id: targetInstId,
+      students: [{ user_id: userId, student_name: targetStudent?.name, pages: estPages }]
+    }).subscribe({
+      next: (est) => {
+        if (est && est.status && !est.has_sufficient) {
+          this.aiCreditAlert.confirmEvaluationEstimate({
+            title: 'Insufficient Credits for Single Evaluation',
+            totalStudents: 1,
+            totalPages: est.total_pages || estPages,
+            estimatedTokens: est.estimated_tokens,
+            availableCredits: est.available_credits,
+            usableCredits: est.usable_credits,
+            minimumReserve: 1000,
+            feasibleCount: est.feasible_count,
+            pendingCount: est.pending_count,
+            cancelText: 'Close',
+            confirmText: 'Understood'
+          });
+          return;
+        }
+        this.executeSingleUploadAndEvaluate(examId, userId, targetStudent);
+      },
+      error: () => {
+        this.executeSingleUploadAndEvaluate(examId, userId, targetStudent);
+      }
+    });
+  }
+
+  private executeSingleUploadAndEvaluate(examId: string, userId: string, targetStudent: any): void {
     this.isUploading = true;
     this.isEvalProgressExpanded = false;
 
@@ -2623,6 +2684,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     formData.append('schedule_id', examId);
     formData.append('user_id', userId);
     formData.append('replace', this.attachMode === 'add' ? 'false' : 'true');
+    const targetInstId = this.getTargetInstituteId();
+    if (targetInstId) {
+      formData.append('institute_id', targetInstId);
+    }
 
     for (let i = 0; i < this.uploadedRawFiles.length; i++) {
       formData.append('file', this.uploadedRawFiles[i]);
@@ -3318,6 +3383,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('exam_id', this.selectedExamId);
+    const targetInstId = this.getTargetInstituteId();
+    if (targetInstId) {
+      formData.append('institute_id', targetInstId);
+    }
 
     const studentRoster = this.students.map((s) => ({
       user_id: s.user_id,
@@ -3478,12 +3547,50 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       return;
     }
 
-    notify(`Queuing ${validSegments.length} student answer sheets for background AI evaluation...`, 'info');
+    const est = this.splitBatchData.credit_estimation;
+    // Case 2: Insufficient credits - show estimation dialog
+    if (est && !est.has_sufficient) {
+      this.aiCreditAlert.confirmEvaluationEstimate({
+        title: 'Insufficient Credits for Full Evaluation',
+        totalStudents: est.total_students,
+        totalPages: est.total_pages,
+        estimatedTokens: est.estimated_tokens,
+        availableCredits: est.available_credits,
+        usableCredits: est.usable_credits,
+        minimumReserve: est.minimum_reserve || 1000,
+        feasibleCount: est.feasible_count,
+        pendingCount: est.pending_count,
+        feasibleUserIds: est.feasible_user_ids,
+        pendingUserIds: est.pending_user_ids,
+      }).subscribe((result) => {
+        if (result && result.action === 'continue' && (result.allowedCount || 0) > 0) {
+          const allowedSet = new Set(
+            result.allowedUserIds && result.allowedUserIds.length
+              ? result.allowedUserIds
+              : validSegments.slice(0, result.allowedCount).map((s) => String(s.user_id))
+          );
+          const partialSegments = validSegments.filter((s) => allowedSet.has(String(s.user_id)));
+          this.executeConfirmedSplitEvaluation(partialSegments, Array.from(allowedSet));
+        } else {
+          notify('Evaluation cancelled. No credits consumed.', 'info');
+        }
+      });
+      return;
+    }
+
+    // Case 1: Sufficient credits - start immediately
+    this.executeConfirmedSplitEvaluation(validSegments);
+  }
+
+  private executeConfirmedSplitEvaluation(segmentsToQueue: MultiStudentSplitSegment[], allowedUids?: string[]): void {
+    if (!this.splitBatchData || !this.selectedExamId) return;
+
+    notify(`Queuing ${segmentsToQueue.length} student answer sheets for background AI evaluation...`, 'info');
     this.isUploading = true;
     this.isBulkEvaluating = true;
     this.hasStartedEvaluation = true;
     this.bulkProgress = {
-      total: validSegments.length,
+      total: segmentsToQueue.length,
       completed: 0,
       failed: 0,
       percentage: 0,
@@ -3491,21 +3598,29 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     };
 
     // Update status in students list
-    for (const seg of validSegments) {
-      const targetStudent = this.students.find((s) => String(s.user_id) === String(seg.user_id));
-      if (targetStudent) {
-        targetStudent.status = 'Evaluating...';
-        targetStudent.actionText = 'Queued...';
-        targetStudent.actionClass = 'btn-evaluating-pulse';
-        targetStudent.pagesInfo = `${seg.total_pages} of ${seg.total_pages} pages`;
+    const queuedSet = new Set(segmentsToQueue.map((s) => String(s.user_id)));
+    for (const s of this.students) {
+      if (s.user_id && queuedSet.has(String(s.user_id))) {
+        s.status = 'Evaluating...';
+        s.actionText = 'Queued...';
+        s.actionClass = 'btn-evaluating-pulse';
+      } else if (s.splitSegment) {
+        // Mark remaining unqueued students as Paused / Pending for credits
+        s.status = 'Not Evaluated';
+        s.actionText = 'Pending Credits';
+        s.actionClass = 'btn-paused';
       }
     }
 
-    const payload = {
+    const payload: any = {
       batch_id: this.splitBatchData.batch_id,
       exam_id: this.selectedExamId,
+      institute_id: this.getTargetInstituteId(),
       mappings: this.splitBatchData.segments
     };
+    if (allowedUids && allowedUids.length > 0) {
+      payload.allowed_user_ids = allowedUids;
+    }
 
     this.http.post<any>(`${API_BASE}/test-evaluation/confirm-split-evaluation`, payload).subscribe({
       next: (res) => {
@@ -3525,7 +3640,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.isUploading = false;
         this.isBulkEvaluating = false;
         console.error('Error confirming multi-student evaluation:', err);
-        notify(err?.error?.statusMessage || 'Failed to enqueue evaluation.', 'error');
+        if (!this.aiCreditAlert.handleAiError(err, 'Bulk Evaluation')) {
+          notify(err?.error?.statusMessage || 'Failed to enqueue evaluation.', 'error');
+        }
       }
     });
   }
@@ -3613,66 +3730,51 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const pendingUploads = this.students.filter((s) => s.rawFile && !s.isUploaded && s.user_id && !s.splitSegment);
 
     if (pendingUploads.length > 0) {
-      notify(`Queuing ${pendingUploads.length} answer sheet(s) for background AI evaluation...`, 'info');
-      this.isUploading = true;
-      this.isBulkEvaluating = true;
-      this.bulkProgress = {
-        total: pendingUploads.length,
-        completed: 0,
-        failed: 0,
-        percentage: 0,
-        message: 'Processing answer sheets in the background...'
-      };
-
-      // Set initial status to queued for all pending students
-      for (const s of pendingUploads) {
-        s.status = 'Evaluating...';
-        s.actionText = 'Queued...';
-        s.actionClass = 'btn-evaluating-pulse';
-        s.matchedFile = undefined;
-      }
-
-      const formData = new FormData();
-      formData.append('exam_id', this.selectedExamId);
-      formData.append('schedule_id', this.selectedExamId);
-
-      const manifest = pendingUploads.map((s) => ({
+      const studentEstimates = pendingUploads.map((s) => ({
         user_id: s.user_id,
-        name: s.name,
-        file_name: s.rawFile?.name
+        student_name: s.name,
+        pages: s.scannedPagesData && s.scannedPagesData.length ? s.scannedPagesData.length : 1
       }));
-      formData.append('manifest', JSON.stringify(manifest));
 
-      pendingUploads.forEach((s) => {
-        if (s.rawFile) {
-          formData.append('files', s.rawFile, `${s.user_id}___${s.rawFile.name}`);
-        }
-      });
-
-      this.http.post<any>(`${API_BASE}/test-evaluation/start-bulk-evaluation`, formData).subscribe({
-        next: (res) => {
-          if (res && res.status && res.job_id) {
-            this.activeBulkJobId = res.job_id;
-            sessionStorage.setItem('activeBulkJobId', res.job_id);
-            this.startEvaluationEventStream(res.job_id);
-          } else {
-            this.isUploading = false;
-            this.isBulkEvaluating = false;
-            notify(res?.statusMessage || 'Failed to start bulk evaluation queue.', 'error');
+      // Pre-flight estimation for individual bulk upload
+      this.http.post<any>(`${API_BASE}/test-evaluation/estimate-credits`, {
+        exam_id: this.selectedExamId,
+        institute_id: this.getTargetInstituteId(),
+        students: studentEstimates
+      }).subscribe({
+        next: (est) => {
+          if (est && est.status && !est.has_sufficient) {
+            this.aiCreditAlert.confirmEvaluationEstimate({
+              title: 'Insufficient Credits for Full Evaluation',
+              totalStudents: est.total_students,
+              totalPages: est.total_pages,
+              estimatedTokens: est.estimated_tokens,
+              availableCredits: est.available_credits,
+              usableCredits: est.usable_credits,
+              minimumReserve: est.minimum_reserve || 1000,
+              feasibleCount: est.feasible_count,
+              pendingCount: est.pending_count,
+              feasibleUserIds: est.feasible_user_ids,
+              pendingUserIds: est.pending_user_ids
+            }).subscribe((choice) => {
+              if (choice && choice.action === 'continue' && (choice.allowedCount || 0) > 0) {
+                const allowedSet = new Set(
+                  choice.allowedUserIds && choice.allowedUserIds.length
+                    ? choice.allowedUserIds
+                    : pendingUploads.slice(0, choice.allowedCount).map((s) => String(s.user_id))
+                );
+                const feasibleUploads = pendingUploads.filter((s) => allowedSet.has(String(s.user_id)));
+                this.executeIndividualBulkEvaluation(feasibleUploads, Array.from(allowedSet));
+              } else {
+                notify('Bulk evaluation cancelled. No credits consumed.', 'info');
+              }
+            });
+            return;
           }
+          this.executeIndividualBulkEvaluation(pendingUploads);
         },
-        error: (err) => {
-          this.isUploading = false;
-          this.isBulkEvaluating = false;
-          console.error('Error starting bulk evaluation:', err);
-          const errMsg =
-            err?.error?.statusMessage ||
-            err?.error?.error ||
-            err?.error?.message ||
-            'Failed to enqueue bulk answer sheets.';
-          if (!this.aiCreditAlert.handleAiError(err, 'Bulk Evaluation')) {
-            notify(errMsg, 'error');
-          }
+        error: () => {
+          this.executeIndividualBulkEvaluation(pendingUploads);
         }
       });
     } else {
@@ -3690,6 +3792,112 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       this.filterStudents();
       notify('All matched sheets are already evaluated.', 'info');
     }
+  }
+
+  private executeIndividualBulkEvaluation(uploads: StudentEvaluation[], allowedUids?: string[]): void {
+    if (!uploads || uploads.length === 0) return;
+
+    notify(`Queuing ${uploads.length} answer sheet(s) for background AI evaluation...`, 'info');
+    this.isUploading = true;
+    this.isBulkEvaluating = true;
+    this.bulkProgress = {
+      total: uploads.length,
+      completed: 0,
+      failed: 0,
+      percentage: 0,
+      message: 'Processing answer sheets in the background...'
+    };
+
+    const queuedSet = new Set(uploads.map((s) => String(s.user_id)));
+    for (const s of this.students) {
+      if (s.user_id && queuedSet.has(String(s.user_id))) {
+        s.status = 'Evaluating...';
+        s.actionText = 'Queued...';
+        s.actionClass = 'btn-evaluating-pulse';
+        s.matchedFile = undefined;
+      }
+    }
+
+    const formData = new FormData();
+    formData.append('exam_id', this.selectedExamId);
+    formData.append('schedule_id', this.selectedExamId);
+    const targetInstId = this.getTargetInstituteId();
+    if (targetInstId) {
+      formData.append('institute_id', targetInstId);
+    }
+
+    const manifest = uploads.map((s) => ({
+      user_id: s.user_id,
+      name: s.name,
+      file_name: s.rawFile?.name
+    }));
+    formData.append('manifest', JSON.stringify(manifest));
+
+    if (allowedUids && allowedUids.length > 0) {
+      allowedUids.forEach((uid) => formData.append('allowed_user_ids', uid));
+    }
+
+    uploads.forEach((s) => {
+      if (s.rawFile) {
+        formData.append('files', s.rawFile, `${s.user_id}___${s.rawFile.name}`);
+      }
+    });
+
+    this.http.post<any>(`${API_BASE}/test-evaluation/start-bulk-evaluation`, formData).subscribe({
+      next: (res) => {
+        if (res && res.status && res.job_id) {
+          this.activeBulkJobId = res.job_id;
+          sessionStorage.setItem('activeBulkJobId', res.job_id);
+          this.startEvaluationEventStream(res.job_id);
+          notify(`Enqueued ${res.total} students for evaluation. Streaming live results...`, 'success');
+        } else {
+          this.isUploading = false;
+          this.isBulkEvaluating = false;
+          notify(res?.statusMessage || 'Failed to start bulk evaluation queue.', 'error');
+        }
+      },
+      error: (err) => {
+        this.isUploading = false;
+        this.isBulkEvaluating = false;
+        console.error('Error starting bulk evaluation:', err);
+        const errMsg =
+          err?.error?.statusMessage ||
+          err?.error?.error ||
+          err?.error?.message ||
+          'Failed to enqueue bulk answer sheets.';
+        if (!this.aiCreditAlert.handleAiError(err, 'Bulk Evaluation')) {
+          notify(errMsg, 'error');
+        }
+      }
+    });
+  }
+
+  resumePausedEvaluationJob(): void {
+    const jobId = this.activeBulkJobId || sessionStorage.getItem('activeBulkJobId');
+    if (!jobId) {
+      notify('No paused evaluation job found to resume.', 'info');
+      return;
+    }
+    notify('Resuming evaluation for remaining pending students...', 'info');
+    this.http.post<any>(`${API_BASE}/test-evaluation/resume-bulk-job`, {
+      job_id: jobId,
+      institute_id: this.getTargetInstituteId()
+    }).subscribe({
+      next: (res) => {
+        if (res && res.status) {
+          notify(res.statusMessage || 'Evaluation resumed successfully.', 'success');
+          this.isBulkEvaluating = true;
+          this.startEvaluationEventStream(jobId);
+        } else {
+          notify(res?.statusMessage || 'Could not resume evaluation.', 'error');
+        }
+      },
+      error: (err) => {
+        if (!this.aiCreditAlert.handleAiError(err, 'Resume Evaluation')) {
+          notify(err?.error?.statusMessage || 'Failed to resume evaluation.', 'error');
+        }
+      }
+    });
   }
 
   startEvaluationEventStream(jobId: string): void {
@@ -4056,6 +4264,48 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       } catch (err) {
         console.warn('Error parsing sheet_stopped:', err);
+      }
+    });
+
+    this.bulkEvalEventSource.addEventListener('job_paused_credits', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        this.isBulkEvaluating = false;
+        this.isUploading = false;
+        this.bulkProgress.message = data.message || 'Evaluation safely paused (1,000 credit reserve preserved).';
+
+        this.studentLiveList.forEach((st) => {
+          if (st.status === 'Waiting' || st.status === 'Evaluating') {
+            st.statusPhase = 'Paused – Awaiting AI credits';
+          }
+        });
+        this.students.forEach((s) => {
+          if (s.status === 'Evaluating...') {
+            s.status = 'Not Evaluated';
+            s.actionText = 'Pending Credits';
+            s.actionClass = 'btn-paused';
+          }
+        });
+        this.cdr.detectChanges();
+        this.aiCreditAlert.show({
+          title: 'Evaluation Safely Paused',
+          message: data.message || 'Credits reached the mandatory 1,000 token reserve. Completed student marks are saved. Resume anytime after recharge.',
+          confirmText: 'Understood'
+        });
+      } catch (err) {
+        console.warn('Error parsing job_paused_credits:', err);
+      }
+    });
+
+    this.bulkEvalEventSource.addEventListener('job_resumed', (e: any) => {
+      try {
+        const data = JSON.parse(e.data);
+        this.isBulkEvaluating = true;
+        this.bulkProgress.message = data.message || 'Evaluation resumed for remaining pending students.';
+        this.cdr.detectChanges();
+        notify(data.message || 'Evaluation resumed.', 'success');
+      } catch (err) {
+        console.warn('Error parsing job_resumed:', err);
       }
     });
 

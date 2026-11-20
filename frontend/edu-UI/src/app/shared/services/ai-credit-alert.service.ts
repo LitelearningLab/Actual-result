@@ -1,21 +1,40 @@
 import { Injectable } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Observable } from 'rxjs';
-import { AiCreditAlertComponent, AiCreditAlertData } from '../components/ai-credits-alert/ai-credit-alert.component';
+import {
+  AiCreditAlertComponent,
+  AiCreditAlertData,
+  AiCreditEstimationResult
+} from '../components/ai-credits-alert/ai-credit-alert.component';
 
 @Injectable({ providedIn: 'root' })
 export class AiCreditAlertService {
   constructor(private dialog: MatDialog) {}
 
   /**
-   * Opens the AI Credit Alert Dialog directly with custom configuration
+   * Opens the standard AI Credit Alert Dialog directly with custom configuration
    */
   show(config: AiCreditAlertData): Observable<boolean> {
     const dialogRef = this.dialog.open(AiCreditAlertComponent, {
-      data: config,
+      data: { ...config, mode: 'alert' },
       width: '440px',
       panelClass: 'ai-credit-dialog-panel',
       disableClose: false,
+    });
+    return dialogRef.afterClosed();
+  }
+
+  /**
+   * Opens the Interactive AI Credit Estimation & Partial Processing Modal
+   * Displays breakdown of tokens required, 1,000 token mandatory reserve preserved,
+   * feasible student count, and pending student count with Continue / Cancel choices.
+   */
+  confirmEvaluationEstimate(config: AiCreditAlertData): Observable<AiCreditEstimationResult | null> {
+    const dialogRef = this.dialog.open(AiCreditAlertComponent, {
+      data: { ...config, mode: 'estimation', minimumReserve: 1000 },
+      width: '520px',
+      panelClass: 'ai-credit-estimation-panel',
+      disableClose: true,
     });
     return dialogRef.afterClosed();
   }
@@ -44,6 +63,8 @@ export class AiCreditAlertService {
       normalizedMsg.includes('allocate more credits') ||
       normalizedMsg.includes('allocate ai credits') ||
       normalizedMsg.includes('ai access has not been granted') ||
+      normalizedMsg.includes('reserve floor') ||
+      normalizedMsg.includes('1,000 token reserve') ||
       normalizedMsg.includes('super admin');
 
     if (isCreditError) {
