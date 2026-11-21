@@ -1,8 +1,10 @@
+import json
+import re
 from db.db import SQLiteDB
 from db.models import User, ExamSchedule, Exam_Attempt, Answer, Categories, Exam, ExamMapping, ExamQuestionMapping, Question, Option, QuestionMapping, QuestionMedia, ExamScheduleMapping, MarksHistory, ExamReviewComments, ExamReviewCommentsHistory, InstituteDepartment, InstituteTeam, InstituteCampus, Country, State, City, PaperSchedule, PaperScheduleMapping
 from sqlalchemy import func, or_, and_, String
 from datetime import datetime
-from others.llm import openai_client, analyze_wrong_answers_ai, generate_ai_subtopics
+from others.llm import openai_client, analyze_wrong_answers_ai, format_diagnostic_summary, generate_ai_subtopics
 
 
 
@@ -1527,6 +1529,20 @@ def get_exam_analytics(request):
         return {"statusMessage": f"Error generating analytics: {str(e)}", "status": False}, 500
 
 
+def extract_clean_student_answer(raw_answer):
+    if not raw_answer:
+        return ""
+    txt = str(raw_answer).strip()
+    if txt.startswith("{") and ("student_answer" in txt or "detected_pages" in txt):
+        try:
+            parsed = json.loads(txt)
+            if isinstance(parsed, dict) and "student_answer" in parsed:
+                return str(parsed.get("student_answer") or "").strip()
+        except Exception:
+            pass
+    return txt
+
+
 def get_question_wrong_answers(request):
     db = SQLiteDB()
     session = db.connect()
@@ -1625,6 +1641,7 @@ def get_question_wrong_answers(request):
         }
 
         # Query wrong answer distribution & combinations
+        all_ans_records = []
         if ctx.get('status'):
             schedule_ids = ctx['schedule_ids']
             attempt_ids = ctx['attempt_ids']
@@ -1635,21 +1652,25 @@ def get_question_wrong_answers(request):
                     raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == target_qid, Answer.is_correct == 0)
                     tot_attempts = session.query(func.count(Answer.attempt_id.distinct())).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == target_qid).scalar() or 0
                     wrong_ans_records = session.query(Answer).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == target_qid, Answer.is_correct == 0).all()
+                    all_ans_records = session.query(Answer).filter(Answer.attempt_id.in_(attempt_ids), Answer.question_id == target_qid).all()
                 else:
                     opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == target_qid, Answer.is_correct == 0, func.coalesce(Option.is_correct, 0) == 0)
                     raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == target_qid, Answer.is_correct == 0)
                     tot_attempts = session.query(func.count(Answer.attempt_id.distinct())).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == target_qid).scalar() or 0
                     wrong_ans_records = session.query(Answer).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == target_qid, Answer.is_correct == 0).all()
+                    all_ans_records = session.query(Answer).filter(Answer.schedule_id.in_(schedule_ids), Answer.created_date >= ctx['start_date'], Answer.created_date <= ctx['end_date'], Answer.question_id == target_qid).all()
             else:
                 opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == target_qid, Answer.is_correct == 0, func.coalesce(Option.is_correct, 0) == 0)
                 raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == target_qid, Answer.is_correct == 0)
                 tot_attempts = session.query(func.count(Answer.attempt_id.distinct())).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == target_qid).scalar() or 0
                 wrong_ans_records = session.query(Answer).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == target_qid, Answer.is_correct == 0).all()
+                all_ans_records = session.query(Answer).filter(Answer.schedule_id.in_(schedule_ids), Answer.question_id == target_qid).all()
         else:
             opt_q = session.query(Option.options_id, Option.option_text, func.count(Answer.answer_id)).join(Answer, Answer.selected_option_id == Option.options_id).filter(Answer.question_id == target_qid, Answer.is_correct == 0, func.coalesce(Option.is_correct, 0) == 0)
             raw_q = session.query(Answer.written_answer, func.count(Answer.answer_id)).filter(Answer.question_id == target_qid, Answer.is_correct == 0)
             tot_attempts = session.query(func.count(Answer.attempt_id.distinct())).filter(Answer.question_id == target_qid).scalar() or 0
             wrong_ans_records = session.query(Answer).filter(Answer.question_id == target_qid, Answer.is_correct == 0).all()
+            all_ans_records = session.query(Answer).filter(Answer.question_id == target_qid).all()
 
         opt_counts = opt_q.group_by(Option.options_id, Option.option_text).all()
         total_sel = sum([c[2] for c in opt_counts])
@@ -1753,32 +1774,48 @@ def get_question_wrong_answers(request):
                     expected_answer_text = opts_data[0].get('option_text', '')
 
             wrong_items = []
+            all_items = []
             answer_map = {}
             user_ids_set = set()
             attempt_ids_set = set()
+
+            for a in (all_ans_records or wrong_ans_records):
+                aid = str(a.answer_id)
+                uid = str(a.user_id) if a.user_id is not None else ""
+                att_id = str(a.attempt_id) if a.attempt_id is not None else ""
+                clean_txt = extract_clean_student_answer(a.written_answer)
+
+                if uid:
+                    user_ids_set.add(uid)
+                if att_id:
+                    attempt_ids_set.add(att_id)
+
+                all_items.append({
+                    "answer_id": aid,
+                    "user_id": uid,
+                    "attempt_id": att_id,
+                    "written_answer": clean_txt,
+                    "is_correct": int(a.is_correct or 0)
+                })
 
             for a in wrong_ans_records:
                 aid = str(a.answer_id)
                 uid = str(a.user_id) if a.user_id is not None else ""
                 att_id = str(a.attempt_id) if a.attempt_id is not None else ""
-                w_txt = (a.written_answer or "").strip()
+                clean_txt = extract_clean_student_answer(a.written_answer)
 
                 wrong_items.append({
                     "answer_id": aid,
                     "user_id": uid,
                     "attempt_id": att_id,
-                    "written_answer": w_txt
+                    "written_answer": clean_txt
                 })
                 answer_map[aid] = {
                     "answer_id": aid,
                     "user_id": uid,
                     "attempt_id": att_id,
-                    "written_answer": w_txt
+                    "written_answer": clean_txt
                 }
-                if uid:
-                    user_ids_set.add(uid)
-                if att_id:
-                    attempt_ids_set.add(att_id)
 
             # Pre-fetch users and attempts for instant roster expansion
             users_db = session.query(User).filter(User.user_id.in_(list(user_ids_set))).all() if user_ids_set else []
@@ -1964,16 +2001,19 @@ def get_question_wrong_answers(request):
                 try:
                     rep_inst_id = (request.args.get("institute_id") if hasattr(request, "args") else None) or (getattr(current_user, "institute_id", None) if current_user else None)
                     openai_inst = openai_client()
+                    tot_cohort_attendees = len(all_ans_records) if all_ans_records else total_attempts
                     ai_res = analyze_wrong_answers_ai(
                         openai_inst,
                         getattr(qobj, 'question_text', '') or '',
                         q_type,
                         expected_answer_text,
                         wrong_items,
+                        all_answers_list=all_items,
+                        total_attendees=tot_cohort_attendees,
                         institute_id=rep_inst_id
                     )
                     if ai_res.get('status'):
-                        diag_summary = ai_res.get("diagnostic_summary", "")
+                        diag_summary = format_diagnostic_summary(ai_res.get("diagnostic_summary", ""))
                         rec_text = ai_res.get("recommendations", "")
                         ai_insights = {
                             "diagnostic_summary": diag_summary,
@@ -1984,8 +2024,19 @@ def get_question_wrong_answers(request):
                         raw_rel_cat = categories_dict.get("relevant_but_incorrect") or {}
                         raw_irrel_cat = categories_dict.get("completely_irrelevant_and_incorrect") or {}
 
-                        raw_clusters = raw_rel_cat.get("clusters") or ai_res.get("clusters") or []
-                        raw_irrel_aids = raw_irrel_cat.get("answer_ids") or []
+                        if isinstance(raw_rel_cat, list):
+                            raw_clusters = raw_rel_cat
+                        elif isinstance(raw_rel_cat, dict):
+                            raw_clusters = raw_rel_cat.get("clusters") or ai_res.get("clusters") or []
+                        else:
+                            raw_clusters = []
+
+                        if isinstance(raw_irrel_cat, list):
+                            raw_irrel_aids = raw_irrel_cat
+                        elif isinstance(raw_irrel_cat, dict):
+                            raw_irrel_aids = raw_irrel_cat.get("answer_ids") or []
+                        else:
+                            raw_irrel_aids = []
 
                         assigned_aids = set()
                         rel_clusters_formatted = []
@@ -2015,9 +2066,15 @@ def get_question_wrong_answers(request):
 
                             cluster_students = sort_student_roster([build_student_obj(aid) for aid in c_aids])
 
+                            raw_theme = cl.get("theme_name", "")
+                            clean_theme = re.sub(r'^(Theme\s*\d*\s*:\s*)+', '', raw_theme, flags=re.IGNORECASE)
+                            clean_theme = re.sub(r'^(Response Pattern\s*\d*\s*:\s*)+', '', clean_theme, flags=re.IGNORECASE).strip()
+                            if not clean_theme:
+                                clean_theme = cl.get("explanation", "") or f"Misconception Group {c_idx}"
+
                             rel_clusters_formatted.append({
                                 'cluster_id': f"cluster_{c_idx}",
-                                'theme_name': cl.get("theme_name", f"Misconception Theme {c_idx}"),
+                                'theme_name': clean_theme,
                                 'explanation': cl.get("explanation", ""),
                                 'answer_ids': c_aids,
                                 'sample_answer_ids': sample_ids,
@@ -2038,7 +2095,6 @@ def get_question_wrong_answers(request):
                         # Check unassigned answers
                         unassigned = [aid for aid in answer_map if aid not in assigned_aids]
                         if unassigned:
-                            # Classify empty or pure whitespace/nonsense into irrelevant, others into a fallback theme
                             unassigned_irrel = []
                             unassigned_rel = []
                             for aid in unassigned:
@@ -2059,8 +2115,8 @@ def get_question_wrong_answers(request):
                                 u_samples = [answer_map[aid]["written_answer"] for aid in unassigned_rel[:2] if answer_map[aid]["written_answer"]]
                                 rel_clusters_formatted.append({
                                     'cluster_id': "cluster_misc",
-                                    'theme_name': "Other Student Response Variations",
-                                    'explanation': "Individual phrasing variations or partially addressed points.",
+                                    'theme_name': "Students provided varied or partial explanations",
+                                    'explanation': "Individual response variations partially addressing the concept but containing conceptual gaps.",
                                     'answer_ids': unassigned_rel,
                                     'sample_answer_ids': unassigned_rel[:2],
                                     'samples': u_samples,
@@ -2141,10 +2197,11 @@ def get_question_wrong_answers(request):
                 for c_idx, (g_txt, g_aids) in enumerate(rel_groups.items(), 1):
                     g_count = len(g_aids)
                     g_pct = round((g_count / denom) * 100, 2)
+                    clean_snippet = g_txt if len(g_txt) <= 60 else g_txt[:60] + '...'
                     fallback_clusters.append({
                         'cluster_id': f"cluster_{c_idx}",
-                        'theme_name': f"Response Pattern {c_idx}: " + (g_txt if len(g_txt) <= 50 else g_txt[:50] + '...'),
-                        'explanation': "Student submitted response variation.",
+                        'theme_name': f"Students understood: \"{clean_snippet}\"",
+                        'explanation': "Students formulated this conceptual response addressing the question, but included misconceptions or partial inaccuracies compared to the expected answer key.",
                         'answer_ids': g_aids,
                         'sample_answer_ids': g_aids[:2],
                         'samples': [answer_map[g_aids[0]]["written_answer"]],
@@ -2163,9 +2220,16 @@ def get_question_wrong_answers(request):
                 irrel_pct = round((irrel_count / denom) * 100, 2)
                 irrel_students = sort_student_roster([build_student_obj(aid) for aid in irrel_aids])
 
+                correct_count = max(0, total_attempts - total_incorrect_submissions)
+                fallback_diag = (
+                    f"Across {total_attempts} student submission(s), {correct_count} demonstrated expected conceptual mastery while {total_incorrect_submissions} showed specific misconceptions or unattempted responses. "
+                    f"Students primarily struggled with accurately defining and applying the core concepts in {getattr(qobj, 'question_text', 'the topic')[:60]}, often confusing related terminology or missing essential rubric criteria. "
+                    f"Teachers can support remediation by reviewing the fundamental definition in class, comparing correct sample answers directly against common student mistakes, and guiding targeted practice."
+                )
+
                 ai_insights = {
-                    "diagnostic_summary": f"Identified patterns across {total_incorrect_submissions} incorrect student response(s). (Deterministic grouping)",
-                    "recommendations": "Review student responses against the expected answer key points."
+                    "diagnostic_summary": fallback_diag,
+                    "recommendations": "Review student responses against the expected answer key points and conduct targeted revision."
                 }
                 ai_clusters = fallback_clusters
 

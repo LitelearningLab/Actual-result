@@ -5180,6 +5180,17 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     const params: any = {
       question_id: targetQid,
     };
+    const isPaper = this.activeReportType === 'paper' ||
+                    this.selectedExam?.test_mode === 'paper' ||
+                    !!this.selectedPaperSchedule;
+    if (isPaper) {
+      params.test_mode = 'paper';
+    }
+    const instId = this.selectedInstituteId || this.userFilters?.institute_id || this.selectedExam?.institute_id;
+    if (instId) {
+      params.institute_id = String(instId);
+    }
+
     if (this.selectedExam?.isDateRange || this.selectionMode === 'daterange') {
       params.test_title = this.selectedExam?.title || this.selectedDateRangeTestTitle || this.selectedTestTitle;
       if (this.selectedExam?.start_date || this.dateRangeStart) {
@@ -5326,6 +5337,14 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
   isDescriptiveStudentsExpanded(idKey: string): boolean {
     return !!this.expandedDescriptiveStudents[idKey];
+  }
+
+  formatThemeName(name: string): string {
+    if (!name) return 'Student Understanding & Misconception';
+    let clean = String(name).trim();
+    clean = clean.replace(/^(Theme\s*\d*\s*:\s*)+/i, '');
+    clean = clean.replace(/^(Response Pattern\s*\d*\s*:\s*)+/i, '');
+    return clean || 'Student Understanding & Misconception';
   }
 
   isDescriptiveQuestion(question?: any): boolean {

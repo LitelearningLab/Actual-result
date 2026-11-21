@@ -425,17 +425,75 @@ working, or text outside the JSON object."""
     return result
 
 
+def format_diagnostic_summary(diag):
+    if not diag:
+        return ""
+    if isinstance(diag, dict):
+        # Extract the core values and form a cohesive single paragraph
+        sentences = []
+        for key in [
+            "overall_conceptual_understanding",
+            "common_mistakes_identified",
+            "key_concepts_needing_improvement",
+            "how_teachers_can_help_students_improve"
+        ]:
+            val = diag.get(key)
+            if not val:
+                continue
+            if isinstance(val, list):
+                val_text = "; ".join(str(v).strip().rstrip(".") for v in val if str(v).strip())
+                if val_text:
+                    sentences.append(val_text + ".")
+            else:
+                s = str(val).strip()
+                if s:
+                    sentences.append(s if s.endswith(('.', '!', '?')) else s + ".")
+        
+        if not sentences:
+            for k, v in diag.items():
+                if isinstance(v, list):
+                    sentences.append("; ".join(str(x) for x in v) + ".")
+                elif v:
+                    sentences.append(str(v).strip())
+                    
+        combined = " ".join(sentences)
+    else:
+        combined = str(diag).strip()
+
+    # Clean out bullet points, numbered lists, markdown headings, bold labels, and section prefixes
+    import re
+    cleaned = re.sub(r'#+\s*([^\n]+)', r'\1', combined)
+    cleaned = re.sub(r'(?i)(?:^|\n)\s*(?:overall\s+(?:findings|diagnostic\s+analysis|analysis|summary))\s*(?:\n|:|$)', ' ', cleaned)
+    cleaned = re.sub(r'\*{1,2}[A-Za-z0-9\s_\-:]+\*{1,2}:?', '', cleaned)
+    cleaned = re.sub(
+        r'(?i)(?:•\s*)?(?:overall\s+(?:findings|conceptual\s+understanding)|types\s+of\s+understanding(?:\s+shown)?|common\s+mistakes(?:\s+identified)?|key\s+concepts\s+needing\s+improvement|how\s+teachers\s+can\s+help\s+students\s+improve|pedagogical\s+guidance(?:\s+for\s+teachers)?|teaching\s+guidance)\s*:\s*',
+        ' ',
+        cleaned
+    )
+    cleaned = re.sub(r'(?:^|\n)\s*[•\-\*\d+\.]\s*', ' ', cleaned)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    return cleaned
+
+
 def analyze_wrong_answers_ai(
-    api_client, question_text, question_type, expected_answer, wrong_answers_list, institute_id=None, user_name=None
+    api_client,
+    question_text,
+    question_type,
+    expected_answer,
+    wrong_answers_list,
+    all_answers_list=None,
+    total_attendees=0,
+    institute_id=None,
+    user_name=None,
 ):
     """
-    Analyzes student incorrect/sub-optimal answers using LLM to provide:
+    Analyzes student answers using LLM to provide:
+    - Overall Diagnostic Analysis synthesizing all attendees' conceptual understanding
     - Relevance classification: Relevant but Incorrect vs. Completely Irrelevant and Incorrect
-    - Semantic misconception clustering with representative sample answer IDs
-    - Diagnostic summary of why students struggled (pedagogical, without marks/grades)
-    - Actionable recommendations
+    - Misconception clustering grouped by how students understood the concept
+    - Actionable pedagogical guidance for educators
     """
-    if not wrong_answers_list:
+    if not wrong_answers_list and not all_answers_list:
         return {
             "status": True,
             "diagnostic_summary": "No incorrect answers recorded for this question.",
@@ -447,73 +505,46 @@ def analyze_wrong_answers_ai(
             "clusters": [],
         }
 
-    system_message = """You are an expert educational evaluator, assessment specialist, and pedagogical data analyst.
-Your task is to analyze and validate a batch of student descriptive answers for an online test to identify completely irrelevant responses and deeply analyze relevant but incorrect answers to uncover specific learner misconceptions, enabling targeted corrective action.
-You are NOT grading the answers or assigning marks. Do NOT calculate scores or percentages.
+    system_message = """You are an expert pedagogical data analyst, master educator, and assessment specialist.
+Your task is to analyze all student responses for an exam question to:
+1. Generate an overall diagnostic analysis evaluating all students who attended the test together.
+2. Group relevant incorrect answers by their specific understanding/misconceptions into cohesive groups.
+3. Separate completely irrelevant or blank answers.
 
-Always respond ONLY with a single, valid JSON object (no markdown formatting, no surrounding text).
+You are NOT grading the answers or assigning marks. Do NOT calculate percentage formulas.
 
-Categorize all provided student responses into the following two major categories:
+Categorize all submitted student answers needing remediation into:
 
-1. "completely_irrelevant_and_incorrect":
-   - STRICT CRITERIA: Answers that are off-topic, discuss a totally different subject domain (for example, writing about biology, photosynthesis, plants, history, economics, literature, or generic random text when asked a technical/computer science/programming question, or vice versa), non-sensical, gibberish, blank, or have NO logical/subject-matter connection to the specific question asked.
-   - CRITICAL RULE: If a student's answer is about an unrelated topic or subject domain (e.g. photosynthesis/biology in a computer science test), you MUST classify its answer_id under "completely_irrelevant_and_incorrect". NEVER invent or hallucinate a technical/programming misconception theme for an off-topic or biology answer!
-   - Requirement: Assign their answer IDs under "answer_ids".
-
-2. "relevant_but_incorrect":
-   - STRICT CRITERIA: Answers where the student genuinely addresses the specific subject matter and domain of the Question, but provided flawed logic, conceptual confusion within the domain, calculation errors, vocabulary mismatch, process inversion, or incomplete understanding.
-   - Deep-Dive Misconception Analysis: Dynamically identify the underlying types of misunderstandings within the subject domain (e.g., conceptual confusion, process inversion, calculation errors, vocabulary mismatch, overgeneralisation).
-   - Quantification & Clustering: Group genuine within-domain incorrect understandings together into cohesive clusters. For each distinct misunderstanding identified:
-     * "theme_name": A short, descriptive name for the specific error/misconception (e.g., "Confusing Static vs Dynamic Arrays").
-     * "explanation": A deep-dive explanation of the specific flawed logic or misconception.
-     * "answer_ids": Array of answer IDs belonging to this cluster. Every relevant answer ID must belong to exactly one cluster.
-     * "sample_answer_ids": 1-2 most representative answer IDs from this cluster.
+1. "relevant_but_incorrect":
+   - STRICT CRITERIA: Answers where the student genuinely addressed the subject matter of the question, but demonstrated flawed logic, conceptual confusion within the domain, calculation errors, vocabulary mismatch, process inversion, or incomplete understanding.
+   - Quantification & Clustering: Group students with similar understandings or misconceptions together. For each distinct group identified:
+     * "theme_name": A simple, clear summary explaining how those students understood the concept (e.g. "Students understood inertia as the force that keeps an object moving" or "Students confused inertia with the force required to move an object"). NEVER use generic labels like "Theme 1", "Theme 2", "Misconception 1", or "Response Pattern 1".
+     * "explanation": A simple, clear explanation of the specific misconception and why their reasoning is flawed compared to the expected concept.
+     * "answer_ids": Array of answer IDs belonging to this group. Every relevant answer ID must belong to exactly one group.
+     * "sample_answer_ids": 1-2 representative answer IDs from this group.
    - If ALL submitted answers are off-topic/irrelevant, "clusters" under "relevant_but_incorrect" MUST be an empty array [].
 
-Pedagogical Synthesis:
-- "diagnostic_summary": A short and clear summary of the main problems found in the student answers.
+2. "completely_irrelevant_and_incorrect":
+   - STRICT CRITERIA: Answers that are off-topic, discuss an unrelated domain (e.g., biology/plants in a physics question), non-sensical, gibberish, blank, or have NO logical/subject-matter connection to the specific question asked.
+   - Requirement: Assign their answer IDs under "answer_ids".
 
-Diagnostic Summary Requirements:
-- Write in very simple English.
-- Make it easy for a student, teacher, or layman to understand.
-- Clearly state what the students got wrong and what the correct concept should be.
-- Use specific details from the actual student answers.
-- Do not use vague statements such as "lack of clarity", "conceptual gaps", "incomplete understanding", or "students display a misunderstanding" without explaining the exact problem.
-- Keep the diagnostic summary to a maximum of 4–5 short lines.
-- Focus only on the main problem found in the answers.
-- Do not include recommendations or solutions in the diagnostic summary.
-- Do not invent problems that are not present in the student answers.
+Pedagogical Synthesis - Overall Diagnostic Analysis:
+- "diagnostic_summary": Generate the overall diagnostic analysis as a SINGLE SHORT PARAGRAPH of at most 4 to 5 lines in plain, simple English.
+  * STRICT FORMAT REQUIREMENTS: It must be ONE single continuous paragraph. Absolutely NO bullet points, NO numbered lists, NO separate headings, NO bold labels, NO line breaks, and NO multiple paragraphs.
+  * CONTENT: Summarize only the most critical findings: how the cohort understood the concept overall, the primary learning gaps or misconceptions, and practical guidance on how teachers can help students improve.
+  * Make the explanation crisp, clear, concise, and easy to understand at a glance, avoiding technical jargon or repetitive descriptions.
 
-- "recommendations": Concrete, actionable pedagogical recommendations for educators to reinforce these weak areas.
+- "recommendations": A concise 1-2 sentence recommendation for educators.
 
 Crucial Rules:
-- Every input answer_id MUST appear in exactly one place (either under one relevant cluster or under completely_irrelevant_and_incorrect).
+- Every input answer_id in the submissions list MUST appear in exactly one place (either under one relevant cluster or under completely_irrelevant_and_incorrect).
 - Never invent new IDs or mutate answer text.
 
-Output Format:
-{
-  "diagnostic_summary": "Concise pedagogical summary of student misconception patterns...",
-  "recommendations": "Targeted corrective actions and remediation advice for instructors...",
-  "categories": {
-    "relevant_but_incorrect": {
-      "clusters": [
-        {
-          "theme_name": "Short descriptive misconception label",
-          "explanation": "Deep-dive pedagogical explanation of the specific error or misconception",
-          "answer_ids": ["id1", "id2"],
-          "sample_answer_ids": ["id1"]
-        }
-      ]
-    },
-    "completely_irrelevant_and_incorrect": {
-      "answer_ids": ["id3"]
-    }
-  }
-}"""
+Always respond ONLY with a single, valid JSON object (no markdown formatting, no surrounding text) with keys: 'diagnostic_summary', 'recommendations', 'categories'."""
 
     # Prepare sanitized input payload
     items = []
-    for idx, item in enumerate(wrong_answers_list):
+    for idx, item in enumerate(wrong_answers_list or []):
         items.append(
             {
                 "answer_id": str(item.get("answer_id") or f"ans_{idx}"),
@@ -521,14 +552,32 @@ Output Format:
             }
         )
 
+    tot_att = total_attendees or len(all_answers_list or items)
+    cohort_lines = [f"Total Students Attended: {tot_att}"]
+    if all_answers_list:
+        corr_items = [a for a in all_answers_list if int(a.get("is_correct", 0)) == 1]
+        cohort_lines.append(f"Students with Fully Correct Answers: {len(corr_items)}")
+        cohort_lines.append(f"Students Needing Remediation / Incorrect: {len(items)}")
+        if corr_items:
+            sample_corr = (corr_items[0].get("written_answer") or "").strip()
+            if sample_corr:
+                cohort_lines.append(f"Sample Correct Student Answer: \"{sample_corr[:200]}\"")
+    else:
+        cohort_lines.append(f"Students Needing Remediation / Incorrect: {len(items)}")
+
+    cohort_summary_text = "\n".join(cohort_lines)
+
     user_message = f"""Question Type: {question_type}
 Question: {question_text}
 Expected / Rubric Key Points: {expected_answer}
 
-Incorrect Student Submissions to Analyze ({len(items)} submissions):
+Cohort Overview:
+{cohort_summary_text}
+
+Submissions Needing Remediation ({len(items)} submissions):
 {json.dumps(items, ensure_ascii=False, indent=2)}
 
-Please classify relevance, cluster misconceptions, and provide the diagnostic summary."""
+Please provide the Overall Diagnostic Analysis covering all 5 required aspects, cluster relevant misconceptions with simple understanding summaries, and separate completely irrelevant answers."""
 
     try:
         response = api_client.chat_completion(
@@ -536,7 +585,7 @@ Please classify relevance, cluster misconceptions, and provide the diagnostic su
             user_message,
             max_tokens=3500,
             temperature=0.2,
-            timeout=12.0,
+            timeout=45.0,
             institute_id=institute_id,
             user_name=user_name,
             feature_name="Exam Diagnostics",
@@ -563,13 +612,40 @@ Please classify relevance, cluster misconceptions, and provide the diagnostic su
         rel_cat = categories.get("relevant_but_incorrect") or {}
         irrel_cat = categories.get("completely_irrelevant_and_incorrect") or {}
 
-        rel_clusters = rel_cat.get("clusters") or parsed.get("clusters") or []
-        irrel_answer_ids = irrel_cat.get("answer_ids") or []
+        if isinstance(rel_cat, list):
+            rel_clusters = rel_cat
+        elif isinstance(rel_cat, dict):
+            rel_clusters = rel_cat.get("clusters") or []
+        else:
+            rel_clusters = []
+
+        if not rel_clusters and parsed.get("clusters"):
+            rel_clusters = parsed.get("clusters")
+
+        if isinstance(irrel_cat, list):
+            irrel_answer_ids = irrel_cat
+        elif isinstance(irrel_cat, dict):
+            irrel_answer_ids = irrel_cat.get("answer_ids") or []
+        else:
+            irrel_answer_ids = []
+
+        # Sanitize cluster theme names to remove any generic "Theme:" or "Pattern:" labels
+        for cl in rel_clusters:
+            t_name = str(cl.get("theme_name") or "").strip()
+            t_name = re.sub(r'^(Theme\s*\d*\s*:\s*)+', '', t_name, flags=re.IGNORECASE)
+            t_name = re.sub(r'^(Response Pattern\s*\d*\s*:\s*)+', '', t_name, flags=re.IGNORECASE)
+            cl["theme_name"] = t_name or cl.get("explanation") or "Student Misconception"
+
+        formatted_diag = format_diagnostic_summary(parsed.get("diagnostic_summary", ""))
+
+        recommendations_val = parsed.get("recommendations", "")
+        if isinstance(recommendations_val, list):
+            recommendations_val = "\n".join(f"• {r}" for r in recommendations_val)
 
         return {
             "status": True,
-            "diagnostic_summary": parsed.get("diagnostic_summary", ""),
-            "recommendations": parsed.get("recommendations", ""),
+            "diagnostic_summary": formatted_diag,
+            "recommendations": str(recommendations_val),
             "categories": {
                 "relevant_but_incorrect": {"clusters": rel_clusters},
                 "completely_irrelevant_and_incorrect": {"answer_ids": irrel_answer_ids},
