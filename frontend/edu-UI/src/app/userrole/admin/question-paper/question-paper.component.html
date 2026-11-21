@@ -24,13 +24,9 @@
                     <mat-icon>refresh</mat-icon>
                     <span>Refresh</span>
                 </button>
-                <button *ngIf="activeTab === 'drafts'" type="button" class="btn-primary-blue" (click)="openCreateQuestionPaper()" aria-label="Create new question paper">
+                <button type="button" class="btn-primary-blue" (click)="openCreateQuestionPaper()" aria-label="Create new question paper">
                     <mat-icon>add</mat-icon>
                     <span>Create Question Paper</span>
-                </button>
-                <button *ngIf="activeTab === 'published'" type="button" class="btn-primary-blue" (click)="openPublishQuestionPaper()" aria-label="Schedule test">
-                    <mat-icon>event_available</mat-icon>
-                    <span>Schedule Test</span>
                 </button>
             </div>
         </div>
@@ -47,20 +43,6 @@
             <span>{{ chip.label }}</span>
         </button>
         <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">Clear all</button>
-    </div>
-
-    <!-- ─── Full-width Segmented Tabs (Question Papers / Published) ─── -->
-    <div class="tabs-bar-fullwidth" role="tablist">
-        <button type="button" class="tab-segment" [class.active]="activeTab === 'drafts'" (click)="setTab('drafts')"
-            role="tab" [attr.aria-selected]="activeTab === 'drafts'">
-            <span class="tab-title">Question Papers</span>
-            <span class="tab-badge" [class.badge-active]="activeTab === 'drafts'">{{ draftsCount }}</span>
-        </button>
-        <button type="button" class="tab-segment" [class.active]="activeTab === 'published'" (click)="setTab('published')"
-            role="tab" [attr.aria-selected]="activeTab === 'published'">
-            <span class="tab-title">Schedule Test</span>
-            <span class="tab-badge" [class.badge-active]="activeTab === 'published'">{{ publishedCount }}</span>
-        </button>
     </div>
 
     <!-- ─── Main Content Card ─── -->
@@ -344,13 +326,13 @@
                     <!-- Title Column -->
                     <ng-container matColumnDef="title">
                         <th mat-header-cell *matHeaderCellDef class="col-title" mat-sort-header>
-                            {{ activeTab === 'published' ? 'SCHEDULE NAME' : 'TEST NAME' }}
+                            TEST NAME
                         </th>
                         <td mat-cell *matCellDef="let e" class="col-title">
                             <div class="test-title-box">
                                 <div class="test-title-row">
                                     <span class="test-title">
-                                        {{ activeTab === 'published' ? formatScheduleTitle(e.scheduler_name || e.schedule_name || e.title) : e.title }}
+                                        {{ e.title }}
                                     </span>
                                     <span class="paper-draft-chip" *ngIf="isDraft(e)">Draft</span>
                                 </div>
@@ -389,85 +371,29 @@
                         <td mat-cell *matCellDef="let e" class="col-duration">{{ getDurationDisplay(e) }}</td>
                     </ng-container>
 
-                    <!-- Evaluation Column -->
-                    <ng-container matColumnDef="evaluation">
-                        <th mat-header-cell *matHeaderCellDef class="col-evaluation" mat-sort-header>EVALUATION</th>
-                        <td mat-cell *matCellDef="let e" class="col-evaluation">
-                            <span class="status-pill status-eval-pending" *ngIf="getEvaluationStatus(e) === 'Pending'">
-                                Pending
-                            </span>
-                            <span class="status-pill status-eval-done" *ngIf="getEvaluationStatus(e) === 'Evaluated'">
-                                Evaluated
-                            </span>
-                        </td>
-                    </ng-container>
-
-                    <!-- Manual Review Column (Published Tab) -->
-                    <ng-container matColumnDef="manual_review">
-                        <th mat-header-cell *matHeaderCellDef class="col-manual-review text-center">MANUAL REVIEW</th>
-                        <td mat-cell *matCellDef="let e" class="col-manual-review text-center">
-                            <div class="manual-review-cell">
-                                <button type="button" role="switch"
-                                    [attr.aria-checked]="e.manual_review_enabled ? 'true' : 'false'"
-                                    [attr.data-state]="e.manual_review_enabled ? 'checked' : 'unchecked'"
-                                    [disabled]="!isManualReview(e)"
-                                    (click)="toggleManualReview(e)"
-                                    class="custom-toggle peer inline-flex"
-                                    [matTooltip]="isManualReview(e) ? 'Toggle student result review access' : ('Review mode: ' + getReviewSummaryLabel(e))">
-                                    <span class="toggle-thumb" [attr.data-state]="e.manual_review_enabled ? 'checked' : 'unchecked'"></span>
-                                </button>
-                            </div>
-                        </td>
-                    </ng-container>
-
                     <!-- Actions Column -->
                     <ng-container matColumnDef="actions">
                         <th mat-header-cell *matHeaderCellDef class="col-actions">ACTIONS</th>
                         <td mat-cell *matCellDef="let e" class="col-actions">
                             <div class="action-btn-group">
-                                <!-- ── Tab 1: Question Papers Actions ── -->
-                                <ng-container *ngIf="activeTab === 'drafts'">
-                                    <button type="button" class="action-btn action-btn-success" *ngIf="getPaperStatus(e) === 'ready_to_publish'" (click)="publishQuestionPaper(e)" matTooltip="Schedule Test" aria-label="Schedule Test">
-                                        <mat-icon>schedule</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="viewQuestionPaper(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
-                                        <mat-icon>visibility</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn" *ngIf="isDraft(e)" (click)="onEdit(e)" matTooltip="Edit Draft" aria-label="Edit test">
-                                        <mat-icon>edit</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="downloadQuestionPaper(e)" matTooltip="Download Question Paper as PDF" aria-label="Download Question Paper as PDF">
-                                        <mat-icon>description</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="downloadEvaluationGuide(e)" matTooltip="Download Answer Key as PDF" aria-label="Download Answer Key as PDF">
-                                        <mat-icon>vpn_key</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-danger" (click)="deleteSchedule(e)" matTooltip="Delete" aria-label="Delete test">
-                                        <mat-icon>delete_outline</mat-icon>
-                                    </button>
-                                </ng-container>
-
-                                <!-- ── Tab 2: Published Actions ── -->
-                                <ng-container *ngIf="activeTab === 'published'">
-                                    <button type="button" class="action-btn action-btn-success" (click)="openReviewAccessDialog(e)" matTooltip="Grant / Configure Student Review Access" aria-label="Configure student review access">
-                                        <mat-icon>rule</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="viewQuestionPaper(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
-                                        <mat-icon>visibility</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn" *ngIf="canEditPublished(e)" (click)="editPublishedSchedule(e)" matTooltip="Edit Assigned Students" aria-label="Edit assigned students">
-                                        <mat-icon>edit</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="downloadQuestionPaper(e)" matTooltip="Download Question Paper as PDF" aria-label="Download Question Paper as PDF">
-                                        <mat-icon>description</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-blue" (click)="downloadEvaluationGuide(e)" matTooltip="Download Answer Key as PDF" aria-label="Download Answer Key as PDF">
-                                        <mat-icon>vpn_key</mat-icon>
-                                    </button>
-                                    <button type="button" class="action-btn action-btn-danger" (click)="deleteSchedule(e)" matTooltip="Delete" aria-label="Delete test">
-                                        <mat-icon>delete_outline</mat-icon>
-                                    </button>
-                                </ng-container>
+                                <button type="button" class="action-btn action-btn-success" *ngIf="getPaperStatus(e) === 'ready_to_publish'" (click)="publishQuestionPaper(e)" matTooltip="Schedule Test" aria-label="Schedule Test">
+                                    <mat-icon>schedule</mat-icon>
+                                </button>
+                                <button type="button" class="action-btn action-btn-blue" (click)="viewQuestionPaper(e)" matTooltip="View Question Paper" aria-label="View Question Paper">
+                                    <mat-icon>visibility</mat-icon>
+                                </button>
+                                <button type="button" class="action-btn" *ngIf="isDraft(e)" (click)="onEdit(e)" matTooltip="Edit Draft" aria-label="Edit test">
+                                    <mat-icon>edit</mat-icon>
+                                </button>
+                                <button type="button" class="action-btn action-btn-blue" (click)="downloadQuestionPaper(e)" matTooltip="Download Question Paper as PDF" aria-label="Download Question Paper as PDF">
+                                    <mat-icon>description</mat-icon>
+                                </button>
+                                <button type="button" class="action-btn action-btn-blue" (click)="downloadEvaluationGuide(e)" matTooltip="Download Answer Key as PDF" aria-label="Download Answer Key as PDF">
+                                    <mat-icon>vpn_key</mat-icon>
+                                </button>
+                                <button type="button" class="action-btn action-btn-danger" (click)="deleteSchedule(e)" matTooltip="Delete" aria-label="Delete test">
+                                    <mat-icon>delete_outline</mat-icon>
+                                </button>
                             </div>
                         </td>
                     </ng-container>
@@ -482,9 +408,7 @@
                             <td class="mat-cell empty-table-cell" [attr.colspan]="displayedColumns.length">
                                 {{ !hasAppliedFilters
                                     ? 'Apply filters to view question papers.'
-                                    : (activeTab === 'drafts'
-                                        ? 'No question papers found for the selected filters.'
-                                        : 'No scheduled tests found for the selected filters.') }}
+                                    : 'No question papers found for the selected filters.' }}
                             </td>
                         </tr>
                     </tbody>

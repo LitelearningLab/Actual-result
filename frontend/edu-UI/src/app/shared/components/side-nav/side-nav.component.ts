@@ -98,6 +98,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/user/paper-test-results': 'Paper Test Results',
     '/question-papers': 'Create/Edit Paper Test',
     '/create-question-paper': 'Create/Edit Paper Test',
+    '/scheduled-paper-tests': 'Scheduled Paper Test',
     '/test-evaluation': 'Paper Evaluation',
     '/admin/ai-credits': 'AI Credits',
   };
@@ -246,7 +247,8 @@ export class SideNavComponent implements OnInit, OnDestroy {
     if (role === 'admin' || role === 'super_admin' || role === 'super-admin') {
       // Separate Question Paper module placed after Test Inbox
       this.menus.push({ label: 'Create/Edit Paper Test', path: '/question-papers', icon: 'exam' });
-      this.menus.push({ label: 'Paper Evalution', path: '/test-evaluation', icon: 'assignment' });
+      this.menus.push({ label: 'Scheduled Paper Test', path: '/scheduled-paper-tests', icon: 'calendar' });
+      this.menus.push({ label: 'Paper Evaluation', path: '/test-evaluation', icon: 'assignment' });
     }
 
     // After menus are set, update selected menu based on current URL

@@ -4,7 +4,7 @@
     <div class="qp-nav-bar">
         <button class="btn-back-papers" type="button" (click)="goBack()">
             <mat-icon>arrow_back</mat-icon>
-            <span>My Question Papers</span>
+            <span>{{ formMode === 'publish' ? 'Scheduled Paper Tests' : 'My Question Papers' }}</span>
         </button>
     </div>
 

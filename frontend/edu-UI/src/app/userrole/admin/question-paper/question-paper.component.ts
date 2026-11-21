@@ -168,29 +168,30 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   allExams: any[] = [];
   dataSource = new MatTableDataSource<any>([]);
   loadingQuestionPapers = false;
-  private examLoadSeq = 0;
+  protected examLoadSeq = 0;
   hasAppliedFilters = false;
-  private shouldLoadTestsAfterInstitutes = false;
-  private activeInstituteId = '';
-  private globalInstituteSub: Subscription | null = null;
-  private apiUrl = `${API_BASE}/get-institute-list`;
+  protected returnStateStorageKey = 'question_papers_table_return_state';
+  protected shouldLoadTestsAfterInstitutes = false;
+  protected activeInstituteId = '';
+  protected globalInstituteSub: Subscription | null = null;
+  protected apiUrl = `${API_BASE}/get-institute-list`;
 
   isSuperAdmin = false;
   isGlobalInstituteActive = false;
 
   constructor(
-    private http: HttpClient,
-    private auth: AuthService,
-    private loader: LoaderService,
-    private overlay: Overlay,
-    private vcr: ViewContainerRef,
-    private pageMeta: PageMetaService,
-    private confirmService: ConfirmService,
-    private router: Router,
-    private route: ActivatedRoute,
-    private globalInstituteContext: GlobalInstituteContextService,
-    private dialog: MatDialog,
-    private mathService: MathService
+    protected http: HttpClient,
+    protected auth: AuthService,
+    protected loader: LoaderService,
+    protected overlay: Overlay,
+    protected vcr: ViewContainerRef,
+    protected pageMeta: PageMetaService,
+    protected confirmService: ConfirmService,
+    protected router: Router,
+    protected route: ActivatedRoute,
+    protected globalInstituteContext: GlobalInstituteContextService,
+    protected dialog: MatDialog,
+    protected mathService: MathService
   ) {
     // initialize isSuperAdmin from AuthService (synchronous helper)
     try {
@@ -603,9 +604,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   }
 
   updateDisplayedColumns(): void {
-    this.displayedColumns = this.activeTab === 'drafts'
-      ? ['sno', 'title', 'sections', 'questions', 'marks', 'duration', 'actions']
-      : ['sno', 'title', 'questions', 'duration', 'evaluation', 'manual_review', 'actions'];
+    this.displayedColumns = this.activeTab === 'published'
+      ? ['sno', 'title', 'sections', 'questions', 'marks', 'duration', 'evaluation', 'manual_review', 'actions']
+      : ['sno', 'title', 'sections', 'questions', 'marks', 'duration', 'actions'];
   }
 
   isManualReview(s: any): boolean {
@@ -2330,11 +2331,13 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     });
     this.route.queryParamMap.subscribe((params) => {
       const tabParam = params.get('tab');
-      if (tabParam === 'published' || tabParam === 'drafts') {
-        this.activeTab = tabParam;
-        this.updateDisplayedColumns();
-        this.updateFilteredExams();
+      if (tabParam === 'published') {
+        this.router.navigate(['/scheduled-paper-tests'], { replaceUrl: true });
+        return;
       }
+      this.activeTab = 'drafts';
+      this.updateDisplayedColumns();
+      this.updateFilteredExams();
     });
 
     const restoredReturnState = this.restoreTestsReturnState();
@@ -3468,7 +3471,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     this.dataSource.filter = '';
     this.hasAppliedFilters = false;
     try {
-      sessionStorage.removeItem('question_papers_table_return_state');
+      sessionStorage.removeItem(this.returnStateStorageKey);
     } catch (e) {}
     if (this.isSuperAdmin) {
       this.refreshInstituteScope();
@@ -3778,7 +3781,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   saveTestsReturnState(): void {
     try {
       sessionStorage.setItem(
-        'question_papers_table_return_state',
+        this.returnStateStorageKey,
         JSON.stringify({
           instituteId:
             this.globalInstituteContext.activeInstituteId || this.selectedInstitute || '',
@@ -3813,9 +3816,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     } catch (e) {}
   }
 
-  private restoreTestsReturnState(): boolean {
+  protected restoreTestsReturnState(): boolean {
     try {
-      const raw = sessionStorage.getItem('question_papers_table_return_state');
+      const raw = sessionStorage.getItem(this.returnStateStorageKey);
       if (!raw) return false;
       const state = JSON.parse(raw);
       if (!state || !state.hasAppliedFilters) return false;
@@ -3927,7 +3930,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     }
     this.closeFiltersOverlay();
     try {
-      sessionStorage.removeItem('question_papers_table_return_state');
+      sessionStorage.removeItem(this.returnStateStorageKey);
     } catch (e) {}
     this.loadDepartments(instituteId);
     this.loadTeams(instituteId);
@@ -3970,7 +3973,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     }
     this.closeFiltersOverlay();
     try {
-      sessionStorage.removeItem('question_papers_table_return_state');
+      sessionStorage.removeItem(this.returnStateStorageKey);
     } catch (e) {}
     this.loadInstitutes();
   }

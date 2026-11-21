@@ -6454,9 +6454,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         sessionStorage.setItem('question_papers_return_state', 'true');
         sessionStorage.removeItem('edit_exam');
       } catch (e) {}
-      this.router.navigate(['/question-papers'], {
-        queryParams: { tab: 'published' },
-      });
+      this.router.navigate(['/scheduled-paper-tests']);
     } else {
       // Transition directly to Publish Test mode with saved paper details
       try {
@@ -6544,9 +6542,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       sessionStorage.setItem('question_papers_return_state', 'true');
       sessionStorage.removeItem('edit_exam');
     } catch (e) {}
-    this.router.navigate(['/question-papers'], {
-      queryParams: { tab: this.postSaveTab },
-    });
+    if (this.postSaveIsPublished || this.formMode === 'publish') {
+      this.router.navigate(['/scheduled-paper-tests']);
+    } else {
+      this.router.navigate(['/question-papers'], {
+        queryParams: { tab: this.postSaveTab },
+      });
+    }
   }
 
   reset() {
@@ -6637,7 +6639,11 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       sessionStorage.removeItem('edit_exam');
       sessionStorage.setItem('question_papers_return_state', 'true');
     } catch (e) {}
-    this.router.navigate(['/question-papers']);
+    if (this.formMode === 'publish') {
+      this.router.navigate(['/scheduled-paper-tests']);
+    } else {
+      this.router.navigate(['/question-papers']);
+    }
   }
 
   @HostListener('window:keydown.escape')

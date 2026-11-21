@@ -1,0 +1,132 @@
+@import '../question-paper.component.scss';
+
+// Centering for SECTIONS column
+th.col-sections,
+td.col-sections {
+  text-align: center !important;
+}
+
+th.col-sections {
+  ::ng-deep .mat-sort-header-container {
+    justify-content: center !important;
+  }
+}
+
+// Centering for MANUAL REVIEW column
+th.col-manual-review,
+td.col-manual-review {
+  text-align: center !important;
+}
+
+td.col-manual-review {
+  .manual-review-cell {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+  }
+}
+
+// ACTIONS column
+.col-actions.text-center {
+  text-align: center !important;
+  width: 60px;
+  min-width: 60px;
+}
+
+.row-menu-btn {
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  border-radius: 50%;
+  color: #334155;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease-in-out;
+  padding: 0;
+  margin: 0 auto;
+
+  .kebab-icon {
+    width: 20px;
+    height: 20px;
+    fill: #334155;
+    transition: fill 0.15s ease-in-out;
+  }
+
+  &:hover {
+    background-color: #e2e8f0;
+    color: #0f172a;
+
+    .kebab-icon {
+      fill: #0f172a;
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid #2563eb;
+    outline-offset: 1px;
+  }
+}
+
+::ng-deep .table-action-dropdown-menu.mat-mdc-menu-panel {
+  min-width: 230px !important;
+  border-radius: 10px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid #e2e8f0;
+  padding: 4px !important;
+
+  .mat-mdc-menu-item {
+    min-height: 40px !important;
+    height: 40px !important;
+    padding: 0 14px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: #334155;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+
+    &:hover {
+      background-color: #f8fafc !important;
+    }
+
+    mat-icon {
+      font-size: 18px !important;
+      width: 18px !important;
+      height: 18px !important;
+      margin-right: 0 !important;
+      color: #64748b;
+
+      &.menu-icon-success {
+        color: #10b981 !important;
+      }
+
+      &.menu-icon-blue {
+        color: #2563eb !important;
+      }
+
+      &.menu-icon-danger {
+        color: #ef4444 !important;
+      }
+    }
+
+    &.menu-item-danger {
+      color: #ef4444 !important;
+
+      &:hover {
+        background-color: #fef2f2 !important;
+      }
+    }
+  }
+
+  .mat-divider {
+    margin: 4px 0 !important;
+    border-top-color: #f1f5f9 !important;
+  }
+}
