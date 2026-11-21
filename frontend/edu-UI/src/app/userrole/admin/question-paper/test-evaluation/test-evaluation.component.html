@@ -943,9 +943,9 @@
             <mat-icon class="dropdown-icon">expand_more</mat-icon>
           </div>
 
-          <button type="button" class="btn-refresh-solid" (click)="refreshData()">
-            <mat-icon>refresh</mat-icon>
-            <span>Refresh</span>
+          <button type="button" class="btn-refresh-solid" [disabled]="isRefreshingTable" (click)="refreshTableOnly()" title="Refresh table records">
+            <mat-icon [class.mini-spin-icon]="isRefreshingTable">refresh</mat-icon>
+            <span>{{ isRefreshingTable ? 'Refreshing...' : 'Refresh' }}</span>
           </button>
         </div>
       </div>

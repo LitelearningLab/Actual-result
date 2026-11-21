@@ -175,6 +175,16 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   newSectionTargetCount: number | null = null;
   newSectionMarksPerQ: number | null = null;
 
+  // ── Upload Existing Question Paper Modal State ──
+  showUploadPaperModal = false;
+  uploadPaperFile: File | null = null;
+  uploadPaperFileName = '';
+  uploadPaperFileSize = '';
+  uploadPaperDragging = false;
+  uploadPaperLoading = false;
+  uploadPaperProgressStep = '';
+  uploadPaperError = '';
+
   // ── Add Questions Modal State ──
   showAddQuestionModal = false;
   activeModalSectionIndex = -1;
@@ -2755,6 +2765,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   isDescriptiveQuestion(q: any, secIdx?: number): boolean {
+    // If question has options, it is an objective / multiple-choice question and options must be displayed
+    if (q?.options && Array.isArray(q.options) && q.options.length > 0) {
+      return false;
+    }
     const sec = secIdx !== undefined && this.sections ? this.sections[secIdx] : null;
     const questionType = String(
       q?.type || q?.question_type || sec?.question_type || ''
@@ -2768,41 +2782,103 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   estimateQuestionHeight(q: PaperQuestion, sec: PaperSection, isAnswerKey: boolean): number {
     const qText = q?.question || (q as any)?.question_text || (q as any)?.text || '';
-    // In Times New Roman 13.5px across 600px width, ~100 characters fit on a single line
-    const textLines = Math.max(1, Math.ceil(qText.length / 100));
-    const textHeight = textLines * 18;
+    
+    // Check if question has matching columns or markdown data tables
+    const matchColRegex = /(Column\s*[-–—]?\s*(?:I|A|1)[^\r\n]*)\r?\n((?:(?:\([a-zA-Z0-9]+\)|[a-zA-Z0-9]+[\.\)])[^\r\n]+\r?\n?)+)\s*(Column\s*[-–—]?\s*(?:II|B|2)[^\r\n]*)\r?\n((?:(?:\([a-zA-Z0-9]+\)|[a-zA-Z0-9]+[\.\)])[^\r\n]+\r?\n?)+)/i;
+    const matchMatch = qText.match(matchColRegex);
+    const mdTableRegex = /(\|[^\r\n]+\|\r?\n\|[-:\s|]+\|\r?\n(?:\|[^\r\n]+\|\r?\n?)+)/;
+    const mdTableMatch = qText.match(mdTableRegex);
+
+    let textHeight = 0;
+    if (matchMatch) {
+      const items1 = matchMatch[2].trim().split(/\r?\n/).filter((l: string) => l.trim().length > 0);
+      const items2 = matchMatch[4].trim().split(/\r?\n/).filter((l: string) => l.trim().length > 0);
+      const rows = Math.max(items1.length, items2.length) + 1; // +1 for header
+      const tableHeight = rows * 22;
+      const otherText = (qText.substring(0, matchMatch.index) + qText.substring((matchMatch.index || 0) + matchMatch[0].length)).trim();
+      const otherLines = otherText ? Math.max(1, Math.ceil(otherText.length / 85)) : 0;
+      textHeight = otherLines * 18 + tableHeight;
+    } else if (mdTableMatch) {
+      const tableLines = mdTableMatch[1].trim().split(/\r?\n/).filter((l: string) => l.trim().length > 0);
+      const rows = Math.max(1, tableLines.length - 1);
+      const tableHeight = rows * 26 + 12;
+      const otherText = (qText.substring(0, mdTableMatch.index) + qText.substring((mdTableMatch.index || 0) + mdTableMatch[0].length)).trim();
+      const otherLines = otherText ? Math.max(1, Math.ceil(otherText.length / 85)) : 0;
+      textHeight = otherLines * 18 + tableHeight;
+    } else {
+      // Normalize consecutive blank lines to match CSS white-space: pre-line rendering
+      const rawLines = qText.split(/\r?\n/);
+      let totalLines = 0;
+      let prevBlank = false;
+      for (const rawLine of rawLines) {
+        const line = rawLine.trim();
+        if (!line) {
+          if (!prevBlank) {
+            totalLines += 0.4;
+            prevBlank = true;
+          }
+        } else {
+          // In Times New Roman 13.5px across ~590px usable column width, ~85 characters fit on a single line
+          totalLines += Math.max(1, Math.ceil(line.length / 85));
+          prevBlank = false;
+        }
+      }
+      textHeight = Math.ceil(Math.max(1, totalLines) * 18);
+    }
+
+    // Account for image height if question has media or markdown image
+    const hasImage = !!(
+      (q as any)?.image_url ||
+      (q as any)?.raw?.image_url ||
+      ((q as any)?.media && (q as any).media.length > 0) ||
+      /!\[([^\]]*)\]\(([^)]+)\)/.test(qText)
+    );
+    if (hasImage) {
+      textHeight += 180;
+    }
 
     let optionsOrAnsHeight = 0;
     if (!isAnswerKey) {
       const isDescriptive = this.isDescriptiveQuestion(q, this.sections?.indexOf(sec));
-      if (!isDescriptive) {
-        const opts = q?.options && q.options.length > 0 ? q.options : (q?.raw?.options || null);
-        if (opts && opts.length > 0) {
-          const maxOptLen = Math.max(
-            ...opts.map((o: any) =>
-              (typeof o === 'string' ? o : o?.text || o?.option_text || o?.value || '').length
-            )
-          );
-          if (maxOptLen > 50) {
-            // Stacked options: 1 column
-            optionsOrAnsHeight = opts.length * 17 + 4;
-          } else {
-            // 2 column grid
-            const rows = Math.ceil(opts.length / 2);
-            optionsOrAnsHeight = rows * 17 + 4;
-          }
+      const opts = (!isDescriptive && q?.options && q.options.length > 0)
+        ? q.options
+        : (q?.raw?.options && !isDescriptive ? q.raw.options : null);
+      if (opts && opts.length > 0) {
+        const maxOptLen = Math.max(
+          ...opts.map((o: any) =>
+            (typeof o === 'string' ? o : o?.text || o?.option_text || o?.value || '').length
+          )
+        );
+        if (maxOptLen > 40) {
+          // Stacked options: 1 column
+          optionsOrAnsHeight = opts.length * 19 + 4;
         } else {
-          // Objective questions have multiple choice options (typically 4 options in 2 rows)
-          optionsOrAnsHeight = 38;
+          // 2 column grid
+          const rows = Math.ceil(opts.length / 2);
+          optionsOrAnsHeight = rows * 19 + 4;
         }
       }
     } else {
       const ansText = this.getCorrectAnswerText(q, this.sections?.indexOf(sec)) || 'Answer not set yet';
-      const ansLines = Math.max(1, Math.ceil(ansText.length / 100));
-      optionsOrAnsHeight = ansLines * 17 + 4;
+      const ansRawLines = ansText.split(/\r?\n/);
+      let ansTotalLines = 0;
+      let ansPrevBlank = false;
+      for (const rawLine of ansRawLines) {
+        const line = rawLine.trim();
+        if (!line) {
+          if (!ansPrevBlank) {
+            ansTotalLines += 0.4;
+            ansPrevBlank = true;
+          }
+        } else {
+          ansTotalLines += Math.max(1, Math.ceil(line.length / 85));
+          ansPrevBlank = false;
+        }
+      }
+      optionsOrAnsHeight = Math.ceil(Math.max(1, ansTotalLines) * 18) + 4;
     }
 
-    return textHeight + optionsOrAnsHeight + 8;
+    return textHeight + optionsOrAnsHeight + 6;
   }
 
   buildPaginatedPages(isAnswerKey: boolean): PaperPage[] {
@@ -2810,14 +2886,16 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
     // Standard A4 height is 297mm = 1122.5px.
     // Inner padding: 14mm top (53px) + 12mm bottom (45px) = 98px.
-    // Footer: 20px.
-    // Usable inside page content height = 1122.5 - 98 - 20 = 1004.5px.
-    const USABLE_PAGE_HEIGHT = 1000;
+    // Footer: 24px + 8px margin = 32px.
+    // Running header on Page 2+: 30px.
+    // Exact usable content height = 1122.5 - 98 - 32 - 30 = 962.5px.
+    // 960px ensures questions comfortably break before reaching or overlapping the footer.
+    const USABLE_PAGE_HEIGHT = 960;
 
     // Estimate Page 1 Examination Header height
-    let p1HeaderHeight = 14; // divider + margins
+    let p1HeaderHeight = 20; // divider + margins
     if (this.instituteNameDisplay && this.instituteNameDisplay.trim()) {
-      p1HeaderHeight += 20;
+      p1HeaderHeight += 22;
     }
     const metaParts = [
       this.getSelectedDepartmentsDisplay(),
@@ -2825,14 +2903,17 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.subject_name,
     ].filter((p) => p && p.trim());
     if (metaParts.length > 0) {
-      p1HeaderHeight += 16;
-    }
-    if (this.title || this.examTypeLabel) {
       p1HeaderHeight += 18;
     }
-    p1HeaderHeight += 16; // Time / Max Marks row
+    if (this.title || this.examTypeLabel) {
+      p1HeaderHeight += 20;
+    }
+    if (this.formattedExamDate) {
+      p1HeaderHeight += 16;
+    }
+    p1HeaderHeight += 18; // Time / Max Marks row
 
-    const runningHeaderHeight = 26;
+    const runningHeaderHeight = 30;
 
     let currentPageItems: PaperPageItem[] = [];
     let currentCapacity = Math.max(400, USABLE_PAGE_HEIGHT - p1HeaderHeight);
@@ -3215,7 +3296,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             .word-page {
               width: 210mm;
               min-height: 297mm;
-              height: 297mm;
               margin: 24px auto;
               background: #ffffff;
               box-shadow: 0 4px 18px rgba(0,0,0,0.12);
@@ -3225,7 +3305,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             }
             .word-page-inner {
               padding: 14mm 18mm 12mm 18mm;
-              height: 100%;
+              min-height: 297mm;
               display: flex;
               flex-direction: column;
               box-sizing: border-box;
@@ -3353,9 +3433,72 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             }
             .paper-q-text {
               flex: 1;
+              min-width: 0;
               font-size: 13.5px;
               color: #111;
               line-height: 1.35;
+              white-space: pre-line;
+              word-break: break-word;
+            }
+            .paper-data-table {
+              width: 100%;
+              max-width: 580px;
+              border-collapse: collapse;
+              margin: 6px 0 8px 0;
+              font-family: inherit;
+              font-size: 13px;
+              line-height: 1.35;
+            }
+            .paper-data-table th,
+            .paper-data-table td {
+              text-align: left;
+              padding: 4px 10px;
+              border: 1px solid #444;
+              color: #111;
+              vertical-align: middle;
+              white-space: normal;
+              word-break: normal;
+              width: auto !important;
+            }
+            .paper-data-table th {
+              font-weight: 700;
+              background-color: #f1f5f9;
+              color: #000;
+              border-bottom: 2px solid #222;
+            }
+            .paper-match-table {
+              width: 100%;
+              max-width: 580px;
+              border-collapse: collapse;
+              margin: 4px 0 6px 0;
+              font-family: inherit;
+              font-size: 13.5px;
+              line-height: 1.35;
+            }
+            .paper-match-table th {
+              text-align: left;
+              font-weight: 700;
+              padding: 3px 14px 4px 0;
+              border-bottom: 1.5px solid #222;
+              color: #000;
+              width: 50%;
+            }
+            .paper-match-table td {
+              text-align: left;
+              padding: 3px 14px 3px 0;
+              vertical-align: top;
+              color: #111;
+              width: 50%;
+              white-space: normal;
+              word-break: normal;
+            }
+            .paper-question-image {
+              max-width: 100%;
+              max-height: 280px;
+              object-fit: contain;
+              display: block;
+              margin: 6px auto;
+              border-radius: 2px;
             }
             .paper-q-marks {
               flex-shrink: 0;
@@ -3567,6 +3710,188 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.syncModelCategoriesFromSections();
       this.markDirty();
     }
+  }
+
+  // ── Upload Existing Question Paper Methods ──
+  openUploadPaperModal() {
+    this.uploadPaperFile = null;
+    this.uploadPaperFileName = '';
+    this.uploadPaperFileSize = '';
+    this.uploadPaperDragging = false;
+    this.uploadPaperLoading = false;
+    this.uploadPaperProgressStep = '';
+    this.uploadPaperError = '';
+    this.showUploadPaperModal = true;
+  }
+
+  closeUploadPaperModal() {
+    if (this.uploadPaperLoading) return;
+    this.showUploadPaperModal = false;
+    this.uploadPaperFile = null;
+    this.uploadPaperFileName = '';
+    this.uploadPaperFileSize = '';
+    this.uploadPaperDragging = false;
+    this.uploadPaperProgressStep = '';
+    this.uploadPaperError = '';
+  }
+
+  onPaperFileSelected(event: any) {
+    const file = event?.target?.files?.[0];
+    if (file) {
+      this.handlePaperFile(file);
+    }
+  }
+
+  onPaperFileDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.uploadPaperDragging = true;
+  }
+
+  onPaperFileDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.uploadPaperDragging = false;
+  }
+
+  onPaperFileDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.uploadPaperDragging = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.handlePaperFile(file);
+    }
+  }
+
+  private handlePaperFile(file: File) {
+    const validExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.webp'];
+    const lowerName = (file.name || '').toLowerCase();
+    const isValid = validExtensions.some((ext) => lowerName.endsWith(ext));
+    if (!isValid) {
+      notify('Please upload a PDF or image file (.pdf, .png, .jpg, .jpeg)', 'error');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      notify('File size must not exceed 20MB', 'error');
+      return;
+    }
+
+    this.uploadPaperFile = file;
+    this.uploadPaperFileName = file.name;
+    const sizeMb = file.size / (1024 * 1024);
+    this.uploadPaperFileSize = sizeMb >= 1 ? `${sizeMb.toFixed(2)} MB` : `${Math.round(file.size / 1024)} KB`;
+    this.uploadPaperError = '';
+  }
+
+  removeSelectedPaperFile() {
+    if (this.uploadPaperLoading) return;
+    this.uploadPaperFile = null;
+    this.uploadPaperFileName = '';
+    this.uploadPaperFileSize = '';
+    this.uploadPaperError = '';
+  }
+
+  startAIPaperExtraction() {
+    if (!this.uploadPaperFile) {
+      notify('Please select a question paper file to upload', 'error');
+      return;
+    }
+    if (!this.institute) {
+      notify('Please select an Institute first', 'error');
+      return;
+    }
+
+    this.uploadPaperLoading = true;
+    this.uploadPaperError = '';
+    this.uploadPaperProgressStep = 'Analyzing question paper and extracting questions with AI...';
+
+    const formData = new FormData();
+    formData.append('file', this.uploadPaperFile);
+    formData.append('institute_id', this.institute);
+    formData.append('user_id', this.getCurrentUserId() || '');
+    if (this.subject_id) formData.append('subject_id', this.subject_id);
+    if (this.subject_name) formData.append('subject_name', this.subject_name);
+
+    const url = `${API_BASE}/extract-questions-from-paper`;
+    this.http.post<any>(url, formData).subscribe({
+      next: (res) => {
+        this.uploadPaperLoading = false;
+        if (res && res.status && res.data) {
+          const data = res.data;
+          const extractedSections = data.sections || [];
+          if (!extractedSections.length) {
+            notify('No questions detected in the uploaded file.', 'error');
+            return;
+          }
+
+          // Automatically generate template with extracted sections & questions
+          this.sections = extractedSections.map((sec: any, idx: number) => {
+            const secQuestions = (sec.questions || []).map((q: any) => ({
+              id: q.id,
+              question: q.question,
+              type: (q.options && q.options.length > 0) ? 'choose' : (q.type || sec.question_type || 'descriptive'),
+              marks: Number(q.marks) || 1,
+              category_id: q.category_id,
+              category_name: q.category_name,
+              options: q.options || [],
+              answer: q.answer || ''
+            }));
+            const hasOptions = secQuestions.some((q: any) => q.options && q.options.length > 0);
+            const resolvedSecType = hasOptions ? 'objective' : (sec.question_type || 'descriptive');
+
+            return {
+              name: sec.name || `Section ${String.fromCharCode(65 + idx)}`,
+              sub_heading: sec.sub_heading || sec.instructions || 'Answer all questions.',
+              instructions: sec.instructions || sec.sub_heading || 'Answer all questions.',
+              question_type: resolvedSecType,
+              order_number: idx + 1,
+              targetCount: sec.targetCount || secQuestions.length || null,
+              marksPerQ: sec.marksPerQ || null,
+              questions: secQuestions
+            };
+          });
+
+          // Set test name/title if not already filled
+          if ((!this.title || !this.title.trim()) && data.title) {
+            this.title = data.title;
+          }
+
+          // Set total marks override
+          if (data.total_marks) {
+            this.totalMarksOverride = Number(data.total_marks);
+          } else {
+            this.totalMarksOverride = this.totalPaperMarks;
+          }
+
+          this.syncModelCategoriesFromSections();
+          this.markDirty();
+          this.paginatedPaperPages = this.buildPaginatedPages(false);
+          this.paginatedGuidePages = this.buildPaginatedPages(true);
+          this.closeUploadPaperModal();
+
+          const totalQs = data.total_questions || this.totalPaperQuestionsCount;
+          notify(
+            `Question paper template created successfully! Detected ${totalQs} questions across ${this.sections.length} sections.`,
+            'success'
+          );
+        } else {
+          const msg = res?.statusMessage || 'Failed to extract questions from paper';
+          this.uploadPaperError = msg;
+          notify(msg, 'error');
+        }
+      },
+      error: (err) => {
+        this.uploadPaperLoading = false;
+        const msg =
+          err?.error?.statusMessage ||
+          err?.error?.error ||
+          err?.error?.message ||
+          'Failed to extract questions using AI. Please verify the file and try again.';
+        this.uploadPaperError = msg;
+        notify(msg, 'error');
+      }
+    });
   }
 
   // ── Add Questions Modal Methods ──

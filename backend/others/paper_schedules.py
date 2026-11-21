@@ -14,6 +14,9 @@ from db.models import (
     Option,
     AnswerSheetPage,
     Answer,
+    MarksHistory,
+    Setting,
+    ExamReviewComments,
 )
 from db.db import SQLiteDB
 import sys
@@ -701,6 +704,8 @@ def get_paper_schedules(request, current_user=None):
 
                     # Batch query scores from Answers table
                     ans_scores_map = {}
+                    manual_attempts = set()
+                    need_check_attempts = set()
                     if all_attempt_ids:
                         try:
                             ans_rows = (
@@ -715,6 +720,79 @@ def get_paper_schedules(request, current_user=None):
                             ans_scores_map = {str(r[0]): float(r[1]) for r in ans_rows if r[1] is not None}
                         except Exception:
                             ans_scores_map = {}
+
+                        try:
+                            # 1. Attempts with MarksHistory (teacher updated descriptive marks)
+                            mh_attempts = (
+                                session.query(Answer.attempt_id)
+                                .join(MarksHistory, MarksHistory.answer_id == Answer.answer_id)
+                                .filter(func.cast(Answer.attempt_id, String).in_(all_attempt_ids))
+                                .distinct()
+                                .all()
+                            )
+                            for r in mh_attempts:
+                                if r[0]:
+                                    manual_attempts.add(str(r[0]))
+
+                            # 2. Answers with manual edits (edit_reason or manual_marks)
+                            manual_ans_attempts = (
+                                session.query(Answer.attempt_id)
+                                .filter(
+                                    func.cast(Answer.attempt_id, String).in_(all_attempt_ids),
+                                    or_(
+                                        (Answer.edit_reason.isnot(None) & (Answer.edit_reason != "")),
+                                        (Answer.manual_marks.isnot(None)),
+                                    ),
+                                )
+                                .distinct()
+                                .all()
+                            )
+                            for r in manual_ans_attempts:
+                                if r[0]:
+                                    manual_attempts.add(str(r[0]))
+
+                            # 3. ExamReviewComments (rubric feedback edits/additions by teacher)
+                            try:
+                                erc_attempts = (
+                                    session.query(ExamReviewComments.attempt_id)
+                                    .filter(func.cast(ExamReviewComments.attempt_id, String).in_(all_attempt_ids))
+                                    .distinct()
+                                    .all()
+                                )
+                                for r in erc_attempts:
+                                    if r[0]:
+                                        manual_attempts.add(str(r[0]))
+                            except Exception:
+                                pass
+
+                            # 4. Answers needing check
+                            setting_row = session.query(Setting).first()
+                            conf_thresh = (
+                                float(setting_row.ai_confidence_threshold)
+                                if setting_row and setting_row.ai_confidence_threshold is not None
+                                else 70.0
+                            )
+                            nc_attempts = (
+                                session.query(Answer.attempt_id)
+                                .filter(
+                                    func.cast(Answer.attempt_id, String).in_(all_attempt_ids),
+                                    or_(
+                                        Answer.manual_review_required == 1,
+                                        (
+                                            Answer.ai_confidence.isnot(None)
+                                            & (Answer.ai_confidence > 0)
+                                            & (Answer.ai_confidence <= conf_thresh)
+                                        ),
+                                    ),
+                                )
+                                .distinct()
+                                .all()
+                            )
+                            for r in nc_attempts:
+                                if r[0]:
+                                    need_check_attempts.add(str(r[0]))
+                        except Exception as ex:
+                            print(f"[get_paper_schedules] Error checking manual/need_to_check status: {ex}")
 
                     for u in u_objs:
                         u_uid_str = str(u.user_id)
@@ -735,8 +813,15 @@ def get_paper_schedules(request, current_user=None):
                             elif target_att.score is not None:
                                 u_score = round(float(target_att.score), 1)
 
+                            has_manual_edits = any(str(a.attempt_id) in manual_attempts for a in u_att_list)
+                            has_need_to_check = any(str(a.attempt_id) in need_check_attempts for a in u_att_list)
+
                             att_status = (target_att.status or "").lower()
-                            if att_status == "evaluated":
+                            if has_manual_edits:
+                                u_status = "Manual Reviewed"
+                            elif has_need_to_check:
+                                u_status = "Need to Check"
+                            elif att_status == "evaluated":
                                 u_status = "AI Evaluated"
                             elif u_pages_count > 0 or att_status in ("in_progress", "submitted"):
                                 u_status = "AI Evaluated" if u_score is not None else "Need to Check"

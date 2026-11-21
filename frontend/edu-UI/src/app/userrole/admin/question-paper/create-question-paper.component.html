@@ -666,11 +666,17 @@
                     <div class="sections-empty" *ngIf="sections.length === 0 && subject_id">
                         <mat-icon>view_agenda</mat-icon>
                         <h3>No Sections Yet</h3>
-                        <p>{{ readOnly ? 'No sections have been configured for this question paper.' : 'Add your first section to start building the question paper.' }}</p>
-                        <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()" *ngIf="!readOnly">
-                            <mat-icon>add</mat-icon>
-                            <span>Add Section</span>
-                        </button>
+                        <p>{{ readOnly ? 'No sections have been configured for this question paper.' : 'Add your first section to start building the question paper, or upload an existing question paper.' }}</p>
+                        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;" *ngIf="!readOnly">
+                            <button class="btn-outline-add-sec" type="button" (click)="openAddSectionModal()">
+                                <mat-icon>add</mat-icon>
+                                <span>Add Section</span>
+                            </button>
+                            <button class="btn-outline-upload-sec" type="button" (click)="openUploadPaperModal()">
+                                <mat-icon>cloud_upload</mat-icon>
+                                <span>Upload Existing Question Paper</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Sections list -->
@@ -713,11 +719,20 @@
                             <div class="sec-questions" *ngIf="sec.questions && sec.questions.length > 0">
                                 <div class="sec-q-row" *ngFor="let q of sec.questions; let qIdx = index">
                                     <span class="q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}</span>
-                                    <span class="q-text"
-                                        [matTooltip]="q.question"
-                                        matTooltipPosition="above"
-                                        matTooltipClass="question-full-tooltip"
-                                        [matTooltipShowDelay]="100">{{ q.question }}</span>
+                                    <div class="q-content-wrap" style="flex: 1; min-width: 0;">
+                                        <span class="q-text"
+                                            [matTooltip]="q.question"
+                                            matTooltipPosition="above"
+                                            matTooltipClass="question-full-tooltip"
+                                            [matTooltipShowDelay]="100"
+                                            style="white-space: pre-line; display: block;">{{ q.question }}</span>
+                                        <div class="q-inline-options" *ngIf="q.options && q.options.length > 0" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                                            <span class="q-opt-pill" *ngFor="let opt of q.options; let optIdx = index"
+                                                style="font-size: 11.5px; background: #f8fafc; color: #334155; padding: 2px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                                {{ formatOptionText(opt, optIdx) }}
+                                            </span>
+                                        </div>
+                                    </div>
                                     <div class="q-marks-wrap">
                                         <input class="q-marks-input" type="number" [(ngModel)]="q.marks" (ngModelChange)="markDirty()" min="0"
                                             [ngModelOptions]="{standalone: true}" [disabled]="readOnly" />
@@ -819,6 +834,12 @@
                     <button class="btn-sidebar-publish" type="button" (click)="save(false, false)" *ngIf="formMode === 'create' && !isPublished && !readOnly" [disabled]="!canCreatePaper" [class.disabled]="!canCreatePaper" [matTooltip]="createDisabledReason">
                         <mat-icon>add_circle_outline</mat-icon>
                         <span>Create Question Paper</span>
+                    </button>
+
+                    <!-- Upload Existing Question Paper -->
+                    <button class="btn-sidebar-upload" type="button" (click)="openUploadPaperModal()" *ngIf="formMode === 'create' && !isPublished && !readOnly" title="Upload an existing question paper to detect questions and create a template automatically with AI">
+                        <mat-icon>cloud_upload</mat-icon>
+                        <span>Upload Existing Question Paper</span>
                     </button>
 
                     <!-- Save Draft (Create mode only -> Draft: isDraft = true) -->
@@ -1311,6 +1332,130 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- ═══ Modal: Upload Existing Question Paper ═══ -->
+    <div class="modal-backdrop" *ngIf="showUploadPaperModal" (mousedown)="$event.target === $event.currentTarget ? closeUploadPaperModal() : null">
+        <div class="modal-dialog upload-paper-dialog" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-header-title-wrap">
+                    <div class="header-icon-wrap">
+                        <mat-icon>auto_awesome</mat-icon>
+                    </div>
+                    <div>
+                        <h3>Upload Existing Question Paper</h3>
+                        <p class="modal-subtitle">AI automatically extracts questions, sub-questions, identifies 1-mark, 2-mark, 5-mark and descriptive questions, and creates a template.</p>
+                    </div>
+                </div>
+                <button mat-icon-button type="button" (click)="closeUploadPaperModal()" [disabled]="uploadPaperLoading">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Subject & Institute Info Bar -->
+                <div class="paper-upload-context-bar" *ngIf="subject_name">
+                    <div class="context-item">
+                        <span class="context-label">Target Subject:</span>
+                        <span class="context-val">{{ subject_name }}</span>
+                    </div>
+                </div>
+
+                <!-- Detection Feature Highlights -->
+                <div class="upload-feature-chips">
+                    <div class="feature-chip">
+                        <mat-icon>check_circle</mat-icon>
+                        <span>1-Mark Questions</span>
+                    </div>
+                    <div class="feature-chip">
+                        <mat-icon>check_circle</mat-icon>
+                        <span>2-Mark Questions</span>
+                    </div>
+                    <div class="feature-chip">
+                        <mat-icon>check_circle</mat-icon>
+                        <span>5-Mark Questions</span>
+                    </div>
+                    <div class="feature-chip">
+                        <mat-icon>check_circle</mat-icon>
+                        <span>Descriptive &amp; Sub-questions</span>
+                    </div>
+                </div>
+
+                <!-- Dropzone / File Picker -->
+                <div class="upload-dropzone"
+                    [class.dragging]="uploadPaperDragging"
+                    [class.has-file]="uploadPaperFile"
+                    [class.loading]="uploadPaperLoading"
+                    (dragover)="onPaperFileDragOver($event)"
+                    (dragleave)="onPaperFileDragLeave($event)"
+                    (drop)="onPaperFileDrop($event)">
+                    
+                    <input #paperFileInput type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" (change)="onPaperFileSelected($event)" style="display: none;" />
+
+                    <!-- No file selected view -->
+                    <div class="dropzone-content" *ngIf="!uploadPaperFile && !uploadPaperLoading" (click)="paperFileInput.click()">
+                        <div class="dropzone-icon-circle">
+                            <mat-icon>cloud_upload</mat-icon>
+                        </div>
+                        <h4>Drop question paper here, or <span class="browse-link">browse</span></h4>
+                        <p>Supports PDF document, PNG, JPG, or JPEG images (up to 20MB)</p>
+                    </div>
+
+                    <!-- File selected view -->
+                    <div class="selected-file-preview" *ngIf="uploadPaperFile && !uploadPaperLoading">
+                        <div class="file-icon-box">
+                            <mat-icon>{{ uploadPaperFileName.endsWith('.pdf') ? 'picture_as_pdf' : 'image' }}</mat-icon>
+                        </div>
+                        <div class="file-details">
+                            <div class="file-name">{{ uploadPaperFileName }}</div>
+                            <div class="file-size">{{ uploadPaperFileSize }}</div>
+                        </div>
+                        <button class="btn-remove-file" type="button" (click)="removeSelectedPaperFile(); $event.stopPropagation()" title="Remove file">
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    </div>
+
+                    <!-- Loading / AI extraction progress view -->
+                    <div class="upload-loading-view" *ngIf="uploadPaperLoading">
+                        <div class="ai-processing-spinner">
+                            <mat-icon class="spin-icon">auto_awesome</mat-icon>
+                        </div>
+                        <h4>AI is analyzing question paper...</h4>
+                        <p class="loading-step-msg">{{ uploadPaperProgressStep }}</p>
+                        <div class="progress-steps-list">
+                            <div class="step-line active">
+                                <mat-icon>sync</mat-icon>
+                                <span>Scanning pages &amp; recognizing document questions</span>
+                            </div>
+                            <div class="step-line active">
+                                <mat-icon>sync</mat-icon>
+                                <span>Detecting question numbers, sub-questions &amp; mark allocations</span>
+                            </div>
+                            <div class="step-line active">
+                                <mat-icon>sync</mat-icon>
+                                <span>Structuring into 1M, 2M, 5M &amp; descriptive sections</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Alert -->
+                <div class="upload-error-banner" *ngIf="uploadPaperError && !uploadPaperLoading">
+                    <mat-icon>error_outline</mat-icon>
+                    <span>{{ uploadPaperError }}</span>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" type="button" (click)="closeUploadPaperModal()" [disabled]="uploadPaperLoading">
+                    Cancel
+                </button>
+                <button class="btn-modal-confirm btn-upload-confirm" type="button" (click)="startAIPaperExtraction()" [disabled]="!uploadPaperFile || uploadPaperLoading">
+                    <mat-icon>auto_awesome</mat-icon>
+                    <span>{{ uploadPaperLoading ? 'Extracting with AI...' : 'Extract & Generate Template' }}</span>
+                </button>
+            </div>
+        </div>
     </div>
 
 </div>

@@ -41,6 +41,12 @@ export class MathService {
     let str = String(input);
     if (!str.trim()) return '';
 
+    // Check for match the following two-column patterns or markdown tables
+    const matchTableHtml = this.formatMatchColumnsToHtml(str);
+    if (matchTableHtml) {
+      return matchTableHtml;
+    }
+
     if (!this.hasMathIndicators(str)) {
       if (this.isMathSubject(subject)) {
         str = this.formatPlainMathToLatex(str, subject);
@@ -51,6 +57,81 @@ export class MathService {
     }
 
     return this.parseAndRenderMixed(str);
+  }
+
+  public formatMatchColumnsToHtml(text: string): string {
+    if (!text) return '';
+
+    // 1. Check if text has sequential Column-I ... Column-II or List-I ... List-II or Column A ... Column B
+    const matchColRegex = /(Column\s*[-–—]?\s*(?:I|A|1)[^\r\n]*)\r?\n((?:(?:\([a-zA-Z0-9]+\)|[a-zA-Z0-9]+[\.\)])[^\r\n]+\r?\n?)+)\s*(Column\s*[-–—]?\s*(?:II|B|2)[^\r\n]*)\r?\n((?:(?:\([a-zA-Z0-9]+\)|[a-zA-Z0-9]+[\.\)])[^\r\n]+\r?\n?)+)/i;
+
+    const m = text.match(matchColRegex);
+    if (m) {
+      const header1 = m[1].trim();
+      const items1 = m[2].trim().split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      const header2 = m[3].trim();
+      const items2 = m[4].trim().split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+
+      const maxRows = Math.max(items1.length, items2.length);
+      let rowsHtml = '';
+      for (let i = 0; i < maxRows; i++) {
+        const c1 = items1[i] ? this.escapeHtml(items1[i]) : '';
+        const c2 = items2[i] ? this.escapeHtml(items2[i]) : '';
+        rowsHtml += `<tr><td>${c1}</td><td>${c2}</td></tr>`;
+      }
+
+      const tableHtml = `<table class="paper-match-table"><thead><tr><th>${this.escapeHtml(header1)}</th><th>${this.escapeHtml(header2)}</th></tr></thead><tbody>${rowsHtml}</tbody></table>`;
+
+      const before = text.substring(0, m.index);
+      const after = text.substring((m.index || 0) + m[0].length);
+
+      const renderedBefore = this.escapeHtml(before).replace(/\r?\n/g, '<br/>');
+      const renderedAfter = this.escapeHtml(after).replace(/\r?\n/g, '<br/>');
+
+      return `${renderedBefore}${tableHtml}${renderedAfter}`;
+    }
+
+    // 2. Check if text has a Markdown table: | Col 1 | Col 2 |
+    const mdTableRegex = /(\|[^\r\n]+\|\r?\n\|[-:\s|]+\|\r?\n(?:\|[^\r\n]+\|\r?\n?)+)/;
+    const mdMatch = text.match(mdTableRegex);
+    if (mdMatch) {
+      const tableRaw = mdMatch[1].trim();
+      const lines = tableRaw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length >= 3) {
+        const headerCells = lines[0].split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+        const colCount = headerCells.length;
+        const bodyLines = lines.slice(2);
+
+        // 2-column tables use paper-match-table (side-by-side 50/50); multi-column tables use paper-data-table (proportional widths)
+        const tableClass = colCount === 2 ? 'paper-match-table' : 'paper-data-table';
+
+        let headerHtml = '<tr>' + headerCells.map(h => `<th>${this.escapeHtml(h)}</th>`).join('') + '</tr>';
+        let bodyHtml = '';
+        for (const bl of bodyLines) {
+          const cells = bl.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+          bodyHtml += '<tr>' + cells.map(c => `<td>${this.escapeHtml(c)}</td>`).join('') + '</tr>';
+        }
+
+        const tableHtml = `<table class="${tableClass}"><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>`;
+        const before = text.substring(0, mdMatch.index);
+        const after = text.substring((mdMatch.index || 0) + mdMatch[0].length);
+
+        const renderedBefore = this.escapeHtml(before).replace(/\r?\n/g, '<br/>');
+        const renderedAfter = this.escapeHtml(after).replace(/\r?\n/g, '<br/>');
+
+        return `${renderedBefore}${tableHtml}${renderedAfter}`;
+      }
+    }
+
+    // 3. Check for Markdown image: ![alt](url)
+    const mdImgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+    if (mdImgRegex.test(text)) {
+      return text.replace(mdImgRegex, (_match, alt, url) => {
+        return `<img class="paper-question-image" src="${encodeURI(url)}" alt="${this.escapeHtml(alt)}" />`;
+      });
+    }
+
+    return '';
   }
 
   public formatPlainMathToLatex(text: string, subject?: string): string {

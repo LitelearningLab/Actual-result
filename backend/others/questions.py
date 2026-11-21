@@ -19,6 +19,8 @@ import json
 import re
 import datetime
 import uuid
+import base64
+import io
 from others.llm import descriptive_evaluation, openai_client
 from others.gcs_service import gcs_storage
 
@@ -1990,3 +1992,581 @@ def fine_tune_questions_using_llm(request):
             + str(e.__traceback__.tb_lineno)
         )
         return {"status": False, "error": str(e)}, 500
+
+
+def _parse_llm_json(raw_text):
+    """
+    Robust JSON parser for LLM responses:
+    - Strips markdown code fences (```json ... ```)
+    - Extracts substring between outermost braces { ... }
+    - Handles strict=False to tolerate unescaped control chars
+    - Recovers and auto-repairs truncated JSON objects if output reached max_tokens
+    """
+    if not raw_text or not str(raw_text).strip():
+        return None
+
+    text = str(raw_text).strip()
+
+    # 1. Clean markdown code fences
+    text = re.sub(r"```(?:json)?\s*", "", text)
+    text = re.sub(r"```\s*", "", text)
+    text = text.strip()
+
+    # 2. Extract substring between outermost { and }
+    first_brace = text.find("{")
+    last_brace = text.rfind("}")
+    if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+        json_candidate = text[first_brace:last_brace + 1]
+    elif first_brace != -1:
+        json_candidate = text[first_brace:]
+    else:
+        json_candidate = text
+
+    # 3. Direct JSON load with strict=False
+    try:
+        return json.loads(json_candidate, strict=False)
+    except Exception:
+        pass
+
+    # 4. If truncated JSON (e.g. hit token limit), repair unclosed brackets/strings
+    try:
+        in_string = False
+        escape = False
+        stack = []
+        cleaned = []
+
+        for ch in json_candidate:
+            if escape:
+                escape = False
+                cleaned.append(ch)
+                continue
+            if ch == '\\':
+                escape = True
+                cleaned.append(ch)
+                continue
+            if ch == '"':
+                in_string = not in_string
+                cleaned.append(ch)
+                continue
+            if not in_string:
+                if ch in '{[':
+                    stack.append('}' if ch == '{' else ']')
+                elif ch in '}]':
+                    if stack and stack[-1] == ch:
+                        stack.pop()
+            cleaned.append(ch)
+
+        if in_string:
+            cleaned.append('"')
+
+        repaired = "".join(cleaned)
+        # Trim dangling trailing commas or incomplete attributes
+        repaired = re.sub(r',\s*$', '', repaired)
+        repaired = re.sub(r',\s*"[^"]*"\s*:\s*$', '', repaired)
+        repaired = re.sub(r'"[^"]*"\s*:\s*$', '', repaired)
+        repaired = re.sub(r',\s*$', '', repaired)
+
+        while stack:
+            repaired += stack.pop()
+
+        return json.loads(repaired, strict=False)
+    except Exception as rep_err:
+        print(f"[_parse_llm_json] Repair warning: {rep_err}")
+
+    # 5. Regex extraction of questions as last-resort fallback
+    try:
+        q_matches = re.findall(r'\{\s*"question"\s*:\s*"([^"]+)"', text)
+        if q_matches:
+            qs = [{"question": m, "marks": 1, "type": "descriptive"} for m in q_matches]
+            return {
+                "title": "Uploaded Question Paper",
+                "total_marks": len(qs),
+                "sections": [{
+                    "name": "Section A",
+                    "sub_heading": "Answer all questions.",
+                    "question_type": "descriptive",
+                    "questions": qs
+                }]
+            }
+    except Exception:
+        pass
+
+    return None
+
+
+def extract_questions_from_paper(request):
+    """
+    AI-Based Question Paper Extraction & Automatic Template Generator:
+    Extracts questions, numbers, sub-questions, mark allocations (1M, 2M, 5M, descriptive),
+    categorizes question types (objective vs descriptive), organizes them into sections,
+    and returns a structured question paper template.
+    """
+    try:
+        file_obj = None
+        if request.files and ("file" in request.files or "paper" in request.files):
+            file_obj = request.files.get("file") or request.files.get("paper")
+
+        if not file_obj:
+            return {
+                "status": False,
+                "statusMessage": "Please upload a question paper file (PDF, PNG, JPG, or JPEG).",
+            }, 400
+
+        file_bytes = file_obj.read()
+        if not file_bytes:
+            return {
+                "status": False,
+                "statusMessage": "Uploaded file is empty.",
+            }, 400
+
+        filename = (getattr(file_obj, "filename", "") or "").lower()
+        form = request.form or {}
+        institute_id = form.get("institute_id")
+        user_id = form.get("user_id") or "System"
+        subject_id = form.get("subject_id")
+        subject_name = form.get("subject_name") or ""
+
+        # Enforce AI credits check
+        from others.ai_credits import check_institute_ai_access
+        has_access, err_msg, err_code = check_institute_ai_access(
+            institute_id=institute_id,
+            user_id=user_id,
+            request_obj=request
+        )
+        if not has_access:
+            return {
+                "status": False,
+                "error": err_msg,
+                "statusMessage": err_msg,
+                "message": err_msg,
+            }, err_code
+
+        # Extract text or render page images for OCR/Vision
+        extracted_text = ""
+        image_data_uris = []
+
+        is_pdf = filename.endswith(".pdf") or "pdf" in (file_obj.content_type or "").lower()
+
+        if is_pdf:
+            try:
+                import fitz
+                doc = fitz.open(stream=file_bytes, filetype="pdf")
+                total_pages = len(doc)
+                text_pages = []
+                max_pages = total_pages
+                for p_idx in range(max_pages):
+                    page = doc[p_idx]
+                    t = page.get_text() or ""
+                    if t.strip():
+                        text_pages.append(f"--- Page {p_idx + 1} Text ---\n{t.strip()}")
+                    # Render page as JPEG image so vision can see exact visual formatting, options, tables, matching columns
+                    try:
+                        pix = page.get_pixmap(dpi=120)
+                        img_bytes = pix.tobytes("jpeg")
+                        b64 = base64.b64encode(img_bytes).decode("utf-8")
+                        image_data_uris.append(f"data:image/jpeg;base64,{b64}")
+                    except Exception as img_err:
+                        print(f"[extract_questions_from_paper] Page {p_idx + 1} render warning: {img_err}")
+                extracted_text = "\n\n".join(text_pages).strip()
+                doc.close()
+            except Exception as pdf_err:
+                print(f"[extract_questions_from_paper] PDF parse warning: {pdf_err}")
+        else:
+            # Direct image file
+            mime = "image/png" if filename.endswith(".png") else "image/jpeg"
+            b64 = base64.b64encode(file_bytes).decode("utf-8")
+            image_data_uris.append(f"data:{mime};base64,{b64}")
+
+        system_prompt = (
+            "You are an expert exam assessment and question paper parser AI. "
+            "Analyze the provided question paper document and images and extract all questions and ALL sections with high precision.\n\n"
+            "CRITICAL EXTRACTION RULES:\n"
+            "1. EXTRACT ALL SECTIONS (MANDATORY MULTI-SECTION EXTRACTION):\n"
+            "   - Question papers typically comprise multiple distinct sections (e.g. Section A, Section B, Section C, Section D, Section E, Section F, etc., or Part A, Part B, Part C, etc.).\n"
+            "   - Check the General Instructions and section headers in the document. You MUST extract and preserve EVERY single section present in the question paper as an independent section object in the 'sections' array.\n"
+            "   - NEVER merge, lump, or collapse multiple sections into just one or two sections. Each section in the question paper MUST be a separate section object in sequential order.\n"
+            "   - Questions belonging to Section A must go ONLY in Section A. Questions belonging to Section B must go ONLY in Section B. Questions belonging to Section C must go ONLY in Section C. Questions belonging to Section D must go ONLY in Section D. Questions belonging to Section E must go ONLY in Section E. Questions belonging to Section F must go ONLY in Section F.\n"
+            "   - Do NOT stop after Section A or Section B. Extract all sections and questions until the very end of the paper.\n"
+            "2. NO MISSING TEXT / NO PLACEHOLDERS: NEVER output placeholders such as '[text missing in source extraction]' or omit words. Transcribe the exact question text, options, and passages faithfully as printed in the document.\n"
+            "3. NO LEADING QUESTION NUMBERS IN QUESTION TEXT: DO NOT include the leading question number (such as '1.', '2.', 'Q1.', '21.') at the start of the 'question' text field because the UI renders the question number automatically. Start directly with the question statement (e.g., 'Choose the correctly matched pair from the following (Book — Author):').\n"
+            "4. MANDATORY MULTIPLE CHOICE & MATCHING PAIR OPTIONS:\n"
+            "   - Whenever a question has options ((A), (B), (C), (D) or (i), (ii), (iii), (iv)) or matching pairs, you MUST extract every choice into the 'options' array.\n"
+            "   - For matching pairs / table questions (like Book — Author, Column I — Column II), format each option item with the pair: e.g. options: ['(A) Amar Jiban — Tarabai Shinde', '(B) Gulamgiri — Rashsundri Debi', '(C) Burhi Aair Sadhu — Lakshminath Bezbaruah', '(D) Sambad Kaumudi — Pandita Ramabai'].\n"
+            "   - FOR MATCH THE FOLLOWING / MATCH COLUMN QUESTIONS:\n"
+            "     * When a question requires matching two columns (e.g. Column-I and Column-II, List-I and List-II, or Column A and Column B):\n"
+            "     * You MUST format the two columns SIDE BY SIDE as a 2-column table in the question statement:\n"
+            "       | Column-I (State) | Column-II (Main Regional Party) |\n"
+            "       | :--- | :--- |\n"
+            "       | (a) Uttar Pradesh | (i) Indian National Lok Dal |\n"
+            "       | (b) West Bengal | (ii) Rashtriya Lok Dal |\n"
+            "       | (c) Haryana | (iii) Biju Janata Dal |\n"
+            "       | (d) Odisha | (iv) All India Forward Block |\n"
+            "     * NEVER output Column-I and Column-II stacked vertically one after another in a single column. Always pair them side by side into two columns.\n"
+            "     * Extract the final matching options (e.g. (A) a - i, b - iii... (B)...) into the 'options' array.\n"
+            "   - Set 'type': 'choose'.\n"
+            "   - A section containing multiple choice questions MUST have 'question_type': 'objective'.\n"
+            "   - NEVER leave 'options' empty if choices exist in the document.\n"
+            "5. SUB-QUESTIONS & SOURCE / PASSAGE QUESTIONS:\n"
+            "   - When a question has sub-questions (e.g. Q9 with 9.1, 9.2, 9.3, or Case Study questions in Section E):\n"
+            "     * Format the question clearly with the passage followed by each sub-question on a new line with its sub-number and marks:\n"
+            "       e.g.: 'Read the source given below and answer the questions that follow:\\n\\n[Passage text...]\\n\\n(1) First sub-question text? (1 Mark)\\n(2) Second sub-question text? (1 Mark)\\n(3) Third sub-question text? (2 Marks)'\n"
+            "     * Alternatively, if sub-questions can be separate standalone questions, you may output each sub-question as an individual question in the section.\n"
+            "   - For internal choice / alternative questions ('OR' alternatives, like Q6(a) OR Q6(b)):\n"
+            "     Format clearly with '\\n\\n-- OR --\\n\\n' between the two choices:\n"
+            "     e.g.: 'Why did the Polish language become a symbol of struggle against Russian dominance in the 19th century? Explain.\\n\\n-- OR --\\n\\nHow did the formation of the nation-state in Britain become an ideal model in Europe? Explain.'\n"
+            "6. ACCURATE SECTION DETAILS AND MARKS:\n"
+            "   - Extract the exact section name from the paper: e.g. 'Section A', 'Section B', 'Section C', 'Section D', 'Section E', 'Section F'.\n"
+            "   - Set sub_heading to the section description or marks formula (e.g. 'Objective Type Questions (1 Mark Each)', 'Very Short Answer Questions (2 Marks Each)', 'Short Answer Questions (3 Marks Each)', 'Long Answer Questions (5 Marks Each)', 'Case-Based Questions (4 Marks Each)', 'Map Skill Based Question (2 Marks)').\n"
+            "   - Set 'question_type': 'objective' for sections with 1-mark multiple choice questions; 'descriptive' for short answer, long answer, case-based, and map questions.\n"
+            "   - Set 'marks_per_q' for the section (e.g. 1, 2, 3, 4, 5).\n"
+            "   - Each question must have its accurate 'marks' (e.g. 1, 2, 3, 4, 5).\n"
+            "7. PRESERVE DATA TABLES, CHARTS & SCHEDULES EXACTLY:\n"
+            "   - When a question contains a data table, schedule, or chart (such as Year | Primary | Secondary | Tertiary, or Production | Share):\n"
+            "   - You MUST extract and transcribe the complete table using clean Markdown table format with headers and rows:\n"
+            "     | Year | Primary | Secondary | Tertiary |\n"
+            "     | :--- | :--- | :--- | :--- |\n"
+            "     | 2000 | 52,000 | 48,500 | 1,33,500 |\n"
+            "     | 2013 | 8,00,500 | 10,74,000 | 38,68,000 |\n"
+            "   - DO NOT omit, merge, or collapse columns. Ensure every row and cell is preserved accurately.\n"
+            "8. PRESERVE QUESTIONS WITH MAPS, DIAGRAMS & IMAGES:\n"
+            "   - When a question references an image, map, cartoon, or diagram (e.g. 'Study the given map carefully...'):\n"
+            "   - Faithfully transcribe the question prompt and all accompanying notes, text descriptions, and alternate questions (such as 'For Visually Impaired Candidates...'). Ensure no question statement or options are lost.\n\n"
+            "RETURN ONLY A VALID JSON OBJECT conforming to this exact schema:\n"
+            "{\n"
+            "  \"title\": \"Title or test name from paper header or empty\",\n"
+            "  \"total_marks\": 80,\n"
+            "  \"sections\": [\n"
+            "    {\n"
+            "      \"name\": \"Section A\",\n"
+            "      \"sub_heading\": \"Objective Type Questions (1 Mark Each)\",\n"
+            "      \"question_type\": \"objective\",\n"
+            "      \"marks_per_q\": 1,\n"
+            "      \"questions\": [\n"
+            "        {\n"
+            "          \"question\": \"Choose the correctly matched pair from the following (Book — Author):\",\n"
+            "          \"type\": \"choose\",\n"
+            "          \"marks\": 1,\n"
+            "          \"options\": [\n"
+            "            \"(A) Amar Jiban — Tarabai Shinde\",\n"
+            "            \"(B) Gulamgiri — Rashsundri Debi\",\n"
+            "            \"(C) Burhi Aair Sadhu — Lakshminath Bezbaruah\",\n"
+            "            \"(D) Sambad Kaumudi — Pandita Ramabai\"\n"
+            "          ],\n"
+            "          \"answer\": \"(C) Burhi Aair Sadhu — Lakshminath Bezbaruah\"\n"
+            "        }\n"
+            "      ]\n"
+            "    },\n"
+            "    {\n"
+            "      \"name\": \"Section B\",\n"
+            "      \"sub_heading\": \"Very Short Answer Questions (2 Marks Each)\",\n"
+            "      \"question_type\": \"descriptive\",\n"
+            "      \"marks_per_q\": 2,\n"
+            "      \"questions\": [\n"
+            "        {\n"
+            "          \"question\": \"How did the European empire expand into America in the 16th century? Explain.\",\n"
+            "          \"type\": \"descriptive\",\n"
+            "          \"marks\": 2,\n"
+            "          \"options\": [],\n"
+            "          \"answer\": \"\"\n"
+            "        }\n"
+            "      ]\n"
+            "    },\n"
+            "    {\n"
+            "      \"name\": \"Section C\",\n"
+            "      \"sub_heading\": \"Short Answer Questions (3 Marks Each)\",\n"
+            "      \"question_type\": \"descriptive\",\n"
+            "      \"marks_per_q\": 3,\n"
+            "      \"questions\": [\n"
+            "        {\n"
+            "          \"question\": \"Why did the Polish language become a symbol of struggle against Russian dominance? Explain.\",\n"
+            "          \"type\": \"descriptive\",\n"
+            "          \"marks\": 3,\n"
+            "          \"options\": [],\n"
+            "          \"answer\": \"\"\n"
+            "        }\n"
+            "      ]\n"
+            "    }\n"
+            "  ]\n"
+            "}"
+        )
+
+        user_content = []
+        if extracted_text:
+            user_content.append({
+                "type": "text",
+                "text": f"Here is the text extracted from the document:\n\n{extracted_text}"
+            })
+        if image_data_uris:
+            user_content.append({
+                "type": "text",
+                "text": "Here are the original document page images. Inspect them carefully to extract all questions, matching pairs, multiple-choice options, tables, and sub-questions exactly as formatted:"
+            })
+            for uri in image_data_uris:
+                user_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": uri}
+                })
+
+        if not user_content:
+            return {
+                "status": False,
+                "statusMessage": "Could not read text or images from the uploaded file.",
+            }, 400
+
+        client = openai_client()
+        response = client.chat_completion(
+            system_message=system_prompt,
+            InputData=user_content,
+            aimodel=1,
+            max_tokens=8192,
+            temperature=0.1,
+            timeout=120.0,
+            response_format={"type": "json_object"},
+            user_name=user_id,
+            institute_id=institute_id,
+            feature_name="AI Question Generation",
+            endpoint="/extract-questions-from-paper"
+        )
+
+        if response.status_code != 200:
+            err_msg = "Failed to extract questions using AI."
+            try:
+                err_msg = response.json().get("statusMessage") or response.json().get("error") or err_msg
+            except Exception:
+                pass
+            return {"status": False, "statusMessage": err_msg}, response.status_code
+
+        parsed_data = {}
+        try:
+            resp_json = response.json()
+            raw_text = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            parsed_data = _parse_llm_json(raw_text)
+            if not parsed_data or not isinstance(parsed_data, dict):
+                raise ValueError("Parsed data is empty or invalid dict")
+        except Exception as parse_err:
+            print(f"[extract_questions_from_paper] JSON parse error: {parse_err}")
+            return {
+                "status": False,
+                "statusMessage": "Could not parse questions from the document. Please ensure the document is clear and readable.",
+            }, 500
+
+        raw_sections = parsed_data.get("sections") or []
+        if not raw_sections:
+            return {
+                "status": False,
+                "statusMessage": "No questions were detected in the uploaded question paper. Please verify the file and try again.",
+            }, 422
+
+        # Normalize and safeguard sections: ensure embedded section markers split cleanly
+        normalized_raw_sections = []
+        for sec in raw_sections:
+            curr_sec_name = sec.get("name") or f"Section {chr(65 + len(normalized_raw_sections))}"
+            curr_sub_heading = sec.get("sub_heading") or f"Answer all questions in {curr_sec_name}."
+            curr_sec_type = sec.get("question_type")
+            curr_marks_per_q = sec.get("marks_per_q")
+            curr_qs = []
+
+            for q in (sec.get("questions") or []):
+                q_text = str(q.get("question") or q.get("text") or "").strip()
+                sec_match = re.match(r'^(?:SECTION|PART)\s+([A-Z])[:\s\-]*(.*)$', q_text, re.IGNORECASE)
+                if sec_match and curr_qs:
+                    normalized_raw_sections.append({
+                        "name": curr_sec_name,
+                        "sub_heading": curr_sub_heading,
+                        "question_type": curr_sec_type,
+                        "marks_per_q": curr_marks_per_q,
+                        "questions": curr_qs
+                    })
+                    curr_sec_letter = sec_match.group(1).upper()
+                    curr_sec_name = f"Section {curr_sec_letter}"
+                    curr_sub_heading = f"Answer all questions in {curr_sec_name}."
+                    curr_qs = []
+                    clean_text = sec_match.group(2).strip()
+                    if clean_text:
+                        q_copy = dict(q)
+                        q_copy["question"] = clean_text
+                        curr_qs.append(q_copy)
+                    continue
+
+                curr_qs.append(q)
+
+            if curr_qs or not normalized_raw_sections:
+                normalized_raw_sections.append({
+                    "name": curr_sec_name,
+                    "sub_heading": curr_sub_heading,
+                    "question_type": curr_sec_type,
+                    "marks_per_q": curr_marks_per_q,
+                    "questions": curr_qs
+                })
+
+        raw_sections = normalized_raw_sections
+
+        # Persist extracted questions into DB so they have real question IDs and categories
+        db = SQLiteDB()
+        session = db.connect()
+        cat_id = None
+        cat_name = "Uploaded Paper Questions"
+
+        if session and institute_id:
+            try:
+                base_cat_name = f"Uploaded - {subject_name}" if subject_name else "Uploaded Questions"
+                cat_obj = session.query(Categories).filter_by(institute_id=institute_id, name=base_cat_name).first()
+                if not cat_obj:
+                    cat_obj = Categories(
+                        name=base_cat_name,
+                        institute_id=institute_id,
+                        created_by=user_id,
+                        type="descriptive"
+                    )
+                    session.add(cat_obj)
+                    session.flush()
+                cat_id = str(cat_obj.category_id)
+                cat_name = cat_obj.name
+            except Exception as cat_err:
+                print(f"[extract_questions_from_paper] Category setup warning: {cat_err}")
+
+        formatted_sections = []
+        total_questions_count = 0
+        calculated_total_marks = 0
+
+        for sec_idx, sec in enumerate(raw_sections, 1):
+            sec_name = sec.get("name") or f"Section {chr(64 + sec_idx)}"
+            raw_qs = sec.get("questions") or []
+            has_options_in_sec = any(bool(q.get("options")) for q in raw_qs)
+            sec_type = str(sec.get("question_type") or "").lower()
+            if has_options_in_sec or "obj" in sec_type or "mcq" in sec_type or "1" in str(sec.get("marks_per_q") or ""):
+                sec_type = "objective"
+            elif not sec_type:
+                sec_type = "objective" if any((float(q.get("marks") or 1) <= 1) for q in raw_qs) else "descriptive"
+            elif sec_type not in ["objective", "descriptive"]:
+                sec_type = "descriptive"
+
+            sub_heading = sec.get("sub_heading") or f"Answer all questions in {sec_name}."
+            sec_questions = []
+
+            for q_idx, q in enumerate(raw_qs, 1):
+                q_text = str(q.get("question") or q.get("text") or "").strip()
+                if not q_text:
+                    continue
+
+                # Strip leading numbering like "1. ", "2. ", "Q1. " so question text renders cleanly
+                q_text = re.sub(r'^(?:Q(?:uestion)?\s*)?\d+[\.\)\:\-]\s*', '', q_text).strip()
+
+                try:
+                    q_marks = float(q.get("marks") or 1)
+                    if q_marks.is_integer():
+                        q_marks = int(q_marks)
+                except Exception:
+                    q_marks = 1
+
+                options_list = [str(o).strip() for o in (q.get("options") or []) if str(o).strip()]
+
+                raw_type = str(q.get("type") or "").lower()
+                if options_list or raw_type in ["choose", "mcq", "single", "single_choice"]:
+                    db_q_type = "choose"
+                elif raw_type in ["multi", "multiple_choice"]:
+                    db_q_type = "multi"
+                elif raw_type in ["fill", "fill_blank", "fill_in_the_blanks"]:
+                    db_q_type = "fill"
+                else:
+                    db_q_type = "descriptive"
+
+                answer_text = q.get("answer") or ""
+
+                q_uuid = str(uuid.uuid4())
+
+                # Save question to DB if session available
+                if session and institute_id and cat_id:
+                    try:
+                        db_q = Question(
+                            question_id=q_uuid,
+                            question_text=q_text,
+                            question_type=db_q_type,
+                            marks=q_marks,
+                            order_number=q_idx,
+                            created_by=user_id
+                        )
+                        session.add(db_q)
+
+                        # Options
+                        if db_q_type in ["choose", "multi"] and options_list:
+                            for opt_idx, opt_val in enumerate(options_list):
+                                opt_str = str(opt_val).strip()
+                                is_corr = 1 if (answer_text and (answer_text.lower() in opt_str.lower() or opt_str.lower() in answer_text.lower())) else 0
+                                session.add(Option(
+                                    question_id=q_uuid,
+                                    option_text=opt_str,
+                                    is_correct=is_corr
+                                ))
+                        elif answer_text:
+                            session.add(Option(
+                                question_id=q_uuid,
+                                option_text=str(answer_text).strip(),
+                                is_correct=1
+                            ))
+
+                        session.add(QuestionMapping(
+                            question_id=q_uuid,
+                            category_id=cat_id
+                        ))
+                    except Exception as q_save_err:
+                        print(f"[extract_questions_from_paper] Question DB save warning: {q_save_err}")
+
+                sec_questions.append({
+                    "id": q_uuid,
+                    "question": q_text,
+                    "marks": q_marks,
+                    "type": db_q_type,
+                    "category_id": cat_id,
+                    "category_name": cat_name,
+                    "options": options_list,
+                    "answer": answer_text
+                })
+                total_questions_count += 1
+                calculated_total_marks += q_marks
+
+            # Infer marks per question for section if uniform
+            unique_marks = list({q["marks"] for q in sec_questions})
+            marks_per_q = unique_marks[0] if len(unique_marks) == 1 else (sec.get("marks_per_q") or 1)
+
+            formatted_sections.append({
+                "name": sec_name,
+                "sub_heading": sub_heading,
+                "instructions": sub_heading,
+                "question_type": sec_type,
+                "order_number": sec_idx,
+                "targetCount": len(sec_questions),
+                "marksPerQ": marks_per_q,
+                "questions": sec_questions
+            })
+
+        if session:
+            try:
+                session.commit()
+            except Exception as commit_err:
+                session.rollback()
+                print(f"[extract_questions_from_paper] Commit warning: {commit_err}")
+            finally:
+                session.close()
+
+        detected_total = parsed_data.get("total_marks") or calculated_total_marks
+
+        return {
+            "status": True,
+            "statusMessage": f"Successfully extracted {total_questions_count} questions organized into {len(formatted_sections)} sections.",
+            "data": {
+                "title": parsed_data.get("title") or "",
+                "total_marks": detected_total,
+                "sections": formatted_sections,
+                "total_questions": total_questions_count,
+            }
+        }, 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": False,
+            "statusMessage": f"Error extracting questions: {str(e)}",
+            "error": str(e)
+        }, 500

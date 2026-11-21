@@ -1307,6 +1307,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
       // Check for any staged or matched bulk file for this student
       const prevStudent = prevStudents.find((s) => String(s.user_id) === String(user.user_id));
+      if (status === 'AI Evaluated' && prevStudent?.status === 'Manual Reviewed') {
+        status = 'Manual Reviewed';
+      }
       const matchedBulk = this.bulkFiles.find(
         (bf) => (bf.selectedUserId && String(bf.selectedUserId) === String(user.user_id)) ||
           (bf.studentName && (user.full_name || user.user_name) && bf.studentName.toLowerCase() === (user.full_name || user.user_name || '').toLowerCase())
@@ -1410,17 +1413,105 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.uploadTab = tab;
   }
 
+  isRefreshingTable = false;
+
   refreshData(): void {
     if (this.currentView === 'evaluate' && this.evaluatingStudent?.user_id && this.selectedExamId) {
       this.loadEvaluationDetails(this.selectedExamId, this.evaluatingStudent.user_id);
       return;
     }
+    if (this.selectedExamId) {
+      this.refreshTableOnly();
+      return;
+    }
     const instId = this.activeInstituteId;
     if (instId) {
       this.loadPublishedExams(instId);
-    } else if (this.selectedExamId) {
-      this.onTestChange(this.selectedExamId);
     }
+  }
+
+  refreshTableOnly(): void {
+    if (!this.selectedExamId) {
+      const instId = this.activeInstituteId;
+      if (instId) {
+        this.loadPublishedExams(instId);
+      }
+      return;
+    }
+
+    this.isRefreshingTable = true;
+    const examId = this.selectedExamId;
+
+    const paperUrl = `${API_BASE}/get-paper-schedules?schedule_id=${encodeURIComponent(examId)}`;
+    const onlineUrl = `${API_BASE}/get-exams-details?exam_id=${encodeURIComponent(examId)}&test_mode=paper`;
+
+    this.http.get<any>(paperUrl).subscribe({
+      next: (res) => {
+        const raw = res?.data || res || [];
+        const freshExam = Array.isArray(raw) ? raw[0] : raw;
+        if (freshExam && (freshExam.assigned_users || freshExam.schedule_id || freshExam.test_id || freshExam.exam_id)) {
+          this.applyFreshExamData(freshExam);
+          this.isRefreshingTable = false;
+        } else {
+          this.http.get<any>(onlineUrl).subscribe({
+            next: (oRes) => {
+              const oRaw = oRes?.data || oRes || [];
+              const oFreshExam = Array.isArray(oRaw) ? oRaw[0] : oRaw;
+              if (oFreshExam) {
+                this.applyFreshExamData(oFreshExam);
+              } else {
+                this.onTestChange(examId);
+              }
+              this.isRefreshingTable = false;
+            },
+            error: () => {
+              this.onTestChange(examId);
+              this.isRefreshingTable = false;
+            }
+          });
+        }
+      },
+      error: () => {
+        this.http.get<any>(onlineUrl).subscribe({
+          next: (oRes) => {
+            const oRaw = oRes?.data || oRes || [];
+            const oFreshExam = Array.isArray(oRaw) ? oRaw[0] : oRaw;
+            if (oFreshExam) {
+              this.applyFreshExamData(oFreshExam);
+            } else {
+              this.onTestChange(examId);
+            }
+            this.isRefreshingTable = false;
+          },
+          error: () => {
+            this.onTestChange(examId);
+            this.isRefreshingTable = false;
+          }
+        });
+      }
+    });
+  }
+
+  private applyFreshExamData(freshExam: any): void {
+    const examId = this.selectedExamId;
+    const normFresh = {
+      ...freshExam,
+      test_id: freshExam.schedule_id || freshExam.test_id || freshExam.exam_id,
+      exam_id: freshExam.schedule_id || freshExam.exam_id || freshExam.test_id,
+      title: freshExam.title || freshExam.scheduler_name || '',
+      published: 1,
+    };
+
+    const idx = this.allPublishedExams.findIndex(
+      (e) => String(e.exam_id) === String(examId) || String(e.test_id) === String(examId) || String(e.schedule_id) === String(examId)
+    );
+    if (idx !== -1) {
+      this.allPublishedExams[idx] = { ...this.allPublishedExams[idx], ...normFresh };
+    } else {
+      this.allPublishedExams.push(normFresh);
+    }
+
+    this.onTestChange(examId);
   }
 
   recalculateKpiTotals(): void {
@@ -2326,6 +2417,24 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           if (this.evaluationDetails?.summary) {
             this.evaluationDetails.summary.status = 'Manual Reviewed';
           }
+
+          // Sync in-memory cache in allPublishedExams immediately
+          const currentExam = this.allPublishedExams.find(
+            (e) => String(e.exam_id) === String(this.selectedExamId) || String(e.test_id) === String(this.selectedExamId)
+          );
+          if (currentExam && Array.isArray(currentExam.assigned_users)) {
+            const targetUid = this.evaluatingStudent?.user_id || this.evaluationDetails?.user_id;
+            const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(targetUid));
+            if (u) {
+              u.evaluation_status = 'Manual Reviewed';
+              u.status = 'Manual Reviewed';
+              if (this.evaluationDetails?.summary?.marks_awarded != null) {
+                u.score = this.evaluationDetails.summary.marks_awarded;
+                u.marks_awarded = this.evaluationDetails.summary.marks_awarded;
+              }
+            }
+          }
+
           this.recalculateKpiTotals();
           this.filterStudents();
 
@@ -2388,6 +2497,24 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           if (this.evaluationDetails?.summary) {
             this.evaluationDetails.summary.status = 'Manual Reviewed';
           }
+
+          // Sync in-memory cache in allPublishedExams immediately
+          const currentExam = this.allPublishedExams.find(
+            (e) => String(e.exam_id) === String(this.selectedExamId) || String(e.test_id) === String(this.selectedExamId)
+          );
+          if (currentExam && Array.isArray(currentExam.assigned_users)) {
+            const targetUid = this.evaluatingStudent?.user_id || this.evaluationDetails?.user_id;
+            const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(targetUid));
+            if (u) {
+              u.evaluation_status = 'Manual Reviewed';
+              u.status = 'Manual Reviewed';
+              if (this.evaluationDetails?.summary?.marks_awarded != null) {
+                u.score = this.evaluationDetails.summary.marks_awarded;
+                u.marks_awarded = this.evaluationDetails.summary.marks_awarded;
+              }
+            }
+          }
+
           this.recalculateKpiTotals();
           this.filterStudents();
         } else {
@@ -2428,6 +2555,24 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           if (this.evaluationDetails?.summary) {
             this.evaluationDetails.summary.status = 'Manual Reviewed';
           }
+
+          // Sync in-memory cache in allPublishedExams immediately
+          const currentExam = this.allPublishedExams.find(
+            (e) => String(e.exam_id) === String(this.selectedExamId) || String(e.test_id) === String(this.selectedExamId)
+          );
+          if (currentExam && Array.isArray(currentExam.assigned_users)) {
+            const targetUid = this.evaluatingStudent?.user_id || this.evaluationDetails?.user_id;
+            const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(targetUid));
+            if (u) {
+              u.evaluation_status = 'Manual Reviewed';
+              u.status = 'Manual Reviewed';
+              if (this.evaluationDetails?.summary?.marks_awarded != null) {
+                u.score = this.evaluationDetails.summary.marks_awarded;
+                u.marks_awarded = this.evaluationDetails.summary.marks_awarded;
+              }
+            }
+          }
+
           this.recalculateKpiTotals();
           this.filterStudents();
         } else {
