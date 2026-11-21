@@ -2711,6 +2711,23 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     return '';
   }
 
+  getQuestionImageUrl(q: any): string {
+    if (!q) return '';
+    if (q.image_url && typeof q.image_url === 'string') return q.image_url;
+    if (Array.isArray(q.media) && q.media.length > 0) {
+      const imgMedia = q.media.find((m: any) => m.media_type === 'image' || (!m.media_type && (m.file_url || m.url)));
+      if (imgMedia) {
+        return imgMedia.file_url || imgMedia.url || '';
+      }
+    }
+    return '';
+  }
+
+  hasEmbeddedImage(text: string): boolean {
+    if (!text) return false;
+    return /!\[.*?\]\(.*?\)/.test(text) || /<img\s+[^>]*src=/.test(text);
+  }
+
   hydrateMissingQuestionOptions() {
     // 1. Recover from raw if available
     for (const sec of this.sections) {
@@ -3236,6 +3253,10 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               `;
             }
 
+            const qImgUrl = this.getQuestionImageUrl(q);
+            const qImgHtml = (qImgUrl && !this.hasEmbeddedImage(qText)) ?
+              `<div class="paper-q-media" style="margin: 6px 0 8px 28px; text-align: center;"><img src="${qImgUrl}" alt="Question Image" class="paper-question-image" style="max-width: 100%; max-height: 260px; object-fit: contain; display: inline-block;" /></div>` : '';
+
             itemsHtml += `
               <div class="paper-question-item">
                 <div class="paper-q-header">
@@ -3243,6 +3264,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
                   <span class="paper-q-text">${qText}</span>
                   <span class="paper-q-marks">${marks}</span>
                 </div>
+                ${qImgHtml}
                 ${optionsOrAnswerHtml}
               </div>
             `;
@@ -3835,7 +3857,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               category_id: q.category_id,
               category_name: q.category_name,
               options: q.options || [],
-              answer: q.answer || ''
+              answer: q.answer || '',
+              image_url: q.image_url || (q.media && q.media[0] ? (q.media[0].file_url || q.media[0].url) : ''),
+              media: q.media || (q.image_url ? [{ media_type: 'image', file_url: q.image_url, url: q.image_url }] : [])
             }));
             const hasOptions = secQuestions.some((q: any) => q.options && q.options.length > 0);
             const resolvedSecType = hasOptions ? 'objective' : (sec.question_type || 'descriptive');

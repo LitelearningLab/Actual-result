@@ -2144,6 +2144,7 @@ def extract_questions_from_paper(request):
         # Extract text or render page images for OCR/Vision
         extracted_text = ""
         image_data_uris = []
+        extracted_doc_images = []
 
         is_pdf = filename.endswith(".pdf") or "pdf" in (file_obj.content_type or "").lower()
 
@@ -2167,6 +2168,84 @@ def extract_questions_from_paper(request):
                         image_data_uris.append(f"data:image/jpeg;base64,{b64}")
                     except Exception as img_err:
                         print(f"[extract_questions_from_paper] Page {p_idx + 1} render warning: {img_err}")
+
+                    # Extract figures, maps, diagrams, and photos from page
+                    try:
+                        img_infos = page.get_image_info(xrefs=True)
+                        blocks = page.get_text("blocks")
+                        seen_xrefs = set()
+                        for info_idx, info in enumerate(img_infos):
+                            bbox = info.get("bbox")
+                            xref = info.get("xref")
+                            if not bbox:
+                                continue
+                            w = bbox[2] - bbox[0]
+                            h = bbox[3] - bbox[1]
+                            # Filter out tiny icons, dots, lines (< 35px)
+                            if w < 35 or h < 35:
+                                continue
+
+                            extracted_img_bytes = None
+                            extracted_ext = "png"
+
+                            # 1. Try native stream extraction if xref is valid
+                            if xref and xref not in seen_xrefs and xref > 0:
+                                seen_xrefs.add(xref)
+                                try:
+                                    img_data = doc.extract_image(xref)
+                                    if img_data and img_data.get("image"):
+                                        extracted_img_bytes = img_data["image"]
+                                        extracted_ext = img_data.get("ext") or "png"
+                                except Exception:
+                                    pass
+
+                            # 2. Render clipped page area if native stream unavailable or failed
+                            if not extracted_img_bytes:
+                                try:
+                                    clip_rect = fitz.Rect(
+                                        max(0, bbox[0] - 2),
+                                        max(0, bbox[1] - 2),
+                                        min(page.rect.width, bbox[2] + 2),
+                                        min(page.rect.height, bbox[3] + 2)
+                                    )
+                                    clip_pix = page.get_pixmap(clip=clip_rect, dpi=150)
+                                    extracted_img_bytes = clip_pix.tobytes("png")
+                                    extracted_ext = "png"
+                                except Exception:
+                                    pass
+
+                            if extracted_img_bytes and len(extracted_img_bytes) > 200:
+                                # Determine preceding text and question number
+                                preceding_blocks = [b for b in blocks if b[3] <= (bbox[1] + 20) and str(b[4]).strip()]
+                                preceding_text = preceding_blocks[-1][4].strip() if preceding_blocks else ""
+
+                                q_num_match = re.search(r'(?:^|\n)\s*(?:Q(?:uestion)?\s*)?(\d+)[\.\)\:\-]', preceding_text)
+                                q_num = int(q_num_match.group(1)) if q_num_match else None
+
+                                try:
+                                    img_fname = f"paper_q_img_p{p_idx+1}_{info_idx+1}.{extracted_ext}"
+                                    upload_res = gcs_storage.upload_media(
+                                        file_bytes=extracted_img_bytes,
+                                        filename=img_fname,
+                                        folder_prefix="questions/images",
+                                        expected_type="image"
+                                    )
+                                    img_url = upload_res.get("url") or upload_res.get("file_url")
+                                    if img_url:
+                                        extracted_doc_images.append({
+                                            "page": p_idx + 1,
+                                            "q_num": q_num,
+                                            "url": img_url,
+                                            "gcs_path": upload_res.get("gcs_path"),
+                                            "mime_type": upload_res.get("mime_type") or f"image/{extracted_ext}",
+                                            "file_size": len(extracted_img_bytes),
+                                            "preceding_text": preceding_text[:120]
+                                        })
+                                except Exception as up_err:
+                                    print(f"[extract_questions_from_paper] Image upload warning: {up_err}")
+                    except Exception as scan_err:
+                        print(f"[extract_questions_from_paper] Page {p_idx + 1} image scan warning: {scan_err}")
+
                 extracted_text = "\n\n".join(text_pages).strip()
                 doc.close()
             except Exception as pdf_err:
@@ -2230,7 +2309,9 @@ def extract_questions_from_paper(request):
             "   - DO NOT omit, merge, or collapse columns. Ensure every row and cell is preserved accurately.\n"
             "8. PRESERVE QUESTIONS WITH MAPS, DIAGRAMS & IMAGES:\n"
             "   - When a question references an image, map, cartoon, or diagram (e.g. 'Study the given map carefully...'):\n"
-            "   - Faithfully transcribe the question prompt and all accompanying notes, text descriptions, and alternate questions (such as 'For Visually Impaired Candidates...'). Ensure no question statement or options are lost.\n\n"
+            "   - Faithfully transcribe the question prompt, map title, and all accompanying notes, text descriptions, and alternate questions (such as 'For Visually Impaired Candidates...'). Ensure no question statement or options are lost.\n"
+            "   - NEVER insert synthetic bracketed descriptions such as '(The printed question includes a map of...)' or '(Image not shown)'. Keep the clean original question statement.\n"
+            "   - If an image URL is provided in the document images list below, set 'image_url' on that question object.\n\n"
             "RETURN ONLY A VALID JSON OBJECT conforming to this exact schema:\n"
             "{\n"
             "  \"title\": \"Title or test name from paper header or empty\",\n"
@@ -2246,6 +2327,7 @@ def extract_questions_from_paper(request):
             "          \"question\": \"Choose the correctly matched pair from the following (Book — Author):\",\n"
             "          \"type\": \"choose\",\n"
             "          \"marks\": 1,\n"
+            "          \"image_url\": \"\",\n"
             "          \"options\": [\n"
             "            \"(A) Amar Jiban — Tarabai Shinde\",\n"
             "            \"(B) Gulamgiri — Rashsundri Debi\",\n"
@@ -2295,6 +2377,20 @@ def extract_questions_from_paper(request):
             user_content.append({
                 "type": "text",
                 "text": f"Here is the text extracted from the document:\n\n{extracted_text}"
+            })
+        if extracted_doc_images:
+            imgs_info_lines = ["The document contains the following extracted diagrams/images:"]
+            for d_idx, d_img in enumerate(extracted_doc_images, 1):
+                line = f"- Image {d_idx}: URL: {d_img['url']}"
+                if d_img.get('q_num'):
+                    line += f" (Positioned at/under Question {d_img['q_num']})"
+                if d_img.get('preceding_text'):
+                    line += f" [Text near image: '{d_img['preceding_text']}']"
+                imgs_info_lines.append(line)
+            imgs_info_lines.append("Assign 'image_url' for any question matching these images. DO NOT omit the question or write text placeholders.")
+            user_content.append({
+                "type": "text",
+                "text": "\n".join(imgs_info_lines)
             })
         if image_data_uris:
             user_content.append({
@@ -2451,6 +2547,9 @@ def extract_questions_from_paper(request):
 
                 # Strip leading numbering like "1. ", "2. ", "Q1. " so question text renders cleanly
                 q_text = re.sub(r'^(?:Q(?:uestion)?\s*)?\d+[\.\)\:\-]\s*', '', q_text).strip()
+                # Clean any synthetic descriptions added by vision LLM
+                q_text = re.sub(r'\s*\(\s*(?:The\s+)?printed\s+question\s+includes\s+[^)]+\)\s*', ' ', q_text, flags=re.IGNORECASE).strip()
+                q_text = re.sub(r'\s*\(\s*(?:Image|Figure|Map|Chart)\s+(?:is\s+)?(?:not\s+shown|included|attached)[^)]*\)\s*', ' ', q_text, flags=re.IGNORECASE).strip()
 
                 try:
                     q_marks = float(q.get("marks") or 1)
@@ -2473,6 +2572,18 @@ def extract_questions_from_paper(request):
 
                 answer_text = q.get("answer") or ""
 
+                # Associate image if provided by LLM or matched from extracted document images
+                q_image_url = q.get("image_url") or ""
+                if not q_image_url and extracted_doc_images:
+                    for ed_img in extracted_doc_images:
+                        ed_q = ed_img.get("q_num")
+                        curr_global_num = total_questions_count + 1
+                        if (ed_q and (ed_q == curr_global_num or ed_q == q_idx)) or (ed_img.get("preceding_text") and ed_img["preceding_text"][:25].lower() in q_text.lower()):
+                            q_image_url = ed_img.get("url") or ""
+                            break
+
+                q_media_list = [{"media_type": "image", "file_url": q_image_url, "url": q_image_url}] if q_image_url else []
+
                 q_uuid = str(uuid.uuid4())
 
                 # Save question to DB if session available
@@ -2487,6 +2598,16 @@ def extract_questions_from_paper(request):
                             created_by=user_id
                         )
                         session.add(db_q)
+
+                        # Save QuestionMedia if image is associated
+                        if q_image_url:
+                            session.add(QuestionMedia(
+                                question_id=q_uuid,
+                                media_type="image",
+                                file_url=q_image_url,
+                                order_number=1,
+                                created_by=user_id
+                            ))
 
                         # Options
                         if db_q_type in ["choose", "multi"] and options_list:
@@ -2520,7 +2641,9 @@ def extract_questions_from_paper(request):
                     "category_id": cat_id,
                     "category_name": cat_name,
                     "options": options_list,
-                    "answer": answer_text
+                    "answer": answer_text,
+                    "image_url": q_image_url,
+                    "media": q_media_list
                 })
                 total_questions_count += 1
                 calculated_total_marks += q_marks

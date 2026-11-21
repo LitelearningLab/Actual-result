@@ -944,6 +944,9 @@
                                         <span class="paper-q-text"><app-math-render [text]="item.question.question"></app-math-render></span>
                                         <span class="paper-q-marks">[{{ item.question.marks || 1 }}]</span>
                                     </div>
+                                    <div class="paper-q-media" *ngIf="getQuestionImageUrl(item.question) && !hasEmbeddedImage(item.question.question)">
+                                        <img [src]="getQuestionImageUrl(item.question)" alt="Question Image" class="paper-question-image" />
+                                    </div>
                                     <div class="paper-q-options-grid" *ngIf="item.question.options && item.question.options.length > 0 && !isDescriptiveQuestion(item.question, item.sectionIndex)">
                                         <div class="paper-q-option" *ngFor="let opt of item.question.options; let optIdx = index">
                                             <app-math-render [text]="formatOptionText(opt, optIdx)"></app-math-render>
@@ -1046,6 +1049,9 @@
                                         <span class="paper-q-num">{{ item.globalQuestionIndex }}.</span>
                                         <span class="paper-q-text"><app-math-render [text]="item.question.question"></app-math-render></span>
                                         <span class="paper-q-marks">[{{ item.question.marks || 1 }}]</span>
+                                    </div>
+                                    <div class="paper-q-media" *ngIf="getQuestionImageUrl(item.question) && !hasEmbeddedImage(item.question.question)">
+                                        <img [src]="getQuestionImageUrl(item.question)" alt="Question Image" class="paper-question-image" />
                                     </div>
                                     <div class="paper-q-answer">
                                         <span class="ans-badge">Ans:</span>
