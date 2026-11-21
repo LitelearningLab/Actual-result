@@ -2162,7 +2162,7 @@ def extract_questions_from_paper(request):
                         text_pages.append(f"--- Page {p_idx + 1} Text ---\n{t.strip()}")
                     # Render page as JPEG image so vision can see exact visual formatting, options, tables, matching columns
                     try:
-                        pix = page.get_pixmap(dpi=120)
+                        pix = page.get_pixmap(dpi=200)
                         img_bytes = pix.tobytes("jpeg")
                         b64 = base64.b64encode(img_bytes).decode("utf-8")
                         image_data_uris.append(f"data:image/jpeg;base64,{b64}")
@@ -2183,6 +2183,11 @@ def extract_questions_from_paper(request):
                             h = bbox[3] - bbox[1]
                             # Filter out tiny icons, dots, lines (< 35px)
                             if w < 35 or h < 35:
+                                continue
+                            # Filter out full-page scanned backgrounds (covering most of the page) so they aren't treated as separate question diagrams
+                            page_w = getattr(page.rect, "width", 0) or 1
+                            page_h = getattr(page.rect, "height", 0) or 1
+                            if w >= (page_w * 0.82) and h >= (page_h * 0.82):
                                 continue
 
                             extracted_img_bytes = None
