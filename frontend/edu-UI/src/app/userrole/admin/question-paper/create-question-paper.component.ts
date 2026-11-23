@@ -53,6 +53,8 @@ export interface PaperQuestion {
   options?: any[];
   raw?: any;
   answer?: any;
+  image_url?: string;
+  media?: any[];
 }
 
 export interface PaperSection {
@@ -1384,17 +1386,23 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           targetCount: Number(sec.target_count ?? sec.targetCount) || null,
           order_number: sec.order_number || idx + 1,
           questions: Array.isArray(sec.questions)
-            ? sec.questions.map((q: any) => ({
-                id: String(q.question_id || q.id),
-                question: q.question || q.question_text || q.text || 'Question',
-                type: q.type || q.question_type || sec.question_type || 'objective',
-                marks: Number(q.marks ?? q.mark ?? 1),
-                category_id: q.category_id ? String(q.category_id) : undefined,
-                category_name: q.category_name || undefined,
-                options: q.options || q.choices || (q.raw ? q.raw.options : []),
-                answer: q.answer || '',
-                raw: q,
-              }))
+            ? sec.questions.map((q: any) => {
+                const imgUrl = q.image_url || (Array.isArray(q.media) && q.media.length ? (q.media[0].file_url || q.media[0].url) : '') || (q.raw?.media?.[0]?.file_url || q.raw?.image_url) || '';
+                const mediaArr = Array.isArray(q.media) && q.media.length ? q.media : (imgUrl ? [{ media_type: 'image', file_url: imgUrl, url: imgUrl }] : (q.raw?.media || []));
+                return {
+                  id: String(q.question_id || q.id),
+                  question: q.question || q.question_text || q.text || 'Question',
+                  type: q.type || q.question_type || sec.question_type || 'objective',
+                  marks: Number(q.marks ?? q.mark ?? 1),
+                  category_id: q.category_id ? String(q.category_id) : undefined,
+                  category_name: q.category_name || undefined,
+                  options: q.options || q.choices || (q.raw ? q.raw.options : []),
+                  answer: q.answer || '',
+                  image_url: imgUrl,
+                  media: mediaArr,
+                  raw: q,
+                };
+              })
             : [],
         }));
       }
@@ -2733,6 +2741,13 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       const imgMedia = q.media.find((m: any) => m.media_type === 'image' || (!m.media_type && (m.file_url || m.url)));
       if (imgMedia) {
         return imgMedia.file_url || imgMedia.url || '';
+      }
+    }
+    if (q.raw) {
+      if (q.raw.image_url && typeof q.raw.image_url === 'string') return q.raw.image_url;
+      if (Array.isArray(q.raw.media) && q.raw.media.length > 0) {
+        const imgMedia = q.raw.media.find((m: any) => m.media_type === 'image' || (!m.media_type && (m.file_url || m.url)));
+        if (imgMedia) return imgMedia.file_url || imgMedia.url || '';
       }
     }
     return '';
@@ -4260,6 +4275,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             const mark = this.getMarksPerQuestion(raw) ?? defaultBankMark ?? 1;
             const alreadyInPaper = allPaperQIds.has(qId);
 
+            const imgUrl = raw.image_url || (Array.isArray(raw.media) && raw.media.length ? (raw.media[0].file_url || raw.media[0].url) : '') || '';
             mapped.push({
               id: qId,
               question: raw.question || raw.text || raw.title || '',
@@ -4269,6 +4285,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               category_name: bankName,
               options: raw.options || raw.choices || [],
               answer: raw.answer || raw.answerText || '',
+              image_url: imgUrl,
+              media: Array.isArray(raw.media) && raw.media.length ? raw.media : (imgUrl ? [{ media_type: 'image', file_url: imgUrl, url: imgUrl }] : []),
               raw,
               alreadyInOtherSection: alreadyInPaper,
               selected: false,
@@ -6153,17 +6171,23 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
             targetCount: Number(sec.target_count ?? sec.targetCount) || null,
             order_number: sec.order_number || idx + 1,
             questions: Array.isArray(sec.questions)
-              ? sec.questions.map((q: any) => ({
-                  id: String(q.question_id || q.id),
-                  question: q.question || q.question_text || q.text || 'Question',
-                  type: q.type || q.question_type || sec.question_type || 'objective',
-                  marks: Number(q.marks ?? q.mark ?? 1),
-                  category_id: q.category_id ? String(q.category_id) : undefined,
-                  category_name: q.category_name || undefined,
-                  options: q.options || q.choices || (q.raw ? q.raw.options : []),
-                  answer: q.answer || '',
-                  raw: q,
-                }))
+              ? sec.questions.map((q: any) => {
+                  const imgUrl = q.image_url || (Array.isArray(q.media) && q.media.length ? (q.media[0].file_url || q.media[0].url) : '') || (q.raw?.media?.[0]?.file_url || q.raw?.image_url) || '';
+                  const mediaArr = Array.isArray(q.media) && q.media.length ? q.media : (imgUrl ? [{ media_type: 'image', file_url: imgUrl, url: imgUrl }] : (q.raw?.media || []));
+                  return {
+                    id: String(q.question_id || q.id),
+                    question: q.question || q.question_text || q.text || 'Question',
+                    type: q.type || q.question_type || sec.question_type || 'objective',
+                    marks: Number(q.marks ?? q.mark ?? 1),
+                    category_id: q.category_id ? String(q.category_id) : undefined,
+                    category_name: q.category_name || undefined,
+                    options: q.options || q.choices || (q.raw ? q.raw.options : []),
+                    answer: q.answer || '',
+                    image_url: imgUrl,
+                    media: mediaArr,
+                    raw: q,
+                  };
+                })
               : [],
           }));
         } else {
@@ -6435,6 +6459,12 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           category_id: q.category_id || null,
           order_number: qIdx + 1,
           marks: q.marks !== null && q.marks !== undefined ? Number(q.marks) : 1,
+          question: q.question,
+          type: q.type,
+          options: q.options || [],
+          answer: q.answer || '',
+          image_url: q.image_url || (q.media && q.media.length ? (q.media[0].file_url || q.media[0].url) : '') || '',
+          media: q.media || (q.image_url ? [{ media_type: 'image', file_url: q.image_url, url: q.image_url }] : []),
         })),
       })),
     };

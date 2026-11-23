@@ -1253,6 +1253,24 @@ def add_exam(request):
                     )
                     session.add(new_eqm)
 
+                    # Ensure QuestionMedia is preserved/saved if provided
+                    q_img = q_item.get("image_url") or ""
+                    q_med = q_item.get("media") or []
+                    if not q_img and isinstance(q_med, list) and len(q_med) > 0:
+                        q_img = q_med[0].get("file_url") or q_med[0].get("url") or ""
+                    if q_img:
+                        existing_qm = session.query(QuestionMedia).filter_by(question_id=qid, active_status=1).first()
+                        if not existing_qm:
+                            session.add(QuestionMedia(
+                                question_id=qid,
+                                media_type="image",
+                                file_url=q_img,
+                                order_number=1,
+                                created_by=created_by
+                            ))
+                        elif existing_qm.file_url != q_img:
+                            existing_qm.file_url = q_img
+
                     if cat_id:
                         category_counts[cat_id] = category_counts.get(cat_id, 0) + 1
 
@@ -1560,6 +1578,24 @@ def update_exam(request):
                         order_number=q_idx,
                     )
                     session.add(new_eqm)
+
+                    # Ensure QuestionMedia is preserved/saved if provided
+                    q_img = q_item.get("image_url") or ""
+                    q_med = q_item.get("media") or []
+                    if not q_img and isinstance(q_med, list) and len(q_med) > 0:
+                        q_img = q_med[0].get("file_url") or q_med[0].get("url") or ""
+                    if q_img:
+                        existing_qm = session.query(QuestionMedia).filter_by(question_id=qid, active_status=1).first()
+                        if not existing_qm:
+                            session.add(QuestionMedia(
+                                question_id=qid,
+                                media_type="image",
+                                file_url=q_img,
+                                order_number=1,
+                                created_by=created_by
+                            ))
+                        elif existing_qm.file_url != q_img:
+                            existing_qm.file_url = q_img
 
                     if cat_id:
                         category_counts[cat_id] = category_counts.get(cat_id, 0) + 1
@@ -2800,6 +2836,7 @@ def get_exam_details(request):
                                 "question_type": q_obj.question_type,
                                 "marks": q_obj.marks,
                                 "media": media_list,
+                                "image_url": media_list[0]["file_url"] if (media_list and media_list[0].get("file_url")) else "",
                                 "options": opt_list,
                                 "category_id": eqm.category_id,
                                 "category_name": cat_name,
