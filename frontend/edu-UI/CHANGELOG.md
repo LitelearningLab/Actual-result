@@ -1,4 +1,37 @@
 # Changelog
+## [2.6.0] - 2026-11-24
+
+### Features & Enhancements
+- **Scheduled Paper Test Management**:
+  - Introduced dedicated Scheduled Paper Test interface (`scheduled-paper-test.component.ts/.html/.scss`) with real-time status monitoring, paper code search, schedule filtering, and evaluation routing.
+  - Added backend scheduling routes, duration tracking, and paper schedule creator validation in `backend/others/paper_schedules.py`.
+  - Registered `/scheduled-paper-tests` navigation item and page permissions in `home-routing.module.ts`, `side-nav.component.ts`, `permission.guard.ts`, and `page-access.service.ts`.
+- **Institute Test Mode Controls & Access Toggles**:
+  - Added database migration `backend/db/migrations/20261123_add_institute_online_paper_test_toggles.sql` adding `allow_online_test` and `allow_paper_test` bit flags to `dbo.Institutes`.
+  - Updated `backend/db/models.py` and `backend/others/institute.py` to enforce and expose institute-level test mode toggles.
+  - Added online/paper test permission toggles to `institute-register.component.ts/.html` and user permission evaluation in `backend/auth/auth.py`.
+- **Question Paper Creation & Exam Module Overhaul**:
+  - Overhauled `create-question-paper.component.ts/.html/.scss` with dynamic question type switching, enhanced drag-drop section handling, and character limit indicators.
+  - Enhanced math formula rendering detection in `math.service.ts` for automated question paper layout preview.
+  - Added media attachments handling, question type sanitization, and descriptive answer validations in `backend/others/questions.py`.
+- **Admin Exam Reports & Results UI**:
+  - Enhanced `exam-reports.component.ts/.html/.scss` with detailed breakdown tabs, student response previews, marks revision inputs, and feedback chips.
+  - Enhanced paper test results viewer (`paper-test-results.component.ts/.html/.scss`) with student mark sheets, question-wise score breakdowns, and responsive evaluation summaries.
+- **Centralized AI Credit Protection Engine**:
+  - Centralized credit quota checks and token consumption pipelines in `backend/others/ai_credits.py` and `backend/others/bulk_eval_manager.py`.
+  - Added comprehensive test suite `backend/test_centralized_credit_protection.py` to verify credit threshold safety across AI endpoints.
+  - Refined AI credit alert notification polling in `ai-credit-alert.component.ts` and `ai-credit-alert.service.ts`.
+
+### Bug Fixes & Refinements
+- **Test Evaluation Workflows**:
+  - Resolved filter edge cases and marks recalculation in `test-evaluation.component.ts/.html/.scss`.
+  - Fixed modal backdrop event propagation in question paper management dialogs.
+- **Build Assets Cleanup**:
+  - Cleaned up obsolete build artifacts and font binaries from version control under `frontend/edu-UI/dist/`.
+- **Version Tracking**:
+  - Updated application version to `2.6.0` across `version.ts`, `package.json`, and lockfiles.
+
+---
 ## [2.5.0] - 2026-11-18
 
 ### Features & Enhancements
