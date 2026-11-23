@@ -52,9 +52,9 @@ const routes: Routes = [
   , { path: 'exams', component: AdminExamsComponent, canActivate: [PermissionGuard], data: { pageName: 'Create/Edit Test', action: 'view' } }
   , { path: 'create-exam', component: CreateExamComponent, canActivate: [PermissionGuard], data: { pageName: 'Create/Edit Test', action: 'add' } }
   , { path: 'question-papers', component: QuestionPaperComponent, canActivate: [PermissionGuard], data: { pageName: 'Create/Edit Paper Test', action: 'view', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
-  , { path: 'scheduled-paper-tests', component: ScheduledPaperTestComponent, canActivate: [PermissionGuard], data: { pageName: 'Scheduled Paper Test', action: 'view', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'scheduled-paper-tests', component: ScheduledPaperTestComponent, canActivate: [PermissionGuard], data: { pageName: 'Schedule Paper Test', action: 'view', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'create-question-paper', component: CreateQuestionPaperComponent, canActivate: [PermissionGuard], canDeactivate: [questionPaperUnsavedChangesGuard], data: { pageName: 'Create/Edit Paper Test', action: 'add', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
-  , { path: 'test-evaluation', component: TestEvaluationComponent, canActivate: [PermissionGuard], data: { pageName: 'Test Evaluation', action: 'view', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
+  , { path: 'test-evaluation', component: TestEvaluationComponent, canActivate: [PermissionGuard], data: { pageName: 'Paper Evaluation', action: 'view', requiredRole: ['admin','super_admin','superadmin','super-admin'] } }
   , { path: 'view-users', component: ViewUsersComponent, canActivate: [PermissionGuard], data: { pageName: 'Users', action: 'view' } }
   , { path: 'unauthorized', component: UnauthorizedComponent }
   , { path: 'view-questions', component: ViewQuestionsComponent, canActivate: [PermissionGuard], data: { pageName: 'Questions', action: 'view' } }

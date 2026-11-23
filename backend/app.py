@@ -46,7 +46,8 @@ from dashboard.user_dashboard import user_dashboard_details, dashboard_users_lis
 
 from others.demo_request import submit_demo_request, get_demo_requests, get_demo_request_by_id, update_demo_request_status, delete_demo_request
 from db.db import SQLiteDB
-from db.models import User, Institute
+from db.models import User, Institute, Page, UserPageAccess, Exam, ExamSchedule, Category, Question, PaperSchedule
+from sqlalchemy import or_, and_, func
 from others.settings import get_ai_confidence_threshold_response, update_ai_confidence_threshold
 
 from dotenv import load_dotenv
@@ -171,6 +172,92 @@ def is_super_admin(user):
 def is_admin(user):
     role = str(getattr(user, "user_role", "") or "").lower()
     return role in ("admin", "super_admin", "superadmin", "super-admin")
+
+def check_institute_toggle(user, test_type, session=None):
+    if not user:
+        return False
+    if is_super_admin(user):
+        return True
+    inst_id = getattr(user, 'institute_id', None)
+    if not inst_id:
+        return False
+    close_sess = False
+    if not session:
+        db = SQLiteDB()
+        session = db.connect()
+        close_sess = True
+    if not session:
+        return True
+    try:
+        inst = session.query(Institute).filter_by(institute_id=str(inst_id)).first()
+        if not inst:
+            return True
+        if test_type == 'online':
+            return bool(inst.allow_online_test) if getattr(inst, 'allow_online_test', None) is not None else True
+        elif test_type == 'paper':
+            return bool(inst.allow_paper_test) if getattr(inst, 'allow_paper_test', None) is not None else True
+        return True
+    finally:
+        if close_sess:
+            session.close()
+
+def check_admin_page_permission(user, page_name, action='view', session=None):
+    if not user:
+        return False
+    if is_super_admin(user):
+        return True
+    close_sess = False
+    if not session:
+        db = SQLiteDB()
+        session = db.connect()
+        close_sess = True
+    if not session:
+        return False
+    try:
+        from others.users import PAGE_NAME_MAP, REVERSE_PAGE_NAME_MAP
+        norm_key = (str(page_name) or '').strip().lower()
+        PAGE_ALIASES = {
+            'user': 'Users',
+            'users': 'Users',
+            'category': 'Categories',
+            'categories': 'Categories',
+            'question bank': 'Categories',
+            'question banks': 'Categories',
+            'question': 'Questions',
+            'questions': 'Questions',
+            'exam': 'Exams',
+            'exams': 'Exams',
+            'create/edit test': 'Exams',
+            'manage test': 'Exams',
+            'schedule': 'Schedule Exam',
+            'schedule exam': 'Schedule Exam',
+            'schedule test': 'Schedule Exam',
+            'scheduled tests': 'Schedule Exam',
+            'create/edit paper test': 'Create/Edit Paper Test',
+            'schedule paper test': 'Schedule Paper Test',
+            'paper evaluation': 'Paper Evaluation',
+        }
+        db_page_name = PAGE_ALIASES.get(norm_key, page_name)
+        alt_key = REVERSE_PAGE_NAME_MAP.get(page_name, page_name)
+        p_obj = session.query(Page).filter(
+            or_(
+                Page.page_id == page_name,
+                Page.page_name == page_name,
+                Page.page_name == db_page_name,
+                Page.page_name == alt_key,
+                func.lower(Page.page_name) == norm_key,
+                func.lower(Page.page_name) == func.lower(db_page_name)
+            )
+        ).first()
+        if not p_obj:
+            return False
+        access = session.query(UserPageAccess).filter_by(user_id=str(user.user_id), page_id=p_obj.page_id).first()
+        if not access:
+            return False
+        return bool(getattr(access, f'can_{action}', 0) == 1)
+    finally:
+        if close_sess:
+            session.close()
 
 # Initialize JWT Validator
 def initialize_jwt_validator(request):
@@ -370,8 +457,73 @@ def get_pages_list_route():
 @admin_required
 def delete_page(page, id):
     current_user = get_current_user_from_request()
+    supported_pages = ('institute', 'user', 'category', 'categories', 'question', 'questions', 'exam', 'exams', 'exam-schedule', 'exam-schedules', 'schedule')
+    if page not in supported_pages:
+        return jsonify({"statusMessage": f"Unknown page '{page}'", "status": False}), 400
+
     if page == 'institute' and not is_super_admin(current_user):
         return jsonify({"statusMessage": "Super Admin access required to delete institute", "status": False}), 403
+
+    # Institute ownership and granular permission check for non-superadmins
+    if not is_super_admin(current_user):
+        db = SQLiteDB()
+        session = db.connect()
+        try:
+            if page == 'user':
+                target_user = session.query(User).filter_by(user_id=str(id)).first() if session else None
+                if not target_user:
+                    return jsonify({"status": False, "statusMessage": "User not found"}), 404
+                if str(target_user.institute_id) != str(current_user.institute_id):
+                    return jsonify({"status": False, "statusMessage": "Unauthorized: Record does not belong to your institute"}), 403
+                if not check_admin_page_permission(current_user, 'User', 'delete', session=session):
+                    return jsonify({"status": False, "statusMessage": "Permission denied: Cannot delete users"}), 403
+
+            elif page in ('category', 'categories'):
+                target_cat = session.query(Category).filter_by(category_id=str(id)).first() if session else None
+                if not target_cat:
+                    return jsonify({"status": False, "statusMessage": "Category not found"}), 404
+                if str(target_cat.institute_id) != str(current_user.institute_id):
+                    return jsonify({"status": False, "statusMessage": "Unauthorized: Record does not belong to your institute"}), 403
+                if not check_admin_page_permission(current_user, 'Category', 'delete', session=session):
+                    return jsonify({"status": False, "statusMessage": "Permission denied: Cannot delete categories"}), 403
+
+            elif page in ('question', 'questions'):
+                target_q = session.query(Question).filter_by(question_id=str(id)).first() if session else None
+                if not target_q:
+                    return jsonify({"status": False, "statusMessage": "Question not found"}), 404
+                if str(target_q.institute_id) != str(current_user.institute_id):
+                    return jsonify({"status": False, "statusMessage": "Unauthorized: Record does not belong to your institute"}), 403
+                if not check_admin_page_permission(current_user, 'Question', 'delete', session=session):
+                    return jsonify({"status": False, "statusMessage": "Permission denied: Cannot delete questions"}), 403
+
+            elif page in ('exam', 'exams'):
+                target_exam = session.query(Exam).filter_by(exam_id=str(id)).first() if session else None
+                if not target_exam:
+                    return jsonify({"status": False, "statusMessage": "Exam not found"}), 404
+                if str(target_exam.institute_id) != str(current_user.institute_id):
+                    return jsonify({"status": False, "statusMessage": "Unauthorized: Record does not belong to your institute"}), 403
+                test_mode = str(getattr(target_exam, 'test_mode', 'online') or 'online').lower()
+                toggle_type = 'paper' if test_mode == 'paper' else 'online'
+                page_name = 'Create/Edit Paper Test' if test_mode == 'paper' else 'Exams'
+                if not check_institute_toggle(current_user, toggle_type, session=session):
+                    return jsonify({"status": False, "statusMessage": f"{toggle_type.capitalize()} Test is disabled for this institute"}), 403
+                if not check_admin_page_permission(current_user, page_name, 'delete', session=session):
+                    return jsonify({"status": False, "statusMessage": f"Permission denied: Cannot delete {page_name}"}), 403
+
+            elif page in ('exam-schedule', 'exam-schedules', 'schedule'):
+                target_sched = session.query(ExamSchedule).filter_by(schedule_id=str(id)).first() if session else None
+                if not target_sched:
+                    return jsonify({"status": False, "statusMessage": "Exam schedule not found"}), 404
+                if str(target_sched.institute_id) != str(current_user.institute_id):
+                    return jsonify({"status": False, "statusMessage": "Unauthorized: Record does not belong to your institute"}), 403
+                if not check_institute_toggle(current_user, 'online', session=session):
+                    return jsonify({"status": False, "statusMessage": "Online Test is disabled for this institute"}), 403
+                if not check_admin_page_permission(current_user, 'Schedule Exam', 'delete', session=session):
+                    return jsonify({"status": False, "statusMessage": "Permission denied: Cannot delete exam schedules"}), 403
+        finally:
+            if session:
+                session.close()
+
     deleted_by = getattr(current_user, 'user_name', None) or request.args.get('current_user', 'system')
     if page == 'institute':
         response_data, status_code = delete_institute(id, deleted_by)
@@ -388,8 +540,6 @@ def delete_page(page, id):
         response_data, status_code = delete_exam(id, deleted_by)
     elif page == 'exam-schedule' or page == 'exam-schedules' or page == 'schedule':
         response_data, status_code = delete_exam_schedule(id, deleted_by)
-    else:
-        return jsonify({"statusMessage": f"Unknown page '{page}'", "status": False}), 400
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/<page>/<action>/<uuid>', methods=['PUT'])
@@ -400,6 +550,35 @@ def manage_page(page, action, uuid):
         return jsonify({"error": f"Invalid action '{action}'. Use 'activate' or 'deactivate' ."}), 400
     if page == 'institute' and not is_super_admin(current_user):
         return jsonify({"error": "Super Admin access required to manage institute"}), 403
+
+    if not is_super_admin(current_user):
+        db = SQLiteDB()
+        session = db.connect()
+        try:
+            if page == 'user':
+                target_user = session.query(User).filter_by(user_id=str(uuid)).first() if session else None
+                if target_user and str(target_user.institute_id) != str(current_user.institute_id):
+                    return jsonify({"error": "Unauthorized: Record does not belong to your institute"}), 403
+                if not check_admin_page_permission(current_user, 'User', 'edit', session=session):
+                    return jsonify({"error": "Permission denied: Cannot edit users"}), 403
+            elif page in ('category', 'categories'):
+                target_cat = session.query(Category).filter_by(category_id=str(uuid)).first() if session else None
+                if target_cat and str(target_cat.institute_id) != str(current_user.institute_id):
+                    return jsonify({"error": "Unauthorized: Record does not belong to your institute"}), 403
+                if not check_admin_page_permission(current_user, 'Category', 'edit', session=session):
+                    return jsonify({"error": "Permission denied: Cannot edit categories"}), 403
+            elif page in ('exam-schedule', 'exam-schedules', 'schedule'):
+                target_sched = session.query(ExamSchedule).filter_by(schedule_id=str(uuid)).first() if session else None
+                if target_sched and str(target_sched.institute_id) != str(current_user.institute_id):
+                    return jsonify({"error": "Unauthorized: Record does not belong to your institute"}), 403
+                if not check_institute_toggle(current_user, 'online', session=session):
+                    return jsonify({"error": "Online Test is disabled for this institute"}), 403
+                if not check_admin_page_permission(current_user, 'Schedule Exam', 'edit', session=session):
+                    return jsonify({"error": "Permission denied: Cannot edit exam schedules"}), 403
+        finally:
+            if session:
+                session.close()
+
     updated_by = getattr(current_user, 'user_name', None) or (request.json or {}).get('current_user', 'system')
     if page == 'institute':
         response_data, status_code =  manage_institute(action, uuid, updated_by)
@@ -412,6 +591,8 @@ def manage_page(page, action, uuid):
     elif page == 'exam-schedule' or page == 'exam-schedules' or page == 'schedule':
         from others.examschedule import manage_schedule
         response_data, status_code = manage_schedule(action, uuid, updated_by)
+    else:
+        return jsonify({"error": f"Unknown page '{page}'"}), 400
     return response_data, status_code
 
 @edu_blueprint.route('/get-campus-list', methods=['GET'])
@@ -423,6 +604,10 @@ def get_campus_list_route():
 @edu_blueprint.route('/register-user', methods=['POST'])
 @admin_required
 def register_user():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'User', 'add'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot add users"}), 403
     data = request.json
 
     response_data, status_code = insert_user(data)
@@ -438,6 +623,9 @@ def update_user(user_id):
         return jsonify({"status": False, "statusMessage": "Authenticated user not found"}), 401
     if not is_admin(current_user) and str(current_user.user_id) != str(user_id):
         return jsonify({"status": False, "statusMessage": "Unauthorized to modify other users"}), 403
+    if not is_super_admin(current_user) and is_admin(current_user) and str(current_user.user_id) != str(user_id):
+        if not check_admin_page_permission(current_user, 'User', 'edit'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot edit users"}), 403
     response_data, status_code = update_user_details(user_id, request)
     return jsonify(response_data), status_code
 
@@ -455,6 +643,10 @@ def get_user_page_access_route(user_id):
 @edu_blueprint.route('/bulk-register-users', methods=['POST'])
 @admin_required
 def bulk_upload_users():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'User', 'add'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot add users"}), 403
     response_data, status_code = user_bulk_upload(request)
     if status_code == 400:
         # auto-download the error report as CSV
@@ -481,24 +673,42 @@ def bulk_upload_users():
 @edu_blueprint.route('/upload-questions', methods=['POST'])
 @admin_required
 def bulk_upload_questions_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Question', 'add'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot add questions"}), 403
     response_data, status_code = bulk_upload_questions(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/create-question-using-ai', methods=['POST'])
 @admin_required
 def create_question_using_ai_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Question', 'add'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot add questions"}), 403
     response_data, status_code = create_question_using_llm(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/fine-tune-question', methods=['POST'])
 @admin_required
 def fine_tune_question_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Question', 'edit'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot edit questions"}), 403
     response_data, status_code = fine_tune_questions_using_llm(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/extract-questions-from-paper', methods=['POST'])
 @admin_required
 def extract_questions_from_paper_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
+        if not check_admin_page_permission(current_user, 'Question', 'add'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot add questions"}), 403
     response_data, status_code = extract_questions_from_paper(request)
     return jsonify(response_data), status_code
 
@@ -535,6 +745,10 @@ def delete_question_media_route():
 @edu_blueprint.route('/get-users', methods=['GET'])
 @admin_required
 def get_users():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'User', 'view'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot view users"}), 403
     response_data, status_code = get_user_details(request)
     return jsonify(response_data), status_code
 
@@ -542,6 +756,9 @@ def get_users():
 @admin_required
 def get_users_list():
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'User', 'view'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot view users"}), 403
     response_data, status_code = get_user_list(request, current_user)
     return jsonify(response_data), status_code
 
@@ -554,6 +771,10 @@ def get_user_limit_route():
 @edu_blueprint.route('/get-exams-list', methods=['GET'])
 @admin_required
 def get_exams_list():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not (check_admin_page_permission(current_user, 'Exams', 'view') or check_admin_page_permission(current_user, 'Create/Edit Paper Test', 'view')):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot view exams"}), 403
     response_data, status_code = get_exam_list(request)
     return jsonify(response_data), status_code
 
@@ -625,8 +846,28 @@ def delete_exam_route():
     exam_id = request.args.get('exam_id') or request.args.get('id')
     if not exam_id:
         return jsonify({"statusMessage": "exam_id is required", "status": False}), 400
-    from others.exams import delete_exam
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        db = SQLiteDB()
+        session = db.connect()
+        try:
+            target_exam = session.query(Exam).filter_by(exam_id=str(exam_id)).first() if session else None
+            if not target_exam:
+                return jsonify({"status": False, "statusMessage": "Exam not found"}), 404
+            if str(target_exam.institute_id) != str(current_user.institute_id):
+                return jsonify({"status": False, "statusMessage": "Unauthorized: Record does not belong to your institute"}), 403
+            test_mode = str(getattr(target_exam, 'test_mode', 'online') or 'online').lower()
+            toggle_type = 'paper' if test_mode == 'paper' else 'online'
+            page_name = 'Create/Edit Paper Test' if test_mode == 'paper' else 'Exams'
+            if not check_institute_toggle(current_user, toggle_type, session=session):
+                return jsonify({"status": False, "statusMessage": f"{toggle_type.capitalize()} Test is disabled for this institute"}), 403
+            if not check_admin_page_permission(current_user, page_name, 'delete', session=session):
+                return jsonify({"status": False, "statusMessage": f"Permission denied: Cannot delete {page_name}"}), 403
+        finally:
+            if session:
+                session.close()
+
+    from others.exams import delete_exam
     deleted_by = getattr(current_user, 'user_name', None) or request.args.get('current_user', 'system')
     response_data, status_code = delete_exam(exam_id, deleted_by)
     return jsonify(response_data), status_code
@@ -634,38 +875,71 @@ def delete_exam_route():
 @edu_blueprint.route('/get-exams-details', methods=['GET'])
 @admin_required
 def get_exams():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not (check_admin_page_permission(current_user, 'Exams', 'view') or check_admin_page_permission(current_user, 'Create/Edit Paper Test', 'view')):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot view exam details"}), 403
     response_data, status_code = get_exam_details(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/publish-paper-schedule', methods=['POST'])
 @admin_required
 def publish_paper_schedule_route():
-    from others.paper_schedules import publish_paper_schedule
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
+        if not check_admin_page_permission(current_user, 'Schedule Paper Test', 'edit'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot publish paper test schedules"}), 403
+    from others.paper_schedules import publish_paper_schedule
     response_data, status_code = publish_paper_schedule(request, current_user)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/get-paper-schedules', methods=['GET'])
 @admin_required
 def get_paper_schedules_route():
-    from others.paper_schedules import get_paper_schedules
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Schedule Paper Test', 'view'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot view paper test schedules"}), 403
+    from others.paper_schedules import get_paper_schedules
     response_data, status_code = get_paper_schedules(request, current_user)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/delete-paper-schedule', methods=['POST'])
 @admin_required
 def delete_paper_schedule_route():
-    from others.paper_schedules import delete_paper_schedule
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        sched_id = (request.json or {}).get('schedule_id') or (request.json or {}).get('id') or request.args.get('schedule_id') or request.args.get('id')
+        db = SQLiteDB()
+        session = db.connect()
+        try:
+            if sched_id and session:
+                target_sched = session.query(PaperSchedule).filter_by(schedule_id=str(sched_id)).first()
+                if target_sched and str(target_sched.institute_id) != str(current_user.institute_id):
+                    return jsonify({"status": False, "statusMessage": "Unauthorized: Record does not belong to your institute"}), 403
+            if not check_institute_toggle(current_user, 'paper', session=session):
+                return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
+            if not check_admin_page_permission(current_user, 'Schedule Paper Test', 'delete', session=session):
+                return jsonify({"status": False, "statusMessage": "Permission denied: Cannot delete paper test schedules"}), 403
+        finally:
+            if session:
+                session.close()
+    from others.paper_schedules import delete_paper_schedule
     response_data, status_code = delete_paper_schedule(request, current_user)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/update-paper-schedule', methods=['POST'])
 @admin_required
 def update_paper_schedule_route():
-    from others.paper_schedules import update_paper_schedule
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
+        if not check_admin_page_permission(current_user, 'Schedule Paper Test', 'edit'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot edit paper test schedules"}), 403
+    from others.paper_schedules import update_paper_schedule
     response_data, status_code = update_paper_schedule(request, current_user)
     return jsonify(response_data), status_code
 
@@ -686,14 +960,18 @@ def get_student_evaluation_details_route():
     current_user = get_current_user_from_request()
     if not current_user:
         return jsonify({"status": False, "statusMessage": "Authenticated user not found"}), 401
+    # Paper Evaluation is a default module for Admin; no UserPageAccess check required
     response_data, status_code = get_student_evaluation_details(request, current_user)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/test-evaluation/finalize-evaluation', methods=['POST'])
 @admin_required
 def finalize_student_evaluation_route():
-    from others.exams import finalize_student_evaluation
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
+    from others.exams import finalize_student_evaluation
     response_data, status_code = finalize_student_evaluation(request, current_user)
     return jsonify(response_data), status_code
 
@@ -701,6 +979,9 @@ def finalize_student_evaluation_route():
 @admin_required
 def upload_answer_sheet_route():
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
 
     from others.ai_credits import check_institute_ai_access
     has_access, err_msg, err_code = check_institute_ai_access(
@@ -717,8 +998,11 @@ def upload_answer_sheet_route():
 @edu_blueprint.route('/test-evaluation/remove-answer-sheet', methods=['POST'])
 @admin_required
 def remove_answer_sheet_route():
-    from others.exams import remove_answer_sheet
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
+    from others.exams import remove_answer_sheet
     response_data, status_code = remove_answer_sheet(request, current_user)
     return jsonify(response_data), status_code
 
@@ -729,6 +1013,9 @@ def start_bulk_evaluation_route():
     import json
     from others.bulk_eval_manager import bulk_eval_manager
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
 
     from others.ai_credits import check_institute_ai_access
     has_access, err_msg, err_code = check_institute_ai_access(
@@ -845,6 +1132,10 @@ def start_bulk_evaluation_route():
 @admin_required
 def stop_bulk_evaluation_route():
     from others.bulk_eval_manager import bulk_eval_manager
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
     data = request.get_json(silent=True) or {}
     job_id = data.get('job_id')
     user_id = data.get('user_id')
@@ -878,8 +1169,11 @@ def evaluation_status_route(job_id):
 @edu_blueprint.route('/test-evaluation/identify-student', methods=['POST'])
 @admin_required
 def identify_student_route():
-    from others.exams import identify_student_from_answer_sheet
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
+    from others.exams import identify_student_from_answer_sheet
     response_data, status_code = identify_student_from_answer_sheet(request, current_user)
     return jsonify(response_data), status_code
 
@@ -887,8 +1181,11 @@ def identify_student_route():
 @edu_blueprint.route('/test-evaluation/split-multi-student-pdf', methods=['POST'])
 @admin_required
 def split_multi_student_pdf_route():
-    from others.exams import split_and_identify_multi_student_pdf
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
+    from others.exams import split_and_identify_multi_student_pdf
     response_data, status_code = split_and_identify_multi_student_pdf(request, current_user)
     return jsonify(response_data), status_code
 
@@ -896,8 +1193,11 @@ def split_multi_student_pdf_route():
 @edu_blueprint.route('/test-evaluation/confirm-split-evaluation', methods=['POST'])
 @admin_required
 def confirm_split_evaluation_route():
-    from others.exams import confirm_and_enqueue_split_evaluations
     current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
+    from others.exams import confirm_and_enqueue_split_evaluations
     response_data, status_code = confirm_and_enqueue_split_evaluations(request, current_user)
     return jsonify(response_data), status_code
 
@@ -910,6 +1210,10 @@ def estimate_evaluation_credits_route():
 @edu_blueprint.route('/test-evaluation/resume-bulk-job', methods=['POST'])
 @admin_required
 def resume_bulk_job_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'paper'):
+            return jsonify({"status": False, "statusMessage": "Paper Test is disabled for this institute"}), 403
     from others.bulk_eval_manager import bulk_eval_manager
     data = request.get_json(silent=True) or {}
     job_id = data.get("job_id")
@@ -984,6 +1288,9 @@ def launch_exam_route():
     current_user = get_current_user_from_request()
     if not current_user:
         return jsonify({"statusMessage": "Authenticated user not found", "status": False}), 401
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'online'):
+            return jsonify({"statusMessage": "Online Test is disabled for your institute", "status": False}), 403
     schedule_id = request.args.get('schedule_id')
     if not schedule_id:
         return jsonify({"statusMessage": "schedule_id is required", "status": False}), 400
@@ -1031,6 +1338,15 @@ def active_exam_status_route():
 @edu_blueprint.route('/register-exam', methods=['POST'])
 @admin_required
 def register_exam_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        test_mode = str((request.json or {}).get('test_mode', 'online')).lower()
+        toggle_type = 'paper' if test_mode == 'paper' else 'online'
+        page_name = 'Create/Edit Paper Test' if test_mode == 'paper' else 'Exams'
+        if not check_institute_toggle(current_user, toggle_type):
+            return jsonify({"status": False, "statusMessage": f"{toggle_type.capitalize()} Test is disabled for this institute"}), 403
+        if not check_admin_page_permission(current_user, page_name, 'add'):
+            return jsonify({"status": False, "statusMessage": f"Permission denied: Cannot create {page_name}"}), 403
     response_data, status_code = add_exam(request)
     return jsonify(response_data), status_code
 
@@ -1038,6 +1354,15 @@ def register_exam_route():
 @edu_blueprint.route('/update-exam', methods=['POST', 'PUT'])
 @admin_required
 def update_exam_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        test_mode = str((request.json or {}).get('test_mode', 'online')).lower()
+        toggle_type = 'paper' if test_mode == 'paper' else 'online'
+        page_name = 'Create/Edit Paper Test' if test_mode == 'paper' else 'Exams'
+        if not check_institute_toggle(current_user, toggle_type):
+            return jsonify({"status": False, "statusMessage": f"{toggle_type.capitalize()} Test is disabled for this institute"}), 403
+        if not check_admin_page_permission(current_user, page_name, 'edit'):
+            return jsonify({"status": False, "statusMessage": f"Permission denied: Cannot edit {page_name}"}), 403
     from others.exams import update_exam
     response_data, status_code = update_exam(request)
     return jsonify(response_data), status_code
@@ -1054,6 +1379,12 @@ def sync_paper_answers_route():
 @edu_blueprint.route('/publish-exam', methods=['POST'])
 @admin_required
 def publish_exam_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'online'):
+            return jsonify({"status": False, "statusMessage": "Online Test is disabled for this institute"}), 403
+        if not check_admin_page_permission(current_user, 'Exams', 'edit'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot publish exams"}), 403
     from others.exams import publish_exam
     response_data, status_code = publish_exam(request)
     return jsonify(response_data), status_code
@@ -1061,6 +1392,12 @@ def publish_exam_route():
 @edu_blueprint.route('/add-exam-schedule', methods=['POST'])
 @admin_required
 def add_exam_schedule_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'online'):
+            return jsonify({"status": False, "statusMessage": "Online Test is disabled for this institute"}), 403
+        if not check_admin_page_permission(current_user, 'Schedule Exam', 'add'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot schedule exams"}), 403
     try:
         response_data, status_code = add_exam_schedule(request)
         return jsonify(response_data), status_code
@@ -1074,6 +1411,10 @@ def add_exam_schedule_route():
 @edu_blueprint.route('/get-exam-schedule-details', methods=['GET'])
 @admin_required
 def get_exam_schedule_details_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Schedule Exam', 'view'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot view exam schedules"}), 403
     response_data, status_code = get_exam_schedule_details(request)
     return jsonify(response_data), status_code
 
@@ -1116,12 +1457,22 @@ def get_descriptive_ai_analysis_route():
 @edu_blueprint.route('/update-exam-schedule', methods=['POST', 'PUT'])
 @admin_required
 def update_exam_schedule_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_institute_toggle(current_user, 'online'):
+            return jsonify({"status": False, "statusMessage": "Online Test is disabled for this institute"}), 403
+        if not check_admin_page_permission(current_user, 'Schedule Exam', 'edit'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot edit exam schedules"}), 403
     response_data, status_code = update_exam_schedule(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/add-question', methods=['POST'])
 @admin_required
 def add_question_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Question', 'add'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot add questions"}), 403
     response_data, status_code = add_question(request)
     return jsonify(response_data), status_code
 
@@ -1129,6 +1480,10 @@ def add_question_route():
 @edu_blueprint.route('/update-question/<question_id>', methods=['PUT'])
 @admin_required
 def update_question_route(question_id):
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Question', 'edit'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot edit questions"}), 403
     from others.questions import update_question
     response_data, status_code = update_question(question_id, request)
     return jsonify(response_data), status_code
@@ -1136,12 +1491,20 @@ def update_question_route(question_id):
 @edu_blueprint.route('/get-questions-details', methods=['GET'])
 @admin_required
 def get_questions_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Question', 'view'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot view questions"}), 403
     response_data, status_code = get_questions_details(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/add-categories', methods=['POST'])
 @admin_required
 def add_categories_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Category', 'add'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot add categories"}), 403
     try:
         response_data, status_code = add_categories(request)
         return jsonify(response_data), status_code
@@ -1156,6 +1519,10 @@ def add_categories_route():
 @edu_blueprint.route('/update-category/<category_id>', methods=['PUT', 'OPTIONS'])
 @admin_required
 def update_category_route(category_id):
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Category', 'edit'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot edit categories"}), 403
     try:
         from others.category import update_category
         response_data, status_code = update_category(category_id, request)
@@ -1170,12 +1537,20 @@ def update_category_route(category_id):
 @edu_blueprint.route('/get-categories-list', methods=['GET'])
 @admin_required
 def get_categories_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Category', 'view'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot view categories"}), 403
     response_data, status_code = get_categories_list(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/category-details', methods=['GET'])
 @admin_required
 def get_category_details_route():
+    current_user = get_current_user_from_request()
+    if not is_super_admin(current_user):
+        if not check_admin_page_permission(current_user, 'Category', 'view'):
+            return jsonify({"status": False, "statusMessage": "Permission denied: Cannot view categories"}), 403
     response_data, status_code = get_category_details(request)
     return jsonify(response_data), status_code
 

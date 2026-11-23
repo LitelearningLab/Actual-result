@@ -1691,7 +1691,8 @@ export class CreateExamComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     if (!this.questionBankFilterDepartments?.length) {
       try {
-        notify('Please select a department', 'info');
+        const label = (this.terminology?.deptLabel || 'department').toLowerCase();
+        notify(`Please select a ${label}`, 'info');
       } catch (e) {}
       return;
     }

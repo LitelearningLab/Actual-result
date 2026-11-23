@@ -59,6 +59,11 @@ def run_migrations():
                     raw_conn.rollback()
 
         cursor.close()
+        try:
+            from others.institute import _ensure_institute_registration_schema
+            _ensure_institute_registration_schema(session)
+        except Exception as _schema_ex:
+            print(f"  Note on schema check: {_schema_ex}")
         print("All migrations completed!")
         return True
     finally:

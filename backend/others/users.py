@@ -10,19 +10,49 @@ from sqlalchemy import or_, and_, func
 PAGE_NAME_MAP = {
     "Categories": "Question Banks",
     "Category": "Question Banks",
+    "question banks": "Question Banks",
+    "question bank": "Question Banks",
     "Exams": "Create/Edit Test",
     "Exam": "Create/Edit Test",
+    "create/edit test": "Create/Edit Test",
     "Schedule Exam": "Schedule Test",
     "Schedule": "Schedule Test",
-    "Exam Reports": "Test Reports"
+    "schedule test": "Schedule Test",
+    "Exam Reports": "Test Reports",
+    "test reports": "Test Reports",
+    "Create/Edit Paper Test": "Create/Edit Paper Test",
+    "Schedule Paper Test": "Schedule Paper Test",
+    "Paper Evaluation": "Paper Evaluation",
+    "Users": "Users",
+    "User": "Users",
+    "user": "Users",
+    "users": "Users",
+    "Questions": "Questions",
+    "Question": "Questions",
+    "question": "Questions",
+    "questions": "Questions",
 }
 
 REVERSE_PAGE_NAME_MAP = {
     "Question Banks": "Categories",
+    "Categories": "Categories",
+    "Category": "Categories",
     "Create/Edit Test": "Exams",
     "Manage test": "Exams",
+    "Exams": "Exams",
+    "Exam": "Exams",
     "Schedule Test": "Schedule Exam",
-    "Test Reports": "Exam Reports"
+    "Schedule Exam": "Schedule Exam",
+    "Schedule": "Schedule Exam",
+    "Test Reports": "Exam Reports",
+    "Exam Reports": "Exam Reports",
+    "Create/Edit Paper Test": "Create/Edit Paper Test",
+    "Schedule Paper Test": "Schedule Paper Test",
+    "Paper Evaluation": "Paper Evaluation",
+    "Users": "Users",
+    "User": "Users",
+    "Questions": "Questions",
+    "Question": "Questions",
 }
 
 def normalize_phone_number(val):
@@ -199,14 +229,25 @@ def insert_user(data):
         page_data = data.get('page_access', [])
         if not page_data:
             all_pages = session.query(Page).all()
+            inst_obj = session.query(Institute).filter_by(institute_id=str(institute_id)).first() if institute_id else None
+            allow_online = bool(getattr(inst_obj, 'allow_online_test', True)) if inst_obj and getattr(inst_obj, 'allow_online_test', None) is not None else True
+            allow_paper = bool(getattr(inst_obj, 'allow_paper_test', True)) if inst_obj and getattr(inst_obj, 'allow_paper_test', None) is not None else True
             for p in all_pages:
+                raw_name = p.page_name or ''
+                mapped_name = PAGE_NAME_MAP.get(raw_name, raw_name)
+                if mapped_name in ('Paper Evaluation', 'Test Reports', 'Admin Dashboard', 'AI Credits'):
+                    continue
+                if mapped_name in ('Create/Edit Test', 'Schedule Test') and not allow_online:
+                    continue
+                if mapped_name in ('Create/Edit Paper Test', 'Schedule Paper Test') and not allow_paper:
+                    continue
                 user_page_access = UserPageAccess(
                     user_id=user_id,
                     page_id=p.page_id,
                     can_view=1,
-                    can_add=1 if user_role == 'admin' else 0,
-                    can_edit=1 if user_role == 'admin' else 0,
-                    can_delete=1 if user_role == 'admin' else 0
+                    can_add=0,
+                    can_edit=0,
+                    can_delete=0
                 )
                 session.add(user_page_access)
         else:
@@ -1382,6 +1423,8 @@ def get_user_page_access(user_id):
     for access in access_details:
         raw_name = access.page_name
         display_name = PAGE_NAME_MAP.get(raw_name, raw_name) if raw_name else None
+        if display_name in ('Paper Evaluation', 'Test Reports', 'Admin Dashboard', 'AI Credits') or raw_name in ('Paper Evaluation', 'Test Reports', 'Admin Dashboard', 'AI Credits'):
+            continue
         result.append({
             "page_id": access.page_id,
             "page_name": display_name,

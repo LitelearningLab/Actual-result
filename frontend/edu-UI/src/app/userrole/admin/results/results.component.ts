@@ -28,7 +28,7 @@ export interface DashboardFeatureCard {
   styleUrls: ['./results.component.scss']
 })
 export class AdminResultsComponent implements OnInit {
-  readonly featureCards: DashboardFeatureCard[] = [
+  private readonly allFeatureCards: DashboardFeatureCard[] = [
     {
       title: 'Question Banks',
       description: 'Create and manage question banks to organize questions by subject, chapter, and topic.',
@@ -78,6 +78,26 @@ export class AdminResultsComponent implements OnInit {
       themeClass: 'feature-card--teal'
     }
   ];
+
+  get featureCards(): DashboardFeatureCard[] {
+    let allowOnline = true;
+    let allowPaper = true;
+    try {
+      const u = JSON.parse(sessionStorage.getItem('user') || sessionStorage.getItem('user_profile') || '{}');
+      if (u) {
+        if (u.allow_online_test !== undefined && u.allow_online_test !== null) allowOnline = !!u.allow_online_test;
+        if (u.allow_paper_test !== undefined && u.allow_paper_test !== null) allowPaper = !!u.allow_paper_test;
+      }
+    } catch (e) {}
+
+    return this.allFeatureCards.filter(card => {
+      const isOnline = card.route === '/exams' || card.route === '/view-schedule-exam';
+      const isPaper = card.route === '/question-papers' || card.route === '/test-evaluation';
+      if (isOnline && !allowOnline) return false;
+      if (isPaper && !allowPaper) return false;
+      return true;
+    });
+  }
 
   metrics: any = {
     totalStudents: 0,

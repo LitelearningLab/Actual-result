@@ -29,17 +29,20 @@ export class PageAccessService {
     'tests': 'Create/Edit Test',
     'manage test': 'Create/Edit Test',
     'create/edit test': 'Create/Edit Test',
-    'create/edit paper test': 'Create/Edit Test',
-    'paper test': 'Create/Edit Test',
-    'create question paper': 'Create/Edit Test',
-    'question paper': 'Create/Edit Test',
-    'question papers': 'Create/Edit Test',
-    'create-question-paper': 'Create/Edit Test',
-    'question-papers': 'Create/Edit Test',
+    'create/edit paper test': 'Create/Edit Paper Test',
+    'paper test': 'Create/Edit Paper Test',
+    'create question paper': 'Create/Edit Paper Test',
+    'question paper': 'Create/Edit Paper Test',
+    'question papers': 'Create/Edit Paper Test',
+    'create-question-paper': 'Create/Edit Paper Test',
+    'question-papers': 'Create/Edit Paper Test',
     'schedule exam': 'Schedule Test',
     'schedule': 'Schedule Test',
     'schedule test': 'Schedule Test',
     'scheduled tests': 'Schedule Test',
+    'schedule paper test': 'Schedule Paper Test',
+    'scheduled paper test': 'Schedule Paper Test',
+    'scheduled paper tests': 'Schedule Paper Test',
     'exam reports': 'Test Reports',
     'test reports': 'Test Reports',
     'users': 'Users',
@@ -78,6 +81,7 @@ export class PageAccessService {
       }),
       catchError(err => {
         console.error('[PageAccessService] Failed to fetch page access:', err);
+        this.cache.delete(userId);
         return of([]);
       }),
       // shareReplay ensures multiple subscribers share the same in-flight HTTP request
@@ -114,6 +118,13 @@ export class PageAccessService {
 
   // optional: clear cache for a user
   clearCache(userId: string) {
-    this.cache.delete(userId);
+    if (userId) {
+      this.cache.delete(userId);
+    }
+  }
+
+  // clear all cached user permissions
+  clearAllCache() {
+    this.cache.clear();
   }
 }

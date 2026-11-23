@@ -177,6 +177,8 @@ export class InstituteRegisterComponent {
       subscription_start: [null as Date | null, Validators.required],
       subscription_end: [null as Date | null, Validators.required],
       active: [true],
+      allow_online_test: [true],
+      allow_paper_test: [true],
       campuses: this.fb.array([]),
       qa_character_limits: this.fb.array([
         this.createQaLimitGroup(2, 350, 450, 550),
@@ -737,6 +739,8 @@ export class InstituteRegisterComponent {
           allocated_credits: obj.allocated_credits ?? 0,
           credit_alert_threshold: obj.credit_alert_threshold ?? 10,
           active: !!obj.active_status,
+          allow_online_test: obj.allow_online_test !== undefined && obj.allow_online_test !== null ? !!obj.allow_online_test : true,
+          allow_paper_test: obj.allow_paper_test !== undefined && obj.allow_paper_test !== null ? !!obj.allow_paper_test : true,
         });
 
         this.usedCredits = obj.used_credits || 0;
@@ -1395,6 +1399,8 @@ export class InstituteRegisterComponent {
       department: this.departmentList.slice(),
       team: this.teamList.slice(),
       subjects: this.subjectsList.slice(),
+      allow_online_test: base.allow_online_test !== undefined && base.allow_online_test !== null ? !!base.allow_online_test : true,
+      allow_paper_test: base.allow_paper_test !== undefined && base.allow_paper_test !== null ? !!base.allow_paper_test : true,
       // send only current user's id
       current_user:
         current_user && (current_user.user_id || current_user.id)

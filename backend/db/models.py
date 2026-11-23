@@ -39,6 +39,8 @@ class Institute(Base):
      qa_character_limits = Column(String, default='[{"marks": 2, "character_limit": 450}, {"marks": 5, "character_limit": 1000}, {"marks": 10, "character_limit": 1500}]')
      allocated_credits = Column(Integer, default=0)
      credit_alert_threshold = Column(Integer, default=10)
+     allow_online_test = Column(Boolean, default=1)
+     allow_paper_test = Column(Boolean, default=1)
 
      created_by = Column(String)
      created_date = Column(DateTime, default=datetime.datetime.utcnow)
@@ -564,6 +566,8 @@ class Categories(Base):
     updated_by = Column(String)
     updated_date = Column(DateTime)
     is_deleted = Column(Boolean)
+
+Category = Categories
 
 class CategoriesDepartments(Base):
     __tablename__ = 'CategoriesDepartments'

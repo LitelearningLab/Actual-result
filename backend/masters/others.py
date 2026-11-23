@@ -8,7 +8,10 @@ PAGE_NAME_MAP = {
     "Exam": "Create/Edit Test",
     "Schedule Exam": "Schedule Test",
     "Schedule": "Schedule Test",
-    "Exam Reports": "Test Reports"
+    "Exam Reports": "Test Reports",
+    "Create/Edit Paper Test": "Create/Edit Paper Test",
+    "Schedule Paper Test": "Schedule Paper Test",
+    "Paper Evaluation": "Paper Evaluation",
 }
 
 def get_pages_list(request):
@@ -23,6 +26,9 @@ def get_pages_list(request):
     for page in page_details:
         raw_name = page.page_name
         display_name = PAGE_NAME_MAP.get(raw_name, raw_name)
+        # Default modules should not appear in the configurable privileges list
+        if display_name in ('Paper Evaluation', 'Test Reports', 'Admin Dashboard', 'AI Credits') or raw_name in ('Paper Evaluation', 'Test Reports', 'Admin Dashboard', 'AI Credits'):
+            continue
         page_data.append({
             "page_id": page.page_id,
             "page_name": display_name,

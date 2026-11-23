@@ -118,12 +118,16 @@ def get_user_profile_payload(session, user):
     institute_name = None
     institute_short_name = None
     industry_type = None
+    allow_online_test = True
+    allow_paper_test = True
     if getattr(user, 'institute_id', None):
         inst = session.query(Institute).filter_by(institute_id=str(user.institute_id)).first()
         if inst:
             institute_name = inst.name
             institute_short_name = inst.short_name
             industry_type = getattr(inst, 'industry_type', None)
+            allow_online_test = bool(inst.allow_online_test) if getattr(inst, 'allow_online_test', None) is not None else True
+            allow_paper_test = bool(inst.allow_paper_test) if getattr(inst, 'allow_paper_test', None) is not None else True
 
     department_name = None
     if getattr(user, 'department_id', None):
@@ -179,6 +183,8 @@ def get_user_profile_payload(session, user):
         'institute_name': institute_name,
         'institute_short_name': institute_short_name,
         'institute_id': str(user.institute_id) if getattr(user, 'institute_id', None) else None,
+        'allow_online_test': allow_online_test,
+        'allow_paper_test': allow_paper_test,
         'industry_type': industry_type,
         'industry': industry_type,
         'department': department_name,

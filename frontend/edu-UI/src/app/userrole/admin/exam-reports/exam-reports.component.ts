@@ -4340,6 +4340,13 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
     } catch (e) {}
 
     try {
+      const u = JSON.parse(sessionStorage.getItem('user') || sessionStorage.getItem('user_profile') || '{}');
+      if (u && u.allow_online_test === false && u.allow_paper_test === true) {
+        this.activeReportType = 'paper';
+      }
+    } catch (e) {}
+
+    try {
       this.route.queryParams.subscribe((params) => {
         if (
           params['open_sheet'] === 'true' ||

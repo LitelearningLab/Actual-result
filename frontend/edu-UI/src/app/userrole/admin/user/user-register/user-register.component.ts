@@ -22,6 +22,7 @@ import { RouterModule } from '@angular/router';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
+import { PageAccessService } from 'src/app/shared/services/page-access.service';
 import { getInstituteTerminology, InstituteTerminology } from 'src/app/shared/services/institute-terminology.service';
 import * as XLSX from 'xlsx';
 
@@ -76,7 +77,8 @@ export class AdminUserRegisterComponent implements OnInit {
     const instituteName = (selectedInstitute?.name || (typeof selectedInstituteId === 'string' ? selectedInstituteId : '') || '').trim().toLowerCase();
     return instituteName.includes('profluent');
   }
-  institutes: Array<{ id: string; name: string; industry_type?: string; industry_sector?: string }> = [];
+  institutes: Array<{ id: string; name: string; industry_type?: string; industry_sector?: string; allow_online_test?: boolean; allow_paper_test?: boolean }> = [];
+  allRawPagesList: Array<any> = [];
 
   get terminology(): InstituteTerminology {
     const selectedInstituteId = this.form?.get('institute')?.value || this.bulkInstitute || this.loggedInstitute;
@@ -210,7 +212,7 @@ export class AdminUserRegisterComponent implements OnInit {
     return this.teams.filter(t => (t.name || '').toLowerCase().includes(term));
   }
 
-  constructor(private fb: FormBuilder, private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private notify: NotificationService, private loader: LoaderService) {
+  constructor(private fb: FormBuilder, private router: Router, private http: HttpClient, private auth: AuthService, private pageMeta: PageMetaService, private notify: NotificationService, private loader: LoaderService, private pageAccess: PageAccessService) {
     this.form = this.fb.group({
       institute: ['', Validators.required],
       role: ['', Validators.required],
@@ -484,6 +486,14 @@ export class AdminUserRegisterComponent implements OnInit {
         this.loadCampusList(iid);
         this.loadLocationHierarchy(iid);
         this.fetchBulkUserLimit(iid);
+        if (this.showUserManagement) {
+          if (this.allRawPagesList && this.allRawPagesList.length > 0) {
+            this.filterPagesListByInstitute();
+            this.initPermissions();
+          } else {
+            this.loadPagesList();
+          }
+        }
       } else {
         this.bulkInstitute = '';
         this.fetchBulkUserLimit('');
@@ -707,9 +717,69 @@ export class AdminUserRegisterComponent implements OnInit {
       'users': 'Users',
       'user': 'Users',
       'questions': 'Questions',
-      'question': 'Questions'
+      'question': 'Questions',
+      'create/edit paper test': 'Create/Edit Paper Test',
+      'create paper test': 'Create/Edit Paper Test',
+      'paper test': 'Create/Edit Paper Test',
+      'question papers': 'Create/Edit Paper Test',
+      'question paper': 'Create/Edit Paper Test',
+      'schedule paper test': 'Schedule Paper Test',
+      'scheduled paper tests': 'Schedule Paper Test',
+      'paper evaluation': 'Paper Evaluation',
+      'test evaluation': 'Paper Evaluation',
+      'evaluation': 'Paper Evaluation'
     };
     return map[key] || name;
+  }
+
+  getSelectedInstituteSettings(): { allow_online_test: boolean; allow_paper_test: boolean } {
+    const selectedInstituteId = this.form?.get('institute')?.value || this.bulkInstitute || this.loggedInstitute;
+    if (selectedInstituteId && this.institutes && this.institutes.length) {
+      const inst = this.institutes.find(i => String(i.id) === String(selectedInstituteId) || String(i.name) === String(selectedInstituteId));
+      if (inst) {
+        return {
+          allow_online_test: inst.allow_online_test !== undefined && inst.allow_online_test !== null ? !!inst.allow_online_test : true,
+          allow_paper_test: inst.allow_paper_test !== undefined && inst.allow_paper_test !== null ? !!inst.allow_paper_test : true
+        };
+      }
+    }
+    try {
+      const u = JSON.parse(sessionStorage.getItem('user') || sessionStorage.getItem('user_profile') || '{}');
+      return {
+        allow_online_test: u.allow_online_test !== undefined && u.allow_online_test !== null ? !!u.allow_online_test : true,
+        allow_paper_test: u.allow_paper_test !== undefined && u.allow_paper_test !== null ? !!u.allow_paper_test : true
+      };
+    } catch (e) {
+      return { allow_online_test: true, allow_paper_test: true };
+    }
+  }
+
+  filterPagesListByInstitute() {
+    const settings = this.getSelectedInstituteSettings();
+    const data = this.allRawPagesList || [];
+    const mapped = (data || []).map((p: any) => ({
+      key: String(p.key || p.page_id || p.id || p.name),
+      name: this.getModulePageName(p.name || p.page_name || p.page || p.key)
+    }));
+
+    this.pagesList = mapped.filter((p: any) => {
+      const name = p.name;
+      // Paper Evaluation is a default module (like AI Credits, Test Reports, Test Inbox)
+      // and should not appear in the configurable add-on privileges table.
+      if (name === 'Paper Evaluation') {
+        return false;
+      }
+      const isOnlineModule = name === 'Create/Edit Test' || name === 'Schedule Test';
+      const isPaperModule = name === 'Create/Edit Paper Test' || name === 'Schedule Paper Test';
+
+      if (isOnlineModule && !settings.allow_online_test) {
+        return false;
+      }
+      if (isPaperModule && !settings.allow_paper_test) {
+        return false;
+      }
+      return true;
+    });
   }
 
   loadPagesList(callback?: () => void) {
@@ -719,10 +789,8 @@ export class AdminUserRegisterComponent implements OnInit {
       next: (res) => {
         try {
           const data = res?.data || res?.pages || [];
-          this.pagesList = (data || []).map((p: any) => ({
-            key: String(p.key || p.page_id || p.id || p.name),
-            name: this.getModulePageName(p.name || p.page_name || p.page || p.key)
-          }));
+          this.allRawPagesList = data;
+          this.filterPagesListByInstitute();
           this.initPermissions();
           if (callback) {
             callback();
@@ -882,7 +950,9 @@ export class AdminUserRegisterComponent implements OnInit {
             id: i.institute_id,
             name: i.name || i.institute_name || i.short_name || '',
             industry_type: i.industry_type || i.industry || '',
-            industry_sector: i.industry_sector || i.sector || ''
+            industry_sector: i.industry_sector || i.sector || '',
+            allow_online_test: i.allow_online_test !== undefined && i.allow_online_test !== null ? !!i.allow_online_test : true,
+            allow_paper_test: i.allow_paper_test !== undefined && i.allow_paper_test !== null ? !!i.allow_paper_test : true
           }));
         } catch (e) { this.institutes = []; }
         this.loadingInstitutes = false;
@@ -1478,6 +1548,10 @@ export class AdminUserRegisterComponent implements OnInit {
           this.loader.hide();
           sessionStorage.removeItem('edit_user');
           sessionStorage.removeItem('users_return_state');
+          if (this.editingUserId) {
+            this.pageAccess.clearCache(this.editingUserId);
+          }
+          this.pageAccess.clearAllCache();
           this.notify.success(res?.statusMessage || 'User updated successfully');
           this.router.navigate(['/view-users']);
         },
@@ -1498,6 +1572,7 @@ export class AdminUserRegisterComponent implements OnInit {
         next: (res) => {
           this.submitting = false;
           this.loader.hide();
+          this.pageAccess.clearAllCache();
           this.notify.success(res?.statusMessage || 'User registered successfully');
           this.router.navigate(['/view-users']);
         },

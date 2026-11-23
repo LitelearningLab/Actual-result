@@ -40,6 +40,8 @@ def _ensure_institute_registration_schema(session):
             "qa_character_limits": "NVARCHAR(MAX) NULL",
             "allocated_credits": "BIGINT NULL DEFAULT 0",
             "credit_alert_threshold": "INT NULL DEFAULT 10",
+            "allow_online_test": "BIT NULL DEFAULT 1",
+            "allow_paper_test": "BIT NULL DEFAULT 1",
         }
         for column_name, definition in required_columns.items():
             exists = session.execute(
@@ -50,6 +52,39 @@ def _ensure_institute_registration_schema(session):
                 session.execute(text(
                     f"ALTER TABLE dbo.Institutes ADD [{column_name}] {definition}"
                 ))
+
+        # Ensure existing institute records have default 1 for allow_online_test and allow_paper_test
+        try:
+            session.execute(text("""
+                UPDATE dbo.Institutes SET allow_online_test = 1 WHERE allow_online_test IS NULL;
+                UPDATE dbo.Institutes SET allow_paper_test = 1 WHERE allow_paper_test IS NULL;
+            """))
+        except Exception:
+            pass
+
+        # Ensure dbo.Pages has Paper Test pages
+        try:
+            session.execute(text("""
+                IF NOT EXISTS (SELECT 1 FROM dbo.Pages WHERE page_name = 'Create/Edit Paper Test' OR page_url = '/question-papers')
+                BEGIN
+                    INSERT INTO dbo.Pages (page_id, page_name, page_url, active_status)
+                    VALUES (NEWID(), 'Create/Edit Paper Test', '/question-papers', 1);
+                END;
+
+                IF NOT EXISTS (SELECT 1 FROM dbo.Pages WHERE page_name = 'Schedule Paper Test' OR page_url = '/scheduled-paper-tests')
+                BEGIN
+                    INSERT INTO dbo.Pages (page_id, page_name, page_url, active_status)
+                    VALUES (NEWID(), 'Schedule Paper Test', '/scheduled-paper-tests', 1);
+                END;
+
+                IF NOT EXISTS (SELECT 1 FROM dbo.Pages WHERE page_name = 'Paper Evaluation' OR page_url = '/test-evaluation')
+                BEGIN
+                    INSERT INTO dbo.Pages (page_id, page_name, page_url, active_status)
+                    VALUES (NEWID(), 'Paper Evaluation', '/test-evaluation', 1);
+                END;
+            """))
+        except Exception:
+            pass
         city_name_exists = session.execute(
             text("SELECT COL_LENGTH('dbo.InstituteCampuses', 'city_name')")
         ).scalar()
@@ -204,6 +239,11 @@ def insert_institute(data):
     active_status = data.get("active_status", data.get("active", 1))
     active_status = 1 if active_status in (True, 1, "1", "true", "True", "active", "Active") else 0
 
+    allow_online_test_raw = data.get("allow_online_test", 1)
+    allow_online_test = 0 if allow_online_test_raw in (False, 0, "0", "false", "False") else 1
+    allow_paper_test_raw = data.get("allow_paper_test", 1)
+    allow_paper_test = 0 if allow_paper_test_raw in (False, 0, "0", "false", "False") else 1
+
     allocated_credits = data.get("allocated_credits", 0)
     try:
         allocated_credits = int(allocated_credits or 0)
@@ -282,6 +322,8 @@ def insert_institute(data):
             subscription_start=subscription_start,
             subscription_end=subscription_end,
             qa_character_limits=qa_character_limits,
+            allow_online_test=allow_online_test,
+            allow_paper_test=allow_paper_test,
             active_status=active_status,
             created_by=created_by,
         )
@@ -521,6 +563,8 @@ def update_institute(request):
                 value = parsed_dates[key]
             elif key == "qa_character_limits" and isinstance(value, (list, dict)):
                 value = json.dumps(value)
+            elif key in ("allow_online_test", "allow_paper_test"):
+                value = 0 if value in (False, 0, "0", "false", "False") else 1
             setattr(institute, key, value)
 
     institute.updated_by = data.get("current_user", 'system')
@@ -989,6 +1033,8 @@ def get_institute_details(request):
             "subscription_start": inst.subscription_start,
             "subscription_end": inst.subscription_end,
             "qa_character_limits": normalize_qa_character_limits(getattr(inst, "qa_character_limits", None)),
+            "allow_online_test": bool(inst.allow_online_test) if getattr(inst, "allow_online_test", None) is not None else True,
+            "allow_paper_test": bool(inst.allow_paper_test) if getattr(inst, "allow_paper_test", None) is not None else True,
             "active_status": True if inst.active_status else False,
             "departments": dept_list,
             "teams": team_list,
@@ -1070,6 +1116,8 @@ def get_institute_list(current_user=None, request=None):
             "short_name": inst.short_name,
             "industry_type": inst.industry_type or '',
             "industry_sector": inst.industry_sector or '',
+            "allow_online_test": bool(inst.allow_online_test) if getattr(inst, "allow_online_test", None) is not None else True,
+            "allow_paper_test": bool(inst.allow_paper_test) if getattr(inst, "allow_paper_test", None) is not None else True,
             "qa_character_limits": normalize_qa_character_limits(getattr(inst, "qa_character_limits", None))
         })
     json_data = {

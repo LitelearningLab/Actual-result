@@ -220,35 +220,61 @@ export class SideNavComponent implements OnInit, OnDestroy {
     if (!this.isLogin) return;
 
     const role = (this.userRole || '').toLowerCase();
-    if (role === 'super_admin' || role === 'super-admin') {
+    const isSuper = role === 'super_admin' || role === 'super-admin' || role === 'superadmin';
+    const isAdmin = role === 'admin';
+    const isStudent = ['user', 'candidate', 'student', 'learner'].includes(role);
+
+    let allowOnline = true;
+    let allowPaper = true;
+    try {
+      const u = JSON.parse(sessionStorage.getItem('user') || sessionStorage.getItem('user_profile') || '{}');
+      if (u) {
+        if (u.allow_online_test !== undefined && u.allow_online_test !== null) {
+          allowOnline = !!u.allow_online_test;
+        }
+        if (u.allow_paper_test !== undefined && u.allow_paper_test !== null) {
+          allowPaper = !!u.allow_paper_test;
+        }
+      }
+    } catch (e) {}
+
+    if (isSuper) {
       this.menus.push({ label: 'Super Admin Dashboard', path: '/super-admin-dashboard', icon: 'dashboard' });
       this.menus.push({ label: 'Institutes', path: '/view-institutes', icon: 'institute' });
     }
 
-    if (role === 'admin' || role === 'super_admin' || role === 'super-admin') {
-      // admin and super-admin may see admin tools
+    if (isAdmin || isSuper) {
       this.menus.push({ label: 'Admin Dashboard', path: '/admin-dashboard', icon: 'admin' });
       this.menus.push({ label: 'Users', path: '/view-users', icon: 'users' });
       this.menus.push({ label: 'Question Banks', path: '/category', icon: 'category' });
       this.menus.push({ label: 'Questions', path: '/view-questions', icon: 'quiz' });
-      this.menus.push({ label: 'Create/Edit Test', path: '/exams', icon: 'exam' });
-      this.menus.push({ label: 'Schedule Test', path: '/view-schedule-exam', icon: 'calendar' });
+
+      // Online Test Add-ons
+      if (isSuper || allowOnline) {
+        this.menus.push({ label: 'Create/Edit Test', path: '/exams', icon: 'exam' });
+        this.menus.push({ label: 'Schedule Test', path: '/view-schedule-exam', icon: 'calendar' });
+      }
+
+      // Paper Test Add-ons
+      if (isSuper || allowPaper) {
+        this.menus.push({ label: 'Create/Edit Paper Test', path: '/question-papers', icon: 'exam' });
+        this.menus.push({ label: 'Scheduled Paper Test', path: '/scheduled-paper-tests', icon: 'calendar' });
+        this.menus.push({ label: 'Paper Evaluation', path: '/test-evaluation', icon: 'assignment' });
+      }
+
+      // Default modules based on enabled engine
+      if (isSuper || allowOnline) {
+        this.menus.push({ label: 'Test Inbox', path: '/user/exam', icon: 'assignment' });
+      }
+      if (isSuper || allowPaper) {
+        this.menus.push({ label: 'Paper Test Results', path: '/user/paper-test-results', icon: 'report' });
+      }
+
       this.menus.push({ label: 'Test Reports', path: '/admin/exam-reports', icon: 'report' });
       this.menus.push({ label: 'AI Credits', path: '/admin/ai-credits', icon: 'brain' });
-    }
-
-    if (role === 'user' || role === 'candidate' || role === 'student' || role === 'learner' || role === 'admin' || role === 'super_admin' || role === 'superadmin' || role === 'super-admin') {
-      // Admins retain their management menus and also receive the candidate entry points.
-      // this.menus.push({ label: 'User Dashboard', path: '/user-dashboard', icon: 'user' });
+    } else if (isStudent) {
       this.menus.push({ label: 'Test Inbox', path: '/user/exam', icon: 'assignment' });
       this.menus.push({ label: 'Paper Test Results', path: '/user/paper-test-results', icon: 'report' });
-    }
-
-    if (role === 'admin' || role === 'super_admin' || role === 'super-admin') {
-      // Separate Question Paper module placed after Test Inbox
-      this.menus.push({ label: 'Create/Edit Paper Test', path: '/question-papers', icon: 'exam' });
-      this.menus.push({ label: 'Scheduled Paper Test', path: '/scheduled-paper-tests', icon: 'calendar' });
-      this.menus.push({ label: 'Paper Evaluation', path: '/test-evaluation', icon: 'assignment' });
     }
 
     // After menus are set, update selected menu based on current URL
