@@ -17,6 +17,7 @@ from db.models import (
     MarksHistory,
     Setting,
     ExamReviewComments,
+    Subject,
 )
 from db.db import SQLiteDB
 import sys
@@ -1214,6 +1215,18 @@ def get_user_paper_results(request, current_user=None):
             .all()
         )
 
+        # Batch lookup master exams to get subject details
+        exam_ids = list(set([str(ps.exam_id) for ps in paper_schedules if ps.exam_id]))
+        exam_map = {}
+        subject_map = {}
+        if exam_ids:
+            exam_records = session.query(Exam).filter(Exam.exam_id.in_(exam_ids)).all()
+            exam_map = {str(e.exam_id): e for e in exam_records}
+            subj_ids = list(set([str(e.subject_id) for e in exam_records if getattr(e, "subject_id", None)]))
+            if subj_ids:
+                subj_records = session.query(Subject).filter(Subject.subject_id.in_(subj_ids)).all()
+                subject_map = {str(s.subject_id): s.subject_name for s in subj_records if s.subject_name}
+
         now = datetime.datetime.utcnow()
         results = []
         for ps in paper_schedules:
@@ -1226,6 +1239,13 @@ def get_user_paper_results(request, current_user=None):
 
             evaluated_attempts.sort(key=lambda a: getattr(a, "attempt_number", 0) or 0)
             target_attempt = evaluated_attempts[-1]
+
+            m_obj = exam_map.get(str(ps.exam_id))
+            subject_name = ""
+            subject_id = ""
+            if m_obj:
+                subject_id = str(m_obj.subject_id or "")
+                subject_name = (m_obj.subject_name or subject_map.get(subject_id) or "").strip()
 
             review_mode = getattr(ps, "review_mode", None) or ("instant" if getattr(ps, "user_review", 0) == 1 else "no_review")
             multiple_review = bool(getattr(ps, "multiple_review", False))
@@ -1252,6 +1272,10 @@ def get_user_paper_results(request, current_user=None):
                 "test_id": sid_str,
                 "exam_id": str(ps.exam_id),
                 "title": ps.title,
+                "subject_id": subject_id,
+                "subject_name": subject_name or "General",
+                "start_time": _format_utc_iso(getattr(ps, "start_time", None)),
+                "end_time": _format_utc_iso(getattr(ps, "end_time", None)),
                 "attempt_id": str(target_attempt.attempt_id),
                 "review_attempt_id": str(unreviewed[-1].attempt_id if (not multiple_review and unreviewed) else target_attempt.attempt_id),
                 "review_mode": review_mode,

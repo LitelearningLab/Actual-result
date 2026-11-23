@@ -13,20 +13,77 @@
       </div>
 
       <div class="controls">
-        <button mat-flat-button color="primary" type="button" (click)="loadResults(true)" class="button-one"
-          title="Refresh results" aria-label="Refresh paper test results">
-          <mat-icon>refresh</mat-icon>
-          <span>Refresh</span>
-        </button>
+        <div class="action-row">
+          <button mat-flat-button type="button" (click)="toggleFilters($event)" class="button-one filter-btn"
+            [class.has-active-filters]="activeFilterCount > 0" title="Filter Tests" aria-label="Filter Tests">
+            <mat-icon>tune</mat-icon>
+            <span>Filter</span>
+            <span class="filter-count-badge" *ngIf="activeFilterCount > 0">{{ activeFilterCount }}</span>
+          </button>
+          <button mat-flat-button color="primary" type="button" (click)="loadResults(true)" class="button-one"
+            title="Refresh results" aria-label="Refresh paper test results">
+            <mat-icon>refresh</mat-icon>
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Single Tab Header matching Test Inbox segmented tab style -->
-    <div class="segmented-tabs-container">
-      <button type="button" class="segment-tab-btn active">
-        <span>Attended Tests</span>
-        <span class="tab-badge">{{ dataSource.filteredData.length }}</span>
-      </button>
+    <!-- Applied Filters Bar -->
+    <div class="applied-filters-container" *ngIf="hasAppliedFilters">
+      <span class="applied-filters-title">APPLIED FILTERS</span>
+      <span class="applied-filter-pill" *ngIf="filterSubject">
+        <strong>Subject:</strong> {{ filterSubject }}
+        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('subject'); $event.stopPropagation()">close</mat-icon>
+      </span>
+      <span class="applied-filter-pill" *ngIf="filterFromDate || filterToDate">
+        <strong>Date:</strong> {{ getDateRangeDisplay() }}
+        <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('date'); $event.stopPropagation()">close</mat-icon>
+      </span>
+      <button type="button" class="clear-all-chip-btn" (click)="resetFilters()" title="Clear all applied filters">Clear all</button>
+    </div>
+
+    <!-- Mobile / Overlay Backdrop -->
+    <div class="filters-backdrop" *ngIf="filtersOpen" (click)="closeFilters()"></div>
+
+    <!-- Filters Panel -->
+    <div class="filters-panel card" *ngIf="filtersOpen" (click)="$event.stopPropagation()">
+      <div class="filters-header">
+        <div class="filters-title">
+          <mat-icon>tune</mat-icon>
+          <strong>Filters</strong>
+        </div>
+        <button type="button" class="close-sheet-btn" (click)="closeFilters()" title="Close filters" aria-label="Close filters">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+
+      <div class="filter-row">
+        <!-- Subject Filter -->
+        <mat-form-field appearance="outline">
+          <mat-label>Subject</mat-label>
+          <mat-select [(ngModel)]="filterSubject" (selectionChange)="applyFilter()" placeholder="Select Subject">
+            <mat-option value="">All Subjects</mat-option>
+            <mat-option *ngFor="let s of availableSubjects" [value]="s">{{ s }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <!-- Date Range Filter (From Date - To Date) -->
+        <mat-form-field appearance="outline" class="date-range-field" (click)="openDateRangePicker()" style="cursor: pointer">
+          <mat-label>Attended Date (From - To)</mat-label>
+          <input matInput readonly [value]="getDateRangeDisplay()" placeholder="Select date range" style="cursor: pointer" />
+          <mat-icon matSuffix style="cursor: pointer; color: #0284c7">calendar_today</mat-icon>
+        </mat-form-field>
+      </div>
+
+      <div class="filter-actions">
+        <button mat-flat-button class="filter-reset-btn" (click)="resetFilters()">
+          <mat-icon>restart_alt</mat-icon> Reset
+        </button>
+        <button mat-flat-button class="filter-apply-btn" (click)="applyFilter(); closeFilters()">
+          <mat-icon>check</mat-icon> Apply
+        </button>
+      </div>
     </div>
   </div>
 
@@ -45,7 +102,10 @@
           <ng-container matColumnDef="title">
             <th mat-header-cell *matHeaderCellDef mat-sort-header>Test Name</th>
             <td mat-cell *matCellDef="let row" class="cell-primary">
-              <span class="exam-name">{{ row.title }}</span>
+              <div class="test-title-group">
+                <span class="exam-name">{{ row.title }}</span>
+                <span class="subject-pill" *ngIf="row.subject_name">{{ row.subject_name }}</span>
+              </div>
             </td>
           </ng-container>
 
@@ -84,7 +144,10 @@
       <div *ngFor="let row of mobileRows; let i = index" class="mobile-exam-card">
         <div class="card-top">
           <span class="sno-pill">#{{ getSNo(i) }}</span>
-          <h3 class="exam-title-text">{{ row.title }}</h3>
+          <div class="card-title-group">
+            <h3 class="exam-title-text">{{ row.title }}</h3>
+            <span class="subject-pill" *ngIf="row.subject_name">{{ row.subject_name }}</span>
+          </div>
         </div>
         <div class="card-cta-row">
           <button mat-flat-button class="btn-mobile-review" [disabled]="!canReview(row)"

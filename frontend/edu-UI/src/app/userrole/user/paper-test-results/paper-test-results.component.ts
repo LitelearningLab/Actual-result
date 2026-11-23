@@ -12,6 +12,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSelectModule } from '@angular/material/select';
+import { SharedModule } from 'src/app/shared/shared.module';
 import { API_BASE } from 'src/app/shared/api.config';
 import { PageMetaService } from 'src/app/shared/services/page-meta.service';
 import { LoaderService } from 'src/app/shared/services/loader.service';
@@ -19,12 +21,20 @@ import {
   ConfirmOneTimeReviewDialogComponent,
   ReviewTargetRow,
 } from 'src/app/shared/components/test-review-modal/test-review-modal.component';
+import {
+  DateRangePickerDialogComponent,
+  DateRangeDialogResult,
+} from 'src/app/shared/components/date-range-picker-dialog/date-range-picker-dialog.component';
 
 export interface PaperTestResultRow extends ReviewTargetRow {
   schedule_id: string;
   test_id: string;
   exam_id: string;
   title: string;
+  subject_id?: string;
+  subject_name?: string;
+  start_time?: string;
+  end_time?: string;
   attempt_id: string;
   review_attempt_id: string;
   review_mode: string;
@@ -33,8 +43,8 @@ export interface PaperTestResultRow extends ReviewTargetRow {
   user_review: boolean;
   review_available: boolean;
   review_consumed: boolean;
-  submitted_date?: string | null;
-  created_date?: string | null;
+  submitted_date?: string;
+  created_date?: string;
 }
 
 @Component({
@@ -43,11 +53,13 @@ export interface PaperTestResultRow extends ReviewTargetRow {
   imports: [
     CommonModule,
     FormsModule,
+    SharedModule,
     MatTableModule,
     MatPaginatorModule,
     MatSortModule,
     MatFormFieldModule,
     MatInputModule,
+    MatSelectModule,
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
@@ -68,6 +80,13 @@ export class PaperTestResultsComponent implements OnInit, AfterViewInit, OnDestr
   search = '';
   isAdminUser = false;
 
+  // Filter state
+  filtersOpen = false;
+  filterSubject = '';
+  filterFromDate: Date | null = null;
+  filterToDate: Date | null = null;
+  availableSubjects: string[] = [];
+
   private refreshTimer?: ReturnType<typeof setInterval>;
 
   constructor(
@@ -77,6 +96,78 @@ export class PaperTestResultsComponent implements OnInit, AfterViewInit, OnDestr
     private pageMeta: PageMetaService,
     private loader: LoaderService
   ) {}
+
+  get activeFilterCount(): number {
+    let count = 0;
+    if (this.filterSubject) count++;
+    if (this.filterFromDate || this.filterToDate) count++;
+    return count;
+  }
+
+  toggleFilters(event?: Event): void {
+    if (event) event.stopPropagation();
+    this.filtersOpen = !this.filtersOpen;
+  }
+
+  closeFilters(): void {
+    this.filtersOpen = false;
+  }
+
+  openDateRangePicker(): void {
+    const dialogRef = this.dialog.open(DateRangePickerDialogComponent, {
+      width: '520px',
+      data: {
+        startDate: this.filterFromDate,
+        endDate: this.filterToDate,
+      },
+    });
+
+    dialogRef.afterClosed().subscribe((res: DateRangeDialogResult | undefined) => {
+      if (res) {
+        this.filterFromDate = res.startDate;
+        this.filterToDate = res.endDate;
+        this.applyFilter();
+      }
+    });
+  }
+
+  getDateRangeDisplay(): string {
+    if (!this.filterFromDate && !this.filterToDate) return '';
+    const fmt = (d: any) => {
+      if (!d) return '';
+      const dt = d instanceof Date ? d : new Date(d);
+      if (isNaN(dt.getTime())) return '';
+      const dd = String(dt.getDate()).padStart(2, '0');
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const yyyy = dt.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+    if (this.filterFromDate && this.filterToDate) return `${fmt(this.filterFromDate)} - ${fmt(this.filterToDate)}`;
+    if (this.filterFromDate) return `${fmt(this.filterFromDate)} - `;
+    if (this.filterToDate) return ` - ${fmt(this.filterToDate)}`;
+    return '';
+  }
+
+  get hasAppliedFilters(): boolean {
+    return Boolean(this.filterSubject || this.filterFromDate || this.filterToDate);
+  }
+
+  removeAppliedFilter(key: 'subject' | 'date'): void {
+    if (key === 'subject') {
+      this.filterSubject = '';
+    } else if (key === 'date') {
+      this.filterFromDate = null;
+      this.filterToDate = null;
+    }
+    this.applyFilter();
+  }
+
+  resetFilters(): void {
+    this.filterSubject = '';
+    this.filterFromDate = null;
+    this.filterToDate = null;
+    this.applyFilter();
+  }
 
   ngOnInit(): void {
     try {
@@ -152,10 +243,23 @@ export class PaperTestResultsComponent implements OnInit, AfterViewInit, OnDestr
             user_review: canReview,
             review_available: canReview,
             review_consumed: Boolean(x.review_consumed) || locallyConsumed,
+            start_time: x.start_time ? String(x.start_time) : undefined,
+            end_time: x.end_time ? String(x.end_time) : undefined,
+            submitted_date: x.submitted_date ? String(x.submitted_date) : undefined,
+            created_date: x.created_date ? String(x.created_date) : undefined,
           } as PaperTestResultRow;
         });
 
         this.dataSource.data = this.results;
+
+        // Populate available subjects dynamically from the results
+        const subjectSet = new Set<string>();
+        this.results.forEach((r) => {
+          const s = (r.subject_name || '').trim();
+          if (s) subjectSet.add(s);
+        });
+        this.availableSubjects = Array.from(subjectSet).sort();
+
         this.applyFilter();
         setTimeout(() => {
           if (this.paginator) this.dataSource.paginator = this.paginator;
@@ -171,9 +275,39 @@ export class PaperTestResultsComponent implements OnInit, AfterViewInit, OnDestr
 
   applyFilter(): void {
     const q = (this.search || '').trim().toLowerCase();
-    this.dataSource.filterPredicate = (row: PaperTestResultRow) =>
-      !q || (row.title || '').toLowerCase().includes(q);
-    this.dataSource.filter = q || '__all__';
+    const fromTime = this.filterFromDate ? new Date(this.filterFromDate).setHours(0, 0, 0, 0) : null;
+    const toTime = this.filterToDate ? new Date(this.filterToDate).setHours(23, 59, 59, 999) : null;
+
+    this.dataSource.filterPredicate = (row: PaperTestResultRow) => {
+      // 1. Search text filter (matches test title or subject name)
+      const matchesSearch =
+        !q ||
+        (row.title || '').toLowerCase().includes(q) ||
+        (row.subject_name || '').toLowerCase().includes(q);
+
+      // 2. Subject filter
+      const matchesSubject =
+        !this.filterSubject ||
+        (row.subject_name || '').toLowerCase() === this.filterSubject.trim().toLowerCase();
+
+      // 3. Date Range filter (matches submitted_date, created_date, or start_time)
+      const dateStr = row.submitted_date || row.created_date || row.start_time;
+      let testTime: number | null = null;
+      if (dateStr) {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+          testTime = d.getTime();
+        }
+      }
+
+      const matchesFrom = fromTime === null || (testTime !== null && testTime >= fromTime);
+      const matchesTo = toTime === null || (testTime !== null && testTime <= toTime);
+
+      return matchesSearch && matchesSubject && matchesFrom && matchesTo;
+    };
+
+    const hasAnyFilter = Boolean(q || this.filterSubject || this.filterFromDate || this.filterToDate);
+    this.dataSource.filter = hasAnyFilter ? (q || '__filtered__') : '';
   }
 
   getSNo(index: number): number {

@@ -1146,6 +1146,35 @@ export class UserExamComponent implements OnInit, AfterViewInit, OnDestroy {
     this.instituteSearch = institute.name;
   }
 
+  get hasAppliedFilters(): boolean {
+    return Boolean(
+      this.filterScheduleName ||
+      this.filterCreatedAfter ||
+      this.filterCreatedBefore ||
+      (this.isSuperAdmin && this.filterInstitute)
+    );
+  }
+
+  removeAppliedFilter(key: 'schedule' | 'date' | 'institute'): void {
+    if (key === 'schedule') {
+      this.filterScheduleName = '';
+    } else if (key === 'date') {
+      this.filterCreatedAfter = null;
+      this.filterCreatedBefore = null;
+    } else if (key === 'institute') {
+      this.filterInstitute = '';
+      this.instituteSearch = '';
+      this.selectedInstitutes = [];
+    }
+    this.applyFilter();
+  }
+
+  getSelectedInstituteName(): string {
+    if (!this.filterInstitute) return '';
+    const inst = this.institutes.find((i) => String(i.institute_id) === String(this.filterInstitute));
+    return inst ? inst.name : this.filterInstitute;
+  }
+
   resetFilters(): void {
     this.filterInstitute = '';
     this.instituteSearch = '';

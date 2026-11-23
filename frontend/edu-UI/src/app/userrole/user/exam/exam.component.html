@@ -81,6 +81,24 @@
                (click)="applyFilter(); closeFiltersOnOutsideClick()"><mat-icon svgIcon="apply"></mat-icon>Apply</button></div>
       </div>
 
+      <!-- Applied Filters Bar -->
+      <div class="applied-filters-container" *ngIf="hasAppliedFilters">
+         <span class="applied-filters-title">APPLIED FILTERS</span>
+         <span class="applied-filter-pill" *ngIf="filterScheduleName">
+            <strong>Schedule:</strong> {{ filterScheduleName }}
+            <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('schedule'); $event.stopPropagation()">close</mat-icon>
+         </span>
+         <span class="applied-filter-pill" *ngIf="filterCreatedAfter || filterCreatedBefore">
+            <strong>Date:</strong> {{ getCreatedDateRangeDisplay() }}
+            <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('date'); $event.stopPropagation()">close</mat-icon>
+         </span>
+         <span class="applied-filter-pill" *ngIf="isSuperAdmin && filterInstitute">
+            <strong>Institute:</strong> {{ getSelectedInstituteName() }}
+            <mat-icon class="pill-remove-icon" (click)="removeAppliedFilter('institute'); $event.stopPropagation()">close</mat-icon>
+         </span>
+         <button type="button" class="clear-all-chip-btn" (click)="resetFilters()" title="Clear all applied filters">Clear all</button>
+      </div>
+
       <!-- Segmented Tabs Control Bar -->
       <div class="segmented-tabs-container">
          <button
