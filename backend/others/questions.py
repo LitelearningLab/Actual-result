@@ -2094,6 +2094,97 @@ def _parse_llm_json(raw_text):
     return None
 
 
+def _extract_vector_drawing_rects(page, min_size=35):
+    """
+    Extracts and clusters vector graphics (geometry shapes, circuit diagrams, coordinate graphs, charts)
+    from a PDF page using PyMuPDF get_drawings(). Filters out full-page borders, rules, and dividers.
+    """
+    try:
+        page_w = getattr(page.rect, "width", 0) or 1
+        page_h = getattr(page.rect, "height", 0) or 1
+        drawings = page.get_drawings()
+        if not drawings:
+            return []
+
+        import fitz
+        rects = []
+        for d in drawings:
+            r = d.get("rect")
+            if not r:
+                continue
+            w = r.x1 - r.x0
+            h = r.y1 - r.y0
+            # Ignore full-page borders / outer margin boxes
+            if w >= page_w * 0.9 and h >= page_h * 0.9:
+                continue
+            # Ignore horizontal dividers running across the page
+            if h < 4 and w > page_w * 0.45:
+                continue
+            # Ignore vertical column lines
+            if w < 4 and h > page_h * 0.45:
+                continue
+            # Ignore tiny isolated dots / marks
+            if w < 2 and h < 2:
+                continue
+            # Pad by 1pt so 1D zero-width lines have non-empty rects for clustering
+            rects.append(fitz.Rect(r.x0 - 1, r.y0 - 1, r.x1 + 1, r.y1 + 1))
+
+        if not rects:
+            return []
+
+        # Cluster nearby vector drawing elements (threshold: 16 points)
+        clusters = []
+        for r in rects:
+            merged = False
+            for i, c in enumerate(clusters):
+                expanded_c = fitz.Rect(c.x0 - 16, c.y0 - 16, c.x1 + 16, c.y1 + 16)
+                if expanded_c.intersects(r):
+                    clusters[i] = c | r
+                    merged = True
+                    break
+            if not merged:
+                clusters.append(fitz.Rect(r))
+
+        changed = True
+        while changed:
+            changed = False
+            new_clusters = []
+            skip_indices = set()
+            for i in range(len(clusters)):
+                if i in skip_indices:
+                    continue
+                curr = fitz.Rect(clusters[i])
+                for j in range(i + 1, len(clusters)):
+                    if j in skip_indices:
+                        continue
+                    expanded = fitz.Rect(curr.x0 - 16, curr.y0 - 16, curr.x1 + 16, curr.y1 + 16)
+                    if expanded.intersects(clusters[j]):
+                        curr |= clusters[j]
+                        skip_indices.add(j)
+                        changed = True
+                new_clusters.append(curr)
+            clusters = new_clusters
+
+        valid_rects = []
+        for c in clusters:
+            w = c.x1 - c.x0
+            h = c.y1 - c.y0
+            if w >= min_size and h >= min_size and w < page_w * 0.9 and h < page_h * 0.9:
+                # Add safe padding
+                padded = fitz.Rect(
+                    max(0, c.x0 - 4),
+                    max(0, c.y0 - 4),
+                    min(page_w, c.x1 + 4),
+                    min(page_h, c.y1 + 4)
+                )
+                valid_rects.append(padded)
+
+        return valid_rects
+    except Exception as e:
+        print(f"[_extract_vector_drawing_rects] Warning: {e}")
+        return []
+
+
 def extract_questions_from_paper(request):
     """
     AI-Based Question Paper Extraction & Automatic Template Generator:
@@ -2145,6 +2236,8 @@ def extract_questions_from_paper(request):
         extracted_text = ""
         image_data_uris = []
         extracted_doc_images = []
+        source_pil_img = None
+        doc = None
 
         is_pdf = filename.endswith(".pdf") or "pdf" in (file_obj.content_type or "").lower()
 
@@ -2170,9 +2263,14 @@ def extract_questions_from_paper(request):
                         print(f"[extract_questions_from_paper] Page {p_idx + 1} render warning: {img_err}")
 
                     # Extract figures, maps, diagrams, and photos from page
+                    blocks = page.get_text("blocks")
+                    page_w = getattr(page.rect, "width", 0) or 1
+                    page_h = getattr(page.rect, "height", 0) or 1
+                    page_doc_images = []
+
+                    # 1. Extract embedded raster images
                     try:
                         img_infos = page.get_image_info(xrefs=True)
-                        blocks = page.get_text("blocks")
                         seen_xrefs = set()
                         for info_idx, info in enumerate(img_infos):
                             bbox = info.get("bbox")
@@ -2181,13 +2279,11 @@ def extract_questions_from_paper(request):
                                 continue
                             w = bbox[2] - bbox[0]
                             h = bbox[3] - bbox[1]
-                            # Filter out tiny icons, dots, lines (< 35px)
-                            if w < 35 or h < 35:
+                            # Filter out tiny icons, dots, lines (< 30px)
+                            if w < 30 or h < 30:
                                 continue
-                            # Filter out full-page scanned backgrounds (covering most of the page) so they aren't treated as separate question diagrams
-                            page_w = getattr(page.rect, "width", 0) or 1
-                            page_h = getattr(page.rect, "height", 0) or 1
-                            if w >= (page_w * 0.82) and h >= (page_h * 0.82):
+                            # Filter out full-page scanned backgrounds (covering 95%+ of page)
+                            if w >= (page_w * 0.95) and h >= (page_h * 0.95):
                                 continue
 
                             extracted_img_bytes = None
@@ -2213,14 +2309,13 @@ def extract_questions_from_paper(request):
                                         min(page.rect.width, bbox[2] + 2),
                                         min(page.rect.height, bbox[3] + 2)
                                     )
-                                    clip_pix = page.get_pixmap(clip=clip_rect, dpi=150)
+                                    clip_pix = page.get_pixmap(clip=clip_rect, dpi=180)
                                     extracted_img_bytes = clip_pix.tobytes("png")
                                     extracted_ext = "png"
                                 except Exception:
                                     pass
 
                             if extracted_img_bytes and len(extracted_img_bytes) > 200:
-                                # Determine preceding text and question number
                                 preceding_blocks = [b for b in blocks if b[3] <= (bbox[1] + 20) and str(b[4]).strip()]
                                 preceding_text = preceding_blocks[-1][4].strip() if preceding_blocks else ""
 
@@ -2237,29 +2332,119 @@ def extract_questions_from_paper(request):
                                     )
                                     img_url = upload_res.get("url") or upload_res.get("file_url")
                                     if img_url:
-                                        extracted_doc_images.append({
+                                        item_data = {
                                             "page": p_idx + 1,
+                                            "bbox": [bbox[0], bbox[1], bbox[2], bbox[3]],
                                             "q_num": q_num,
                                             "url": img_url,
                                             "gcs_path": upload_res.get("gcs_path"),
                                             "mime_type": upload_res.get("mime_type") or f"image/{extracted_ext}",
                                             "file_size": len(extracted_img_bytes),
                                             "preceding_text": preceding_text[:120]
-                                        })
+                                        }
+                                        extracted_doc_images.append(item_data)
+                                        page_doc_images.append(item_data)
                                 except Exception as up_err:
                                     print(f"[extract_questions_from_paper] Image upload warning: {up_err}")
                     except Exception as scan_err:
                         print(f"[extract_questions_from_paper] Page {p_idx + 1} image scan warning: {scan_err}")
 
+                    # 2. Extract vector drawing clusters (diagrams, geometry figures, graphs, circuits)
+                    try:
+                        vector_clusters = _extract_vector_drawing_rects(page, min_size=35)
+                        for v_idx, v_rect in enumerate(vector_clusters):
+                            # Skip if this vector cluster heavily overlaps with an already extracted raster image
+                            overlaps = False
+                            for ed in page_doc_images:
+                                if ed.get("bbox"):
+                                    ed_b = ed["bbox"]
+                                    ed_rect = fitz.Rect(ed_b[0], ed_b[1], ed_b[2], ed_b[3])
+                                    inter = v_rect & ed_rect
+                                    if not inter.is_empty and (inter.get_area() > 0.35 * min(v_rect.get_area(), ed_rect.get_area())):
+                                        overlaps = True
+                                        break
+                            if overlaps:
+                                continue
+
+                            clip_pix = page.get_pixmap(clip=v_rect, dpi=200)
+                            v_bytes = clip_pix.tobytes("png")
+                            if v_bytes and len(v_bytes) > 200:
+                                preceding_blocks = [b for b in blocks if b[3] <= (v_rect.y0 + 20) and str(b[4]).strip()]
+                                preceding_text = preceding_blocks[-1][4].strip() if preceding_blocks else ""
+                                q_num_match = re.search(r'(?:^|\n)\s*(?:Q(?:uestion)?\s*)?(\d+)[\.\)\:\-]', preceding_text)
+                                q_num = int(q_num_match.group(1)) if q_num_match else None
+
+                                img_fname = f"paper_q_vec_p{p_idx+1}_{v_idx+1}.png"
+                                upload_res = gcs_storage.upload_media(
+                                    file_bytes=v_bytes,
+                                    filename=img_fname,
+                                    folder_prefix="questions/images",
+                                    expected_type="image"
+                                )
+                                img_url = upload_res.get("url") or upload_res.get("file_url")
+                                if img_url:
+                                    item_data = {
+                                        "page": p_idx + 1,
+                                        "bbox": [v_rect.x0, v_rect.y0, v_rect.x1, v_rect.y1],
+                                        "q_num": q_num,
+                                        "url": img_url,
+                                        "gcs_path": upload_res.get("gcs_path"),
+                                        "mime_type": "image/png",
+                                        "file_size": len(v_bytes),
+                                        "preceding_text": preceding_text[:120]
+                                    }
+                                    extracted_doc_images.append(item_data)
+                                    page_doc_images.append(item_data)
+                    except Exception as vec_err:
+                        print(f"[extract_questions_from_paper] Page {p_idx + 1} vector extract warning: {vec_err}")
+
                 extracted_text = "\n\n".join(text_pages).strip()
-                doc.close()
             except Exception as pdf_err:
                 print(f"[extract_questions_from_paper] PDF parse warning: {pdf_err}")
         else:
-            # Direct image file
-            mime = "image/png" if filename.endswith(".png") else "image/jpeg"
-            b64 = base64.b64encode(file_bytes).decode("utf-8")
-            image_data_uris.append(f"data:{mime};base64,{b64}")
+            # Direct image file (JPG, JPEG, PNG, WEBP, BMP, etc.)
+            try:
+                from PIL import Image, ImageOps
+                img_io = io.BytesIO(file_bytes)
+                source_pil_img = Image.open(img_io)
+                source_pil_img = ImageOps.exif_transpose(source_pil_img)
+                if source_pil_img.mode in ("RGBA", "P"):
+                    rgb_bg = Image.new("RGB", source_pil_img.size, (255, 255, 255))
+                    rgb_bg.paste(source_pil_img, mask=source_pil_img.split()[3] if source_pil_img.mode == "RGBA" else None)
+                    source_pil_img = rgb_bg
+                elif source_pil_img.mode != "RGB":
+                    source_pil_img = source_pil_img.convert("RGB")
+
+                # Prepare high-resolution JPEG representation for Vision LLM
+                max_dim = 2400
+                w, h = source_pil_img.size
+                if max(w, h) > max_dim:
+                    scale = max_dim / float(max(w, h))
+                    vision_img = source_pil_img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+                else:
+                    vision_img = source_pil_img
+
+                buf = io.BytesIO()
+                vision_img.save(buf, format="JPEG", quality=95)
+                b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+                image_data_uris.append(f"data:image/jpeg;base64,{b64}")
+
+                # Also attempt text extraction if image contains embedded text stream via fitz
+                try:
+                    import fitz
+                    img_doc = fitz.open(stream=file_bytes)
+                    if len(img_doc) > 0:
+                        t = img_doc[0].get_text() or ""
+                        if t.strip():
+                            extracted_text = t.strip()
+                    img_doc.close()
+                except Exception:
+                    pass
+            except Exception as img_read_err:
+                print(f"[extract_questions_from_paper] Image read warning: {img_read_err}")
+                mime = "image/png" if filename.endswith(".png") else "image/jpeg"
+                b64 = base64.b64encode(file_bytes).decode("utf-8")
+                image_data_uris.append(f"data:{mime};base64,{b64}")
 
         system_prompt = (
             "You are an expert exam assessment and question paper parser AI. "
@@ -2312,11 +2497,13 @@ def extract_questions_from_paper(request):
             "     | 2000 | 52,000 | 48,500 | 1,33,500 |\n"
             "     | 2013 | 8,00,500 | 10,74,000 | 38,68,000 |\n"
             "   - DO NOT omit, merge, or collapse columns. Ensure every row and cell is preserved accurately.\n"
-            "8. PRESERVE QUESTIONS WITH MAPS, DIAGRAMS & IMAGES:\n"
-            "   - When a question references an image, map, cartoon, or diagram (e.g. 'Study the given map carefully...'):\n"
-            "   - Faithfully transcribe the question prompt, map title, and all accompanying notes, text descriptions, and alternate questions (such as 'For Visually Impaired Candidates...'). Ensure no question statement or options are lost.\n"
+            "8. PRESERVE QUESTIONS WITH MAPS, DIAGRAMS & IMAGES (MANDATORY DIAGRAM PRESERVATION):\n"
+            "   - When a question references or contains an image, map, cartoon, diagram, circuit, graph, geometric figure, or illustration:\n"
+            "   - Faithfully transcribe all question text, labels, equations, and instructions. Ensure no question statement, options, or notes are lost.\n"
             "   - NEVER insert synthetic bracketed descriptions such as '(The printed question includes a map of...)' or '(Image not shown)'. Keep the clean original question statement.\n"
-            "   - If an image URL is provided in the document images list below, set 'image_url' on that question object.\n\n"
+            "   - If an image URL is listed in the extracted diagrams list below, set 'image_url' on that question object.\n"
+            "   - For ANY question containing a diagram, figure, or visual element (especially on image uploads or visual diagrams on PDF pages), you MUST provide 'diagram_box': [ymin, xmin, ymax, xmax] with coordinates normalized from 0 to 1000 representing the exact bounding box of the visual figure on the document page/image, and 'page': <page_number (1-based)>.\n"
+            "   - Maintain the original question order and exact association with its visual elements.\n\n"
             "RETURN ONLY A VALID JSON OBJECT conforming to this exact schema:\n"
             "{\n"
             "  \"title\": \"Title or test name from paper header or empty\",\n"
@@ -2333,6 +2520,8 @@ def extract_questions_from_paper(request):
             "          \"type\": \"choose\",\n"
             "          \"marks\": 1,\n"
             "          \"image_url\": \"\",\n"
+            "          \"diagram_box\": [],\n"
+            "          \"page\": 1,\n"
             "          \"options\": [\n"
             "            \"(A) Amar Jiban — Tarabai Shinde\",\n"
             "            \"(B) Gulamgiri — Rashsundri Debi\",\n"
@@ -2353,6 +2542,9 @@ def extract_questions_from_paper(request):
             "          \"question\": \"How did the European empire expand into America in the 16th century? Explain.\",\n"
             "          \"type\": \"descriptive\",\n"
             "          \"marks\": 2,\n"
+            "          \"image_url\": \"\",\n"
+            "          \"diagram_box\": [],\n"
+            "          \"page\": 1,\n"
             "          \"options\": [],\n"
             "          \"answer\": \"\"\n"
             "        }\n"
@@ -2368,6 +2560,9 @@ def extract_questions_from_paper(request):
             "          \"question\": \"Why did the Polish language become a symbol of struggle against Russian dominance? Explain.\",\n"
             "          \"type\": \"descriptive\",\n"
             "          \"marks\": 3,\n"
+            "          \"image_url\": \"\",\n"
+            "          \"diagram_box\": [],\n"
+            "          \"page\": 1,\n"
             "          \"options\": [],\n"
             "          \"answer\": \"\"\n"
             "        }\n"
@@ -2386,13 +2581,13 @@ def extract_questions_from_paper(request):
         if extracted_doc_images:
             imgs_info_lines = ["The document contains the following extracted diagrams/images:"]
             for d_idx, d_img in enumerate(extracted_doc_images, 1):
-                line = f"- Image {d_idx}: URL: {d_img['url']}"
+                line = f"- Image {d_idx} (Page {d_img.get('page', 1)}): URL: {d_img['url']}"
                 if d_img.get('q_num'):
                     line += f" (Positioned at/under Question {d_img['q_num']})"
                 if d_img.get('preceding_text'):
                     line += f" [Text near image: '{d_img['preceding_text']}']"
                 imgs_info_lines.append(line)
-            imgs_info_lines.append("Assign 'image_url' for any question matching these images. DO NOT omit the question or write text placeholders.")
+            imgs_info_lines.append("Assign 'image_url' for any question matching these images. For any other diagrams or figures present on the pages/images, specify 'diagram_box': [ymin, xmin, ymax, xmax] (normalized 0-1000) and 'page'. DO NOT omit the question or write text placeholders.")
             user_content.append({
                 "type": "text",
                 "text": "\n".join(imgs_info_lines)
@@ -2577,15 +2772,72 @@ def extract_questions_from_paper(request):
 
                 answer_text = q.get("answer") or ""
 
-                # Associate image if provided by LLM or matched from extracted document images
+                # Associate image if provided by LLM, cropped from diagram_box, or matched from extracted document images
                 q_image_url = q.get("image_url") or ""
+                diag_box = q.get("diagram_box")
+
+                # 1. Crop from diagram_box if specified and no explicit image_url
+                if not q_image_url and diag_box and isinstance(diag_box, (list, tuple)) and len(diag_box) == 4:
+                    try:
+                        ymin, xmin, ymax, xmax = [max(0, min(1000, float(c))) for c in diag_box]
+                        if ymax > ymin + 15 and xmax > xmin + 15:
+                            diag_bytes = None
+                            diag_fname = f"crop_diagram_q{q_idx}.png"
+                            if is_pdf and doc:
+                                q_p = int(q.get("page") or 1) - 1
+                                if 0 <= q_p < len(doc):
+                                    p_obj = doc[q_p]
+                                    pw = getattr(p_obj.rect, "width", 0) or 1
+                                    ph = getattr(p_obj.rect, "height", 0) or 1
+                                    pad_x = (xmax - xmin) * 0.02 * pw / 1000
+                                    pad_y = (ymax - ymin) * 0.02 * ph / 1000
+                                    import fitz
+                                    c_rect = fitz.Rect(
+                                        max(0, xmin * pw / 1000 - pad_x),
+                                        max(0, ymin * ph / 1000 - pad_y),
+                                        min(pw, xmax * pw / 1000 + pad_x),
+                                        min(ph, ymax * ph / 1000 + pad_y)
+                                    )
+                                    c_pix = p_obj.get_pixmap(clip=c_rect, dpi=200)
+                                    diag_bytes = c_pix.tobytes("png")
+                                    diag_fname = f"crop_diagram_p{q_p+1}_q{q_idx}.png"
+                            elif source_pil_img:
+                                iw, ih = source_pil_img.size
+                                pad_x = int((xmax - xmin) * 0.02 * iw / 1000)
+                                pad_y = int((ymax - ymin) * 0.02 * ih / 1000)
+                                left = max(0, int(xmin * iw / 1000) - pad_x)
+                                top = max(0, int(ymin * ih / 1000) - pad_y)
+                                right = min(iw, int(xmax * iw / 1000) + pad_x)
+                                bottom = min(ih, int(ymax * ih / 1000) + pad_y)
+                                cropped = source_pil_img.crop((left, top, right, bottom))
+                                c_buf = io.BytesIO()
+                                cropped.save(c_buf, format="PNG")
+                                diag_bytes = c_buf.getvalue()
+                                diag_fname = f"crop_diagram_img_q{q_idx}.png"
+
+                            if diag_bytes and len(diag_bytes) > 200:
+                                upload_res = gcs_storage.upload_media(
+                                    file_bytes=diag_bytes,
+                                    filename=diag_fname,
+                                    folder_prefix="questions/images",
+                                    expected_type="image"
+                                )
+                                q_image_url = upload_res.get("url") or upload_res.get("file_url") or ""
+                    except Exception as crop_err:
+                        print(f"[extract_questions_from_paper] Diagram crop warning: {crop_err}")
+
+                # 2. If still empty, match from extracted_doc_images by question number or preceding text
                 if not q_image_url and extracted_doc_images:
+                    curr_global_num = total_questions_count + 1
                     for ed_img in extracted_doc_images:
                         ed_q = ed_img.get("q_num")
-                        curr_global_num = total_questions_count + 1
-                        if (ed_q and (ed_q == curr_global_num or ed_q == q_idx)) or (ed_img.get("preceding_text") and ed_img["preceding_text"][:25].lower() in q_text.lower()):
+                        if ed_q and (ed_q == curr_global_num or ed_q == q_idx):
                             q_image_url = ed_img.get("url") or ""
                             break
+                        if ed_img.get("preceding_text") and len(ed_img["preceding_text"]) >= 15:
+                            if ed_img["preceding_text"][:30].lower() in q_text.lower():
+                                q_image_url = ed_img.get("url") or ""
+                                break
 
                 q_media_list = [{"media_type": "image", "file_url": q_image_url, "url": q_image_url}] if q_image_url else []
 
@@ -2698,3 +2950,9 @@ def extract_questions_from_paper(request):
             "statusMessage": f"Error extracting questions: {str(e)}",
             "error": str(e)
         }, 500
+    finally:
+        if doc:
+            try:
+                doc.close()
+            except Exception:
+                pass

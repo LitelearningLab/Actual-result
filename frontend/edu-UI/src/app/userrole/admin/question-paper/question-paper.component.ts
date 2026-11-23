@@ -1230,6 +1230,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
               optionsHtml = `<div class="paper-q-options-grid">${optionsItems}</div>`;
             }
 
+            const qImgUrl = q.image_url || (q.media && q.media[0] ? (q.media[0].file_url || q.media[0].url) : '');
+            const qImgHtml = qImgUrl ? `<div class="paper-q-media" style="margin: 6px 0 8px 28px; text-align: center;"><img src="${qImgUrl}" alt="Question Image" style="max-width: 100%; max-height: 260px; object-fit: contain; display: inline-block;" /></div>` : '';
+
             sectionsHtml += `
               <div class="paper-question-item">
                 <div class="paper-q-header">
@@ -1237,6 +1240,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
                   <span class="paper-q-text">${qText}</span>
                   <span class="paper-q-marks">${marks}</span>
                 </div>
+                ${qImgHtml}
                 ${optionsHtml}
               </div>
             `;
@@ -1618,6 +1622,9 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
               ? `<div style="margin-top: 4px; margin-left: 28px; font-size: 12px; color: #555; font-style: italic;"><strong>Explanation:</strong> ${this.mathService.render(q.explanation)}</div>`
               : '';
 
+            const qImgUrl = q.image_url || (q.media && q.media[0] ? (q.media[0].file_url || q.media[0].url) : '');
+            const qImgHtml = qImgUrl ? `<div class="paper-q-media" style="margin: 6px 0 8px 28px; text-align: center;"><img src="${qImgUrl}" alt="Question Image" style="max-width: 100%; max-height: 260px; object-fit: contain; display: inline-block;" /></div>` : '';
+
             sectionsHtml += `
               <div class="paper-question-item">
                 <div class="paper-q-header">
@@ -1625,6 +1632,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
                   <span class="paper-q-text">${qText}</span>
                   <span class="paper-q-marks">${marks}</span>
                 </div>
+                ${qImgHtml}
                 <div class="paper-q-answer">
                   <span class="ans-badge">Ans:</span>
                   <span class="ans-value">${ansText}</span>
