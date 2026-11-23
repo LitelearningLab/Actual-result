@@ -458,7 +458,10 @@ def infer_test_type(r_test_type, r_feature_name):
     if r_test_type and str(r_test_type).strip():
         return str(r_test_type).strip().lower()
     fn = str(r_feature_name or '').lower()
-    if any(k in fn for k in ["paper", "anchor", "student identification", "student id", "pdf sheet", "splitting"]):
+    if any(k in fn for k in [
+        "paper", "anchor", "student identification", "student id", "pdf sheet", "splitting",
+        "answer key", "answer generation", "answer fine", "question extraction"
+    ]):
         return "paper"
     elif any(k in fn for k in ["evaluation", "evaluat", "validate"]):
         return "online"
@@ -578,31 +581,15 @@ def record_ai_usage(
         resolved_inst = resolve_institute_id(None, institute_id, user_id)
 
         # Standardize feature names
-        if feature_name:
-            feature_name = normalize_feature_name(feature_name)
-        else:
-            if endpoint and "fine-tune" in str(endpoint).lower():
-                feature_name = "AI Fine-Tuning"
-            elif endpoint and "anchor" in str(endpoint).lower():
-                feature_name = "Question Anchor Detection"
-            elif endpoint and ("identify-student" in str(endpoint).lower() or "identity" in str(endpoint).lower()):
-                feature_name = "Student Identification"
-            elif endpoint and "split" in str(endpoint).lower():
-                feature_name = "PDF Sheet Splitting"
-            elif endpoint and ("upload-answer-sheet" in str(endpoint).lower() or "paper" in str(endpoint).lower()):
-                feature_name = "Paper Evaluation"
-            elif endpoint and ("diagnostic" in str(endpoint).lower() or "wrong" in str(endpoint).lower()):
-                feature_name = "Exam Diagnostics"
-            elif endpoint and "subtopic" in str(endpoint).lower():
-                feature_name = "Subtopic Classification"
-            elif endpoint and ("eval" in str(endpoint).lower() or "review" in str(endpoint).lower()):
-                feature_name = "AI Evaluation"
-            else:
-                feature_name = "AI Question Generation"
+        feature_name = normalize_feature_name(feature_name, endpoint=endpoint)
 
         # Determine test_type if not explicitly supplied
         if not test_type:
-            if feature_name in ["Paper Evaluation", "Question Anchor Detection", "Student Identification", "PDF Sheet Splitting"]:
+            if feature_name in [
+                "Paper Evaluation", "Question Anchor Detection", "Student Identification",
+                "PDF Sheet Splitting", "AI Answer Key Extraction", "AI Answer Generation",
+                "AI Answer Fine-Tuning", "AI Question Extraction"
+            ]:
                 test_type = "paper"
             elif feature_name in ["AI Evaluation"]:
                 test_type = "online"
@@ -771,29 +758,69 @@ FEATURE_CONFIG = [
     {"key": "student_identification", "title": "Student Identification", "icon": "person_search"},
     {"key": "pdf_splitting", "title": "PDF Sheet Splitting", "icon": "call_split"},
     {"key": "exam_diagnostics", "title": "Exam Diagnostics", "icon": "analytics"},
-    {"key": "subtopic_classification", "title": "Subtopic Classification", "icon": "category"}
+    {"key": "subtopic_classification", "title": "Subtopic Classification", "icon": "category"},
+    {"key": "question_extraction", "title": "AI Question Extraction", "icon": "receipt_long"},
+    {"key": "answer_key_extraction", "title": "AI Answer Key Extraction", "icon": "vpn_key"},
+    {"key": "answer_generation", "title": "AI Answer Generation", "icon": "draw"},
+    {"key": "answer_fine_tuning", "title": "AI Answer Fine-Tuning", "icon": "auto_fix_high"}
 ]
 
-def normalize_feature_name(raw_name):
+def normalize_feature_name(raw_name, endpoint=None):
+    ep = str(endpoint or "").lower().strip()
     n = str(raw_name or "").lower().strip()
-    if "fine" in n:
-        return "AI Fine-Tuning"
-    elif "anchor" in n:
+
+    # 1. Answer Key Extraction
+    if "answer key" in n or "key extraction" in n or "extract-and-map-answer-key" in ep:
+        return "AI Answer Key Extraction"
+
+    # 2. Answer Fine-Tuning
+    if ("answer" in n and "fine" in n) or "fine-tune-paper-answer" in ep:
+        return "AI Answer Fine-Tuning"
+
+    # 3. Answer Generation
+    if ("answer" in n and ("generat" in n or "gen" in n)) or "generate-paper-answers" in ep:
+        return "AI Answer Generation"
+
+    # 4. Question Extraction from Paper
+    if ("extract" in n and "question" in n) or "extract-questions" in ep:
+        return "AI Question Extraction"
+
+    # 5. Anchor Detection
+    if "anchor" in n or "anchor" in ep:
         return "Question Anchor Detection"
-    elif "student" in n or "identity" in n or "roster" in n:
+
+    # 6. Student Identification
+    if "student" in n or "identity" in n or "roster" in n or "identify-student" in ep:
         return "Student Identification"
-    elif "split" in n:
+
+    # 7. PDF Sheet Splitting
+    if "split" in n or "split" in ep:
         return "PDF Sheet Splitting"
-    elif "paper" in n or "sheet" in n:
-        return "Paper Evaluation"
-    elif "diagnostic" in n or "misconception" in n or "wrong" in n:
+
+    # 8. Diagnostics
+    if "diagnostic" in n or "misconception" in n or "wrong" in n or "analytics" in ep:
         return "Exam Diagnostics"
-    elif "subtopic" in n:
+
+    # 9. Subtopic Classification
+    if "subtopic" in n or "taxonom" in n or "subtopics" in ep:
         return "Subtopic Classification"
-    elif "question" in n:
+
+    # 10. General Fine-Tuning
+    if "fine" in n or "fine-tune" in ep:
+        return "AI Fine-Tuning"
+
+    # 11. Paper Evaluation
+    if "paper" in n or "sheet" in n or "upload-answer-sheet" in ep:
+        return "Paper Evaluation"
+
+    # 12. General Question Generation
+    if "question" in n or "create-question" in ep:
         return "AI Question Generation"
-    elif "evaluat" in n:
+
+    # 13. AI Evaluation
+    if "evaluat" in n or "validate-answers" in ep or "review" in ep:
         return "AI Evaluation"
+
     return "AI Evaluation"
 
 
@@ -814,6 +841,7 @@ def get_ai_feature_breakdown_api():
     try:
         query = session.query(
             openai_requests.feature_name,
+            openai_requests.endpoint,
             func.count(openai_requests.request_id).label('op_count'),
             func.coalesce(func.sum(openai_requests.prompt_tokens), 0).label('prompt_tok'),
             func.coalesce(func.sum(openai_requests.completion_tokens), 0).label('comp_tok'),
@@ -823,12 +851,12 @@ def get_ai_feature_breakdown_api():
         if str(inst_id).lower() != 'all':
             query = query.filter(openai_requests.institute_id == str(inst_id))
 
-        rows = query.group_by(openai_requests.feature_name).all()
+        rows = query.group_by(openai_requests.feature_name, openai_requests.endpoint).all()
 
         # Map by normalized feature title
         aggregated = {}
         for r in rows:
-            norm_title = normalize_feature_name(r.feature_name)
+            norm_title = normalize_feature_name(r.feature_name, endpoint=r.endpoint)
             if norm_title not in aggregated:
                 aggregated[norm_title] = {
                     "count": 0, "prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "last_used": None

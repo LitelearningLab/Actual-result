@@ -434,6 +434,11 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   onlineCreditsTotal = 0;
   standaloneCreditsTotal = 0;
 
+  get filteredCreditsTotal(): number {
+    if (!this.testUsageList || !this.testUsageList.length) return 0;
+    return this.testUsageList.reduce((sum, item) => sum + (item.total_credits || 0), 0);
+  }
+
   testTypeFilter: 'paper' | 'online' = 'paper';
   testSearchTerm = '';
 
@@ -2892,6 +2897,10 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
 
   getFeatureIcon(featureName: string): string {
     const f = (featureName || '').toLowerCase();
+    if (f.includes('key')) return 'vpn_key';
+    if (f.includes('answer') && f.includes('fine')) return 'auto_fix_high';
+    if (f.includes('answer') && (f.includes('gen') || f.includes('draw'))) return 'draw';
+    if (f.includes('extract') && f.includes('question')) return 'receipt_long';
     if (f.includes('fine')) return 'tune';
     if (f.includes('anchor')) return 'pin_drop';
     if (f.includes('student') || f.includes('roster') || f.includes('identity')) return 'person_search';

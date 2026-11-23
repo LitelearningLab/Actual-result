@@ -101,46 +101,6 @@
     </div>
   </div>
 
-  <!-- SECTION 2: Progress Bar Container -->
-  <div class="section-card progress-card">
-    <div class="card-header-clean">
-      <div class="card-title-group">
-        <mat-icon class="section-icon">donut_large</mat-icon>
-        <h3>Credit Consumption Progress</h3>
-      </div>
-      <span class="progress-pct-badge" [ngClass]="getProgressColor()">
-        {{ summary?.percentage_used || 0 }}% Used
-      </span>
-    </div>
-
-    <div class="progress-bar-wrap">
-      <div class="custom-progress-track">
-        <div
-          class="custom-progress-fill"
-          [style.width.%]="summary?.percentage_used || 0"
-          [ngClass]="getProgressColor()"
-        ></div>
-      </div>
-      <div class="progress-legend">
-        <span>
-          <strong>{{ (summary?.used_credits || 0) | number }}</strong> credits used of
-          <strong>{{ (summary?.allocated_credits || 0) | number }}</strong> total
-        </span>
-        <span class="rem-legend">
-          <strong>{{ (summary?.remaining_credits || 0) | number }}</strong> credits remaining
-        </span>
-      </div>
-    </div>
-
-    <!-- Low balance alert banner -->
-    <div class="low-credit-banner" *ngIf="summary?.is_low_credit">
-      <mat-icon>warning_amber</mat-icon>
-      <div class="banner-text">
-        <strong>Low AI Credits Warning:</strong> Only {{ (summary?.remaining_credits || 0) | number }} credits remaining.
-        Please contact your Super Administrator to allocate additional AI credits to avoid disruption.
-      </div>
-    </div>
-  </div>
 
   <!-- SECTION 3: All Institutes AI Credit Allocations Table (Visible for Super Admin when Global Overview is active) -->
   <div class="section-card table-card institutes-overview-card" *ngIf="isSuperAdmin && selectedInstituteId === 'all'">
@@ -695,20 +655,25 @@
       </div>
     </div>
 
-    <!-- Category Summary Badges -->
-    <div class="category-summary-grid">
-      <div class="category-summary-pill pill-paper">
-        <span class="cat-icon">📄</span>
+    <!-- Filtered Data KPI Summary Badges (Shown ONLY when filters are applied) -->
+    <div class="category-summary-grid" *ngIf="hasAppliedFilters">
+      <div
+        class="category-summary-pill"
+        [ngClass]="testTypeFilter === 'paper' ? 'pill-paper' : 'pill-online'"
+      >
+        <span class="cat-icon">{{ testTypeFilter === 'paper' ? '📄' : '💻' }}</span>
         <div class="cat-meta">
-          <span class="cat-label">Paper Tests Consumed</span>
-          <span class="cat-value">{{ paperCreditsTotal | number }} credits</span>
+          <span class="cat-label">
+            {{ testTypeFilter === 'paper' ? 'Filtered Paper Tests Consumed' : 'Filtered Online Tests Consumed' }}
+          </span>
+          <span class="cat-value">{{ filteredCreditsTotal | number }} credits</span>
         </div>
       </div>
-      <div class="category-summary-pill pill-online">
-        <span class="cat-icon">💻</span>
+      <div class="category-summary-pill pill-paper">
+        <span class="cat-icon">📋</span>
         <div class="cat-meta">
-          <span class="cat-label">Online Tests Consumed</span>
-          <span class="cat-value">{{ onlineCreditsTotal | number }} credits</span>
+          <span class="cat-label">Filtered Tests Count</span>
+          <span class="cat-value">{{ testUsageList.length }} tests</span>
         </div>
       </div>
     </div>

@@ -2515,7 +2515,7 @@ def extract_questions_from_paper(request):
             response_format={"type": "json_object"},
             user_name=user_id,
             institute_id=institute_id,
-            feature_name="AI Question Generation",
+            feature_name="AI Question Extraction",
             endpoint="/extract-questions-from-paper"
         )
 
