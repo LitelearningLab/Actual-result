@@ -827,9 +827,16 @@
                         <mat-icon>visibility</mat-icon>
                         <span>Preview Question Paper</span>
                     </button>
-                    <button class="btn-sidebar-preview-guide" type="button" (click)="previewGuide()">
+                    <!-- Preview Answer Key: shown only once user generates or uploads an answer key -->
+                    <button class="btn-sidebar-preview-guide" type="button" (click)="previewGuide()" *ngIf="hasAnswerKey">
                         <mat-icon>menu_book</mat-icon>
                         <span>Preview Answer Key</span>
+                    </button>
+
+                    <!-- Answer Key Button: opens Answer Key Popup -->
+                    <button class="btn-sidebar-answer-key" type="button" (click)="openAnswerKeyModal()" *ngIf="!readOnly && sections.length > 0" title="Manage Answer Key: Upload or generate answers with AI">
+                        <mat-icon>vpn_key</mat-icon>
+                        <span>Answer Key</span>
                     </button>
 
                     <!-- Publish Question Paper (Publish mode only) -->
@@ -863,7 +870,7 @@
                             <mat-icon>download</mat-icon>
                             <span>Download Question Paper</span>
                         </button>
-                        <button class="btn-sidebar-download" type="button" (click)="downloadEvaluationGuide()">
+                        <button class="btn-sidebar-download" type="button" (click)="downloadEvaluationGuide()" *ngIf="hasAnswerKey">
                             <mat-icon>download</mat-icon>
                             <span>Download Answer Key</span>
                         </button>
@@ -884,7 +891,7 @@
                 <button class="preview-tab active" type="button">
                     <mat-icon>description</mat-icon> Question Paper
                 </button>
-                <button class="preview-tab" type="button" (click)="switchToGuidePreview()">
+                <button class="preview-tab" type="button" (click)="switchToGuidePreview()" *ngIf="hasAnswerKey">
                     <mat-icon>menu_book</mat-icon> Answer Key
                 </button>
             </div>
@@ -1554,6 +1561,229 @@
                     <mat-icon>auto_awesome</mat-icon>
                     <span>{{ uploadPaperLoading ? 'Extracting with AI...' : 'Extract & Generate Template' }}</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Modal: Answer Key Management ═══ -->
+    <div class="modal-backdrop" *ngIf="showAnswerKeyModal" (mousedown)="$event.target === $event.currentTarget ? closeAnswerKeyModal() : null">
+        <div class="modal-dialog answer-key-dialog" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-header-title-wrap">
+                    <div class="header-icon-wrap answer-key-icon-wrap">
+                        <mat-icon>vpn_key</mat-icon>
+                    </div>
+                    <div>
+                        <h3>Manage Answer Key</h3>
+                        <p class="modal-subtitle">Upload your answer key document or automatically generate answers with AI.</p>
+                    </div>
+                </div>
+                <button mat-icon-button type="button" (click)="closeAnswerKeyModal()" [disabled]="uploadAnswerKeyLoading || generateAnswersLoading">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Subject info bar -->
+                <div class="paper-upload-context-bar" *ngIf="subject_name">
+                    <div class="context-item">
+                        <span class="context-label">Target Subject:</span>
+                        <span class="context-val">{{ subject_name }}</span>
+                    </div>
+                    <div class="context-item">
+                        <span class="context-label">Total Questions:</span>
+                        <span class="context-val">{{ totalPaperQuestionsCount }} questions</span>
+                    </div>
+                </div>
+
+                <!-- Choice cards (Visible when step === 'choose') -->
+                <div class="ak-options-grid" *ngIf="answerKeyModalStep === 'choose'">
+                    <!-- Option 1: Upload Answer Key -->
+                    <div class="ak-option-card" (click)="setAnswerKeyStep('upload')">
+                        <div class="ak-option-icon upload-icon">
+                            <mat-icon>cloud_upload</mat-icon>
+                        </div>
+                        <div class="ak-option-content">
+                            <h4>Upload Answer Key</h4>
+                            <p>Upload your own answer key document (PDF or image). AI accurately extracts and maps answers to each question.</p>
+                        </div>
+                        <div class="ak-option-action">
+                            <button type="button" class="btn-ak-select">
+                                <span>Upload</span>
+                                <mat-icon>arrow_forward</mat-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Option 2: Generate Answers -->
+                    <div class="ak-option-card" (click)="setAnswerKeyStep('generate')">
+                        <div class="ak-option-icon generate-icon">
+                            <mat-icon>auto_awesome</mat-icon>
+                        </div>
+                        <div class="ak-option-content">
+                            <h4>Generate Answers</h4>
+                            <p>Automatically generate solutions, correct options, and model answers for all questions in the question paper.</p>
+                        </div>
+                        <div class="ak-option-action">
+                            <button type="button" class="btn-ak-select">
+                                <span>Generate</span>
+                                <mat-icon>arrow_forward</mat-icon>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step: Upload Answer Key Document -->
+                <div class="ak-step-container" *ngIf="answerKeyModalStep === 'upload'">
+                    <div class="ak-step-header">
+                        <button type="button" class="btn-ak-back" (click)="setAnswerKeyStep('choose')" [disabled]="uploadAnswerKeyLoading">
+                            <mat-icon>arrow_back</mat-icon> Back to options
+                        </button>
+                        <span class="ak-step-title">Upload Answer Key Document</span>
+                    </div>
+
+                    <!-- Dropzone / File Picker -->
+                    <div class="upload-dropzone"
+                        [class.dragging]="uploadAnswerKeyDragging"
+                        [class.has-file]="uploadAnswerKeyFile"
+                        [class.loading]="uploadAnswerKeyLoading"
+                        (dragover)="onAnswerKeyDragOver($event)"
+                        (dragleave)="onAnswerKeyDragLeave($event)"
+                        (drop)="onAnswerKeyDrop($event)">
+                        
+                        <input #answerKeyFileInput type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" (change)="onAnswerKeyFileSelected($event)" style="display: none;" />
+
+                        <!-- No file selected view -->
+                        <div class="dropzone-content" *ngIf="!uploadAnswerKeyFile && !uploadAnswerKeyLoading" (click)="answerKeyFileInput.click()">
+                            <div class="dropzone-icon-circle answer-key-drop-circle">
+                                <mat-icon>cloud_upload</mat-icon>
+                            </div>
+                            <h4>Drop answer key here, or <span class="browse-link">browse</span></h4>
+                            <p>Supports PDF document, PNG, JPG, or JPEG images (up to 20MB)</p>
+                        </div>
+
+                        <!-- File selected view -->
+                        <div class="selected-file-preview" *ngIf="uploadAnswerKeyFile && !uploadAnswerKeyLoading">
+                            <div class="file-icon-box">
+                                <mat-icon>{{ uploadAnswerKeyFileName.endsWith('.pdf') ? 'picture_as_pdf' : 'image' }}</mat-icon>
+                            </div>
+                            <div class="file-details">
+                                <div class="file-name">{{ uploadAnswerKeyFileName }}</div>
+                                <div class="file-size">{{ uploadAnswerKeyFileSize }}</div>
+                            </div>
+                            <button class="btn-remove-file" type="button" (click)="removeSelectedAnswerKeyFile(); $event.stopPropagation()" title="Remove file">
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </div>
+
+                        <!-- Loading / AI mapping progress view -->
+                        <div class="upload-loading-view" *ngIf="uploadAnswerKeyLoading">
+                            <div class="ai-processing-spinner">
+                                <mat-icon class="spin-icon">auto_awesome</mat-icon>
+                            </div>
+                            <h4>AI is analyzing answer key...</h4>
+                            <p class="loading-step-msg">{{ uploadAnswerKeyProgressStep }}</p>
+                            <div class="progress-steps-list">
+                                <div class="step-line active">
+                                    <mat-icon>sync</mat-icon>
+                                    <span>Scanning pages &amp; recognizing answer key content</span>
+                                </div>
+                                <div class="step-line active">
+                                    <mat-icon>sync</mat-icon>
+                                    <span>Mapping extracted answers to questions in this test</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Error Alert -->
+                    <div class="upload-error-banner" *ngIf="uploadAnswerKeyError && !uploadAnswerKeyLoading">
+                        <mat-icon>error_outline</mat-icon>
+                        <span>{{ uploadAnswerKeyError }}</span>
+                    </div>
+                </div>
+
+                <!-- Step: Generate Answers -->
+                <div class="ak-step-container" *ngIf="answerKeyModalStep === 'generate'">
+                    <div class="ak-step-header">
+                        <button type="button" class="btn-ak-back" (click)="setAnswerKeyStep('choose')" [disabled]="generateAnswersLoading">
+                            <mat-icon>arrow_back</mat-icon> Back to options
+                        </button>
+                        <span class="ak-step-title">Generate Answers with AI</span>
+                    </div>
+
+                    <div class="generate-info-box" *ngIf="!generateAnswersLoading">
+                        <div class="info-icon">
+                            <mat-icon>auto_awesome</mat-icon>
+                        </div>
+                        <div class="info-text">
+                            <h4>Automatic Answer Generation</h4>
+                            <p>AI will analyze all <strong>{{ totalPaperQuestionsCount }} questions</strong> across <strong>{{ sections.length }} sections</strong> in this test paper, identifying correct choices for multiple-choice questions and drafting complete model solutions for descriptive questions.</p>
+                        </div>
+                    </div>
+
+                    <!-- Loading view for generation -->
+                    <div class="ai-generate-loading-card" *ngIf="generateAnswersLoading">
+                        <div class="ai-pulse-spinner-wrap">
+                            <div class="pulse-ring ring-1"></div>
+                            <div class="pulse-ring ring-2"></div>
+                            <div class="spinner-core">
+                                <mat-icon class="core-icon">auto_awesome</mat-icon>
+                            </div>
+                        </div>
+                        <h4 class="loading-title">AI is generating answers...</h4>
+                        <p class="loading-subtitle">{{ generateAnswersProgressStep || 'Analyzing test paper questions and drafting model solutions...' }}</p>
+                        
+                        <div class="loading-progress-track">
+                            <div class="loading-progress-bar"></div>
+                        </div>
+
+                        <div class="generation-steps-box">
+                            <div class="gen-step-item in-progress">
+                                <div class="step-icon-badge">
+                                    <mat-icon class="rotating-icon">sync</mat-icon>
+                                </div>
+                                <div class="step-text-wrap">
+                                    <span class="step-primary">Evaluating Questions</span>
+                                    <span class="step-secondary">Analyzing multiple-choice and descriptive questions</span>
+                                </div>
+                            </div>
+                            <div class="gen-step-item in-progress">
+                                <div class="step-icon-badge">
+                                    <mat-icon class="rotating-icon">sync</mat-icon>
+                                </div>
+                                <div class="step-text-wrap">
+                                    <span class="step-primary">Formulating Solutions</span>
+                                    <span class="step-secondary">Drafting model answers and solutions</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Error Alert -->
+                    <div class="upload-error-banner" *ngIf="generateAnswersError && !generateAnswersLoading">
+                        <mat-icon>error_outline</mat-icon>
+                        <span>{{ generateAnswersError }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" type="button" (click)="closeAnswerKeyModal()" [disabled]="uploadAnswerKeyLoading || generateAnswersLoading">
+                    Cancel
+                </button>
+                <ng-container *ngIf="answerKeyModalStep === 'upload'">
+                    <button class="btn-modal-confirm btn-upload-confirm" type="button" (click)="startAIAnswerKeyExtraction()" [disabled]="!uploadAnswerKeyFile || uploadAnswerKeyLoading">
+                        <mat-icon>auto_awesome</mat-icon>
+                        <span>{{ uploadAnswerKeyLoading ? 'Mapping with AI...' : 'Upload & Map Answers' }}</span>
+                    </button>
+                </ng-container>
+                <ng-container *ngIf="answerKeyModalStep === 'generate'">
+                    <button class="btn-modal-confirm btn-generate-confirm" type="button" (click)="startAIGenerateAnswers()" [disabled]="generateAnswersLoading">
+                        <mat-icon>auto_awesome</mat-icon>
+                        <span>{{ generateAnswersLoading ? 'Generating Answers...' : 'Generate Answers' }}</span>
+                    </button>
+                </ng-container>
             </div>
         </div>
     </div>

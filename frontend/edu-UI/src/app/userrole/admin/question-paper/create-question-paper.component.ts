@@ -42,6 +42,7 @@ import {
   getInstituteTerminology,
   InstituteTerminology,
 } from 'src/app/shared/services/institute-terminology.service';
+import { AiCreditAlertService } from 'src/app/shared/services/ai-credit-alert.service';
 
 export interface PaperQuestion {
   id: string;
@@ -186,6 +187,44 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   uploadPaperLoading = false;
   uploadPaperProgressStep = '';
   uploadPaperError = '';
+
+  // ── Answer Key Modal State ──
+  showAnswerKeyModal = false;
+  answerKeyModalStep: 'choose' | 'upload' | 'generate' = 'choose';
+  uploadAnswerKeyFile: File | null = null;
+  uploadAnswerKeyFileName = '';
+  uploadAnswerKeyFileSize = '';
+  uploadAnswerKeyDragging = false;
+  uploadAnswerKeyLoading = false;
+  uploadAnswerKeyProgressStep = '';
+  uploadAnswerKeyError = '';
+  generateAnswersLoading = false;
+  generateAnswersProgressStep = '';
+  generateAnswersError = '';
+  hasUploadedOrGeneratedAnswerKey = false;
+
+  get hasAnswerKey(): boolean {
+    if (this.hasUploadedOrGeneratedAnswerKey) {
+      return true;
+    }
+    // Check if any question has a real answer or marked correct option
+    if (!this.sections || !this.sections.length) return false;
+    for (const sec of this.sections) {
+      for (const q of (sec.questions || [])) {
+        const ans = typeof q.answer === 'string' ? q.answer.trim() : '';
+        if (ans && ans.length > 0 && ans.toLowerCase() !== 'refer to model answer rubric') {
+          return true;
+        }
+        if (q.options && Array.isArray(q.options)) {
+          const hasCorrect = q.options.some((o: any) =>
+            o.is_correct === true || o.is_correct === 1 || o.is_correct === '1' || o.isCorrect === true || o.isCorrect === 1
+          );
+          if (hasCorrect) return true;
+        }
+      }
+    }
+    return false;
+  }
 
   // ── Add Questions Modal State ──
   showAddQuestionModal = false;
@@ -965,7 +1004,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     private loader: LoaderService,
     private dialog: MatDialog,
     private cdr: ChangeDetectorRef,
-    private mathService: MathService
+    private mathService: MathService,
+    private aiCreditAlert: AiCreditAlertService
   ) {
     try {
       this._subs = this.auth.user$.subscribe((user: any) => {
@@ -1405,6 +1445,31 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
               })
             : [],
         }));
+
+        // Detect if the loaded paper already has answers
+        let hasAnswersFound = false;
+        for (const sec of this.sections) {
+          for (const q of (sec.questions || [])) {
+            const ans = typeof q.answer === 'string' ? q.answer.trim() : '';
+            if (ans && ans.toLowerCase() !== 'refer to model answer rubric') {
+              hasAnswersFound = true;
+              break;
+            }
+            if (q.options && Array.isArray(q.options)) {
+              const hasCorrect = q.options.some((o: any) =>
+                o.is_correct === true || o.is_correct === 1 || o.is_correct === '1' || o.isCorrect === true || o.isCorrect === 1
+              );
+              if (hasCorrect) {
+                hasAnswersFound = true;
+                break;
+              }
+            }
+          }
+          if (hasAnswersFound) break;
+        }
+        if (hasAnswersFound) {
+          this.hasUploadedOrGeneratedAnswerKey = true;
+        }
       }
     } catch (_) {
       /* ignore malformed edit payload */
@@ -4004,6 +4069,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         if (res && res.status && res.data) {
           console.log('[Vision AI Question Paper JSON Response]:', res.data);
           this.isUploadedPaper = true;
+          this.hasUploadedOrGeneratedAnswerKey = false;
           const data = res.data;
           const extractedSections = data.sections || [];
           if (!extractedSections.length) {
@@ -4080,6 +4146,269 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         notify(msg, 'error');
       }
     });
+  }
+
+  // ── Answer Key Management Methods ──
+  openAnswerKeyModal() {
+    if (!this.sections || !this.sections.length || this.totalPaperQuestionsCount === 0) {
+      notify('Please add or upload questions before managing the answer key', 'info');
+      return;
+    }
+    this.answerKeyModalStep = 'choose';
+    this.uploadAnswerKeyFile = null;
+    this.uploadAnswerKeyFileName = '';
+    this.uploadAnswerKeyFileSize = '';
+    this.uploadAnswerKeyDragging = false;
+    this.uploadAnswerKeyLoading = false;
+    this.uploadAnswerKeyProgressStep = '';
+    this.uploadAnswerKeyError = '';
+    this.generateAnswersLoading = false;
+    this.generateAnswersProgressStep = '';
+    this.generateAnswersError = '';
+    this.showAnswerKeyModal = true;
+  }
+
+  closeAnswerKeyModal() {
+    if (this.uploadAnswerKeyLoading || this.generateAnswersLoading) return;
+    this.showAnswerKeyModal = false;
+    this.uploadAnswerKeyFile = null;
+    this.uploadAnswerKeyFileName = '';
+    this.uploadAnswerKeyFileSize = '';
+    this.uploadAnswerKeyDragging = false;
+    this.uploadAnswerKeyProgressStep = '';
+    this.uploadAnswerKeyError = '';
+    this.generateAnswersProgressStep = '';
+    this.generateAnswersError = '';
+  }
+
+  setAnswerKeyStep(step: 'choose' | 'upload' | 'generate') {
+    if (this.uploadAnswerKeyLoading || this.generateAnswersLoading) return;
+    this.answerKeyModalStep = step;
+    this.uploadAnswerKeyError = '';
+    this.generateAnswersError = '';
+  }
+
+  onAnswerKeyFileSelected(event: any) {
+    const file = event?.target?.files?.[0];
+    if (file) {
+      this.handleAnswerKeyFile(file);
+    }
+  }
+
+  onAnswerKeyDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.uploadAnswerKeyDragging = true;
+  }
+
+  onAnswerKeyDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.uploadAnswerKeyDragging = false;
+  }
+
+  onAnswerKeyDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.uploadAnswerKeyDragging = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      this.handleAnswerKeyFile(file);
+    }
+  }
+
+  private handleAnswerKeyFile(file: File) {
+    const validExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.webp'];
+    const lowerName = (file.name || '').toLowerCase();
+    const isValid = validExtensions.some((ext) => lowerName.endsWith(ext));
+    if (!isValid) {
+      notify('Please upload a PDF or image file (.pdf, .png, .jpg, .jpeg)', 'error');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      notify('File size must not exceed 20MB', 'error');
+      return;
+    }
+
+    this.uploadAnswerKeyFile = file;
+    this.uploadAnswerKeyFileName = file.name;
+    const sizeMb = file.size / (1024 * 1024);
+    this.uploadAnswerKeyFileSize = sizeMb >= 1 ? `${sizeMb.toFixed(2)} MB` : `${Math.round(file.size / 1024)} KB`;
+    this.uploadAnswerKeyError = '';
+  }
+
+  removeSelectedAnswerKeyFile() {
+    if (this.uploadAnswerKeyLoading) return;
+    this.uploadAnswerKeyFile = null;
+    this.uploadAnswerKeyFileName = '';
+    this.uploadAnswerKeyFileSize = '';
+    this.uploadAnswerKeyError = '';
+  }
+
+  getFlattenedQuestionsForAI(): any[] {
+    const result: any[] = [];
+    let globalIdx = 0;
+    for (const sec of this.sections) {
+      for (const q of (sec.questions || [])) {
+        result.push({
+          id: q.id || `q_${globalIdx}`,
+          question: q.question,
+          type: (q.options && q.options.length > 0) ? 'choose' : (q.type || sec.question_type || 'descriptive'),
+          marks: q.marks || 1,
+          section_name: sec.name || '',
+          options: (q.options || []).map((o: any) => typeof o === 'string' ? { text: o } : { text: o.text || o.option_text || o.value || '' })
+        });
+        globalIdx++;
+      }
+    }
+    return result;
+  }
+
+  startAIAnswerKeyExtraction() {
+    if (!this.uploadAnswerKeyFile) {
+      notify('Please select an answer key file to upload', 'error');
+      return;
+    }
+    if (!this.institute) {
+      notify('Please select an Institute first', 'error');
+      return;
+    }
+
+    this.uploadAnswerKeyLoading = true;
+    this.uploadAnswerKeyError = '';
+    this.uploadAnswerKeyProgressStep = 'Analyzing answer key and matching questions with AI...';
+
+    const flattenedQuestions = this.getFlattenedQuestionsForAI();
+    const formData = new FormData();
+    formData.append('file', this.uploadAnswerKeyFile);
+    formData.append('institute_id', this.institute);
+    formData.append('user_id', this.getCurrentUserId() || '');
+    if (this.subject_name) formData.append('subject_name', this.subject_name);
+    formData.append('questions', JSON.stringify(flattenedQuestions));
+
+    const url = `${API_BASE}/extract-and-map-answer-key`;
+    this.http.post<any>(url, formData).subscribe({
+      next: (res) => {
+        this.uploadAnswerKeyLoading = false;
+        if (res && res.status && res.data) {
+          const answers = res.data.answers || [];
+          this.applyAnswersToQuestions(answers);
+          this.closeAnswerKeyModal();
+          notify(`Answer key uploaded and mapped successfully to ${answers.length} questions!`, 'success');
+        } else {
+          const msg = res?.statusMessage || 'Failed to map answer key to questions';
+          this.uploadAnswerKeyError = msg;
+          notify(msg, 'error');
+        }
+      },
+      error: (err) => {
+        this.uploadAnswerKeyLoading = false;
+        if (this.aiCreditAlert && this.aiCreditAlert.handleAiError(err, 'Answer Key Extraction')) {
+          this.uploadAnswerKeyError = err?.error?.statusMessage || err?.error?.message || 'AI credit quota exhausted.';
+          return;
+        }
+        const errorDetail = typeof err?.error?.error === 'object' ? (err?.error?.error?.message || JSON.stringify(err?.error?.error)) : err?.error?.error;
+        const msg =
+          err?.error?.statusMessage ||
+          errorDetail ||
+          err?.error?.message ||
+          'Failed to extract and map answer key using AI. Please verify the file and try again.';
+        this.uploadAnswerKeyError = typeof msg === 'object' ? (msg.message || JSON.stringify(msg)) : msg;
+        notify(this.uploadAnswerKeyError, 'error');
+      }
+    });
+  }
+
+  startAIGenerateAnswers() {
+    if (!this.institute) {
+      notify('Please select an Institute first', 'error');
+      return;
+    }
+    const flattenedQuestions = this.getFlattenedQuestionsForAI();
+    if (!flattenedQuestions.length) {
+      notify('No questions available in the question paper to generate answers for', 'error');
+      return;
+    }
+
+    this.generateAnswersLoading = true;
+    this.generateAnswersError = '';
+    this.generateAnswersProgressStep = 'Generating accurate solutions and answers with AI...';
+
+    const payload = {
+      institute_id: this.institute,
+      user_id: this.getCurrentUserId() || '',
+      subject_name: this.subject_name || '',
+      questions: flattenedQuestions
+    };
+
+    const url = `${API_BASE}/generate-paper-answers`;
+    this.http.post<any>(url, payload).subscribe({
+      next: (res) => {
+        this.generateAnswersLoading = false;
+        if (res && res.status && res.data) {
+          const answers = res.data.answers || [];
+          this.applyAnswersToQuestions(answers);
+          this.closeAnswerKeyModal();
+          notify(`Answers successfully generated for ${answers.length} questions!`, 'success');
+        } else {
+          const msg = res?.statusMessage || 'Failed to generate answers';
+          this.generateAnswersError = msg;
+          notify(msg, 'error');
+        }
+      },
+      error: (err) => {
+        this.generateAnswersLoading = false;
+        if (this.aiCreditAlert && this.aiCreditAlert.handleAiError(err, 'Answer Generation')) {
+          this.generateAnswersError = err?.error?.statusMessage || err?.error?.message || 'AI credit quota exhausted.';
+          return;
+        }
+        const errorDetail = typeof err?.error?.error === 'object' ? (err?.error?.error?.message || JSON.stringify(err?.error?.error)) : err?.error?.error;
+        const msg =
+          err?.error?.statusMessage ||
+          errorDetail ||
+          err?.error?.message ||
+          'Failed to generate answers using AI. Please try again.';
+        this.generateAnswersError = typeof msg === 'object' ? (msg.message || JSON.stringify(msg)) : msg;
+        notify(this.generateAnswersError, 'error');
+      }
+    });
+  }
+
+  applyAnswersToQuestions(answersList: any[]) {
+    if (!answersList || !answersList.length) return;
+    const ansMap = new Map<string, any>();
+    answersList.forEach((a, idx) => {
+      if (a.question_id) ansMap.set(String(a.question_id), a);
+      if (a.question_index !== undefined) ansMap.set(`idx_${a.question_index}`, a);
+      ansMap.set(`seq_${idx}`, a);
+    });
+
+    let globalIdx = 0;
+    for (const sec of this.sections) {
+      for (const q of (sec.questions || [])) {
+        const qId = String(q.id || `q_${globalIdx}`);
+        const matchedAns = ansMap.get(qId) || ansMap.get(`idx_${globalIdx}`) || ansMap.get(`seq_${globalIdx}`);
+        if (matchedAns && matchedAns.answer) {
+          q.answer = String(matchedAns.answer).trim();
+          if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+            const correctIdx = matchedAns.correct_option_index;
+            q.options.forEach((opt: any, optIdx: number) => {
+              const optText = (typeof opt === 'string' ? opt : opt.text || opt.option_text || opt.value || '').trim();
+              const isMatch = (correctIdx !== undefined && Number(correctIdx) === optIdx) ||
+                (q.answer.toLowerCase().includes(optText.toLowerCase()) && optText.length > 0);
+              if (typeof opt === 'object') {
+                opt.is_correct = isMatch;
+                opt.isCorrect = isMatch;
+              }
+            });
+          }
+        }
+        globalIdx++;
+      }
+    }
+    this.hasUploadedOrGeneratedAnswerKey = true;
+    this.markDirty();
+    this.paginatedGuidePages = this.buildPaginatedPages(true);
   }
 
   // ── Add Questions Modal Methods ──

@@ -2857,3 +2857,370 @@ def extract_questions_from_paper(request):
                 doc.close()
             except Exception:
                 pass
+
+
+def extract_and_map_answer_key(request):
+    """
+    Extracts answers from an uploaded answer key document (PDF or Image)
+    and maps them to the existing questions in the test paper using Vision AI.
+    """
+    doc = None
+    try:
+        if "file" not in request.files:
+            return {
+                "status": False,
+                "statusMessage": "No file uploaded. Please upload a valid answer key (PDF or image).",
+            }, 400
+
+        file_obj = request.files["file"]
+        if not file_obj or not file_obj.filename:
+            return {
+                "status": False,
+                "statusMessage": "No file selected.",
+            }, 400
+
+        file_bytes = file_obj.read()
+        if not file_bytes:
+            return {
+                "status": False,
+                "statusMessage": "Uploaded file is empty.",
+            }, 400
+
+        filename = (getattr(file_obj, "filename", "") or "").lower()
+        form = request.form or {}
+        institute_id = form.get("institute_id")
+        user_id = form.get("user_id") or "System"
+        subject_name = form.get("subject_name") or ""
+        questions_raw = form.get("questions") or "[]"
+
+        try:
+            questions_list = json.loads(questions_raw) if isinstance(questions_raw, str) else (questions_raw or [])
+        except Exception:
+            questions_list = []
+
+        if not questions_list:
+            return {
+                "status": False,
+                "statusMessage": "No questions provided to map answers to.",
+            }, 400
+
+        # AI credits check
+        from others.ai_credits import check_institute_ai_access
+        has_access, err_msg, err_code = check_institute_ai_access(
+            institute_id=institute_id,
+            user_id=user_id,
+            request_obj=request
+        )
+        if not has_access:
+            return {
+                "status": False,
+                "error": err_msg,
+                "statusMessage": err_msg,
+                "message": err_msg,
+            }, err_code
+
+        # Convert PDF to images or read uploaded image
+        image_data_uris = []
+        is_pdf = filename.endswith(".pdf") or "pdf" in (file_obj.content_type or "").lower()
+
+        if is_pdf:
+            try:
+                import fitz
+                doc = fitz.open(stream=file_bytes, filetype="pdf")
+                total_pages = len(doc)
+                for p_idx in range(total_pages):
+                    page = doc[p_idx]
+                    try:
+                        pix = page.get_pixmap(dpi=200)
+                        img_bytes = pix.tobytes("jpeg")
+                        b64 = base64.b64encode(img_bytes).decode("utf-8")
+                        image_data_uris.append(f"data:image/jpeg;base64,{b64}")
+                    except Exception as img_err:
+                        print(f"[extract_and_map_answer_key] Page {p_idx + 1} render warning: {img_err}")
+            except Exception as pdf_err:
+                print(f"[extract_and_map_answer_key] PDF render warning: {pdf_err}")
+        else:
+            mime = "image/png" if filename.endswith(".png") else "image/jpeg"
+            b64 = base64.b64encode(file_bytes).decode("utf-8")
+            image_data_uris.append(f"data:{mime};base64,{b64}")
+
+        if not image_data_uris:
+            return {
+                "status": False,
+                "statusMessage": "Could not read images from the uploaded answer key file.",
+            }, 400
+
+        # Build questions summary for AI
+        q_summary_lines = []
+        for idx, q in enumerate(questions_list):
+            q_id = q.get("id") or str(idx)
+            sec_name = q.get("section_name") or ""
+            q_type = q.get("type") or "descriptive"
+            q_marks = q.get("marks") or 1
+            q_text = q.get("question") or ""
+            q_options = q.get("options") or []
+            
+            line = f"Question #{idx + 1} [ID: {q_id}] ({sec_name}, Type: {q_type}, Marks: {q_marks}):\nStatement: {q_text}"
+            if q_options:
+                opts_str = "\n".join([f"  - Option {chr(65 + o_idx)}: {opt.get('text') if isinstance(opt, dict) else str(opt)}" for o_idx, opt in enumerate(q_options)])
+                line += f"\nOptions:\n{opts_str}"
+            q_summary_lines.append(line)
+
+        all_questions_text = "\n\n".join(q_summary_lines)
+
+        system_prompt = (
+            "You are an expert academic evaluator, examiner, and answer key parser AI. "
+            "Inspect the provided Answer Key document images carefully. "
+            "Your task is to extract all answers from the document and match each answer to its exact corresponding "
+            "question from the test paper questions list provided.\n\n"
+            "MAPPING RULES:\n"
+            "1. Match answers by question numbering, sequence, section, and question content.\n"
+            "2. For Multiple Choice / Objective questions ('choose'):\n"
+            "   - Determine which option (e.g. A, B, C, D) is indicated in the answer key.\n"
+            "   - Find the matching option in the provided options list.\n"
+            "   - Provide the complete answer text and the 0-based 'correct_option_index'.\n"
+            "3. For Descriptive / Short Answer / Long Answer questions:\n"
+            "   - Extract the complete model answer, solution key, marking points, or explanation provided in the answer key document.\n"
+            "4. Return ONLY a valid JSON object strictly conforming to this schema:\n"
+            "{\n"
+            "  \"answers\": [\n"
+            "    {\n"
+            "      \"question_id\": \"<question_id from the provided list>\",\n"
+            "      \"question_index\": 0,\n"
+            "      \"answer\": \"<Extracted model answer or selected option text>\",\n"
+            "      \"correct_option_index\": 1\n"
+            "    }\n"
+            "  ]\n"
+            "}"
+        )
+
+        user_content = [
+            {
+                "type": "text",
+                "text": (
+                    f"Subject: {subject_name}\n\n"
+                    f"TEST PAPER QUESTIONS LIST:\n"
+                    f"-------------------------\n"
+                    f"{all_questions_text}\n\n"
+                    f"-------------------------\n"
+                    "Now inspect the uploaded answer key images below. Extract the answer for each question "
+                    "and map it to the corresponding question in the list. Return the JSON object with the 'answers' array."
+                )
+            }
+        ]
+        for uri in image_data_uris:
+            user_content.append({
+                "type": "image_url",
+                "image_url": {"url": uri}
+            })
+
+        client = openai_client()
+        response = client.chat_completion(
+            system_message=system_prompt,
+            InputData=user_content,
+            aimodel=1,
+            max_tokens=8192,
+            temperature=0.1,
+            timeout=240.0,
+            response_format={"type": "json_object"},
+            user_name=user_id,
+            institute_id=institute_id,
+            feature_name="AI Answer Key Extraction",
+            endpoint="/extract-and-map-answer-key"
+        )
+
+        if response.status_code != 200:
+            err_msg = "Failed to extract and map answer key using AI."
+            try:
+                raw_json = response.json()
+                if isinstance(raw_json, dict):
+                    err_msg = raw_json.get("statusMessage") or raw_json.get("message")
+                    if not err_msg and isinstance(raw_json.get("error"), dict):
+                        err_msg = raw_json.get("error", {}).get("message")
+                    elif not err_msg:
+                        err_msg = raw_json.get("error") or err_msg
+            except Exception:
+                pass
+            return {
+                "status": False,
+                "statusMessage": str(err_msg),
+                "error": str(err_msg),
+                "code": getattr(response, "code", "AI_CREDIT_EXHAUSTED" if response.status_code == 403 else "AI_ERROR")
+            }, response.status_code
+
+        resp_json = response.json()
+        raw_text = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        parsed_data = _parse_llm_json(raw_text) or {}
+        answers_list = parsed_data.get("answers") or []
+
+        return {
+            "status": True,
+            "statusMessage": f"Successfully mapped {len(answers_list)} answers from the answer key.",
+            "data": {
+                "answers": answers_list
+            }
+        }, 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": False,
+            "statusMessage": f"Error mapping answer key: {str(e)}",
+            "error": str(e)
+        }, 500
+    finally:
+        if doc is not None:
+            try:
+                doc.close()
+            except Exception:
+                pass
+
+
+def generate_paper_answers(request):
+    """
+    Automatically generates answers for all questions in the question paper using AI.
+    """
+    try:
+        body = request.get_json(silent=True) or request.form or {}
+        institute_id = body.get("institute_id")
+        user_id = body.get("user_id") or "System"
+        subject_name = body.get("subject_name") or ""
+        questions_raw = body.get("questions") or []
+
+        if isinstance(questions_raw, str):
+            try:
+                questions_list = json.loads(questions_raw)
+            except Exception:
+                questions_list = []
+        else:
+            questions_list = questions_raw or []
+
+        if not questions_list:
+            return {
+                "status": False,
+                "statusMessage": "No questions provided to generate answers for.",
+            }, 400
+
+        # AI credits check
+        from others.ai_credits import check_institute_ai_access
+        has_access, err_msg, err_code = check_institute_ai_access(
+            institute_id=institute_id,
+            user_id=user_id,
+            request_obj=request
+        )
+        if not has_access:
+            return {
+                "status": False,
+                "error": err_msg,
+                "statusMessage": err_msg,
+                "message": err_msg,
+            }, err_code
+
+        # Build questions text
+        q_summary_lines = []
+        for idx, q in enumerate(questions_list):
+            q_id = q.get("id") or str(idx)
+            sec_name = q.get("section_name") or ""
+            q_type = q.get("type") or "descriptive"
+            q_marks = q.get("marks") or 1
+            q_text = q.get("question") or ""
+            q_options = q.get("options") or []
+            
+            line = f"Question #{idx + 1} [ID: {q_id}] ({sec_name}, Type: {q_type}, Marks: {q_marks}):\nStatement: {q_text}"
+            if q_options:
+                opts_str = "\n".join([f"  - Option {chr(65 + o_idx)}: {opt.get('text') if isinstance(opt, dict) else str(opt)}" for o_idx, opt in enumerate(q_options)])
+                line += f"\nOptions:\n{opts_str}"
+            q_summary_lines.append(line)
+
+        all_questions_text = "\n\n".join(q_summary_lines)
+
+        system_prompt = (
+            "You are an expert academic examiner and subject matter expert. "
+            "Generate an accurate, comprehensive, and clear answer key for all the provided examination questions.\n\n"
+            "RULES FOR ANSWER GENERATION:\n"
+            "1. For Multiple Choice / Objective questions ('choose'):\n"
+            "   - Identify the correct option.\n"
+            "   - Return the full text of that option (e.g. '(B) Option Text') in 'answer'.\n"
+            "   - Provide the 0-based index of the correct option in 'correct_option_index'.\n"
+            "2. For Descriptive, Short Answer, Long Answer, or Numerical questions:\n"
+            "   - Provide an accurate, high-scoring model answer with key points and explanations proportional to the marks.\n"
+            "   - Use clean formatting, bullet points, or LaTeX formulas where appropriate.\n"
+            "3. Answer EVERY question in the list sequentially.\n"
+            "4. Return ONLY a valid JSON object strictly conforming to this schema:\n"
+            "{\n"
+            "  \"answers\": [\n"
+            "    {\n"
+            "      \"question_id\": \"<question_id from the provided list>\",\n"
+            "      \"question_index\": 0,\n"
+            "      \"answer\": \"<Accurate solution or selected option text>\",\n"
+            "      \"correct_option_index\": 1\n"
+            "    }\n"
+            "  ]\n"
+            "}"
+        )
+
+        user_content = (
+            f"Subject: {subject_name}\n\n"
+            f"QUESTIONS LIST:\n"
+            f"---------------\n"
+            f"{all_questions_text}\n\n"
+            f"Generate the complete answers for every question. Return the JSON object with the 'answers' array."
+        )
+
+        client = openai_client()
+        response = client.chat_completion(
+            system_message=system_prompt,
+            InputData=user_content,
+            aimodel=1,
+            max_tokens=8192,
+            temperature=0.1,
+            timeout=240.0,
+            response_format={"type": "json_object"},
+            user_name=user_id,
+            institute_id=institute_id,
+            feature_name="AI Answer Generation",
+            endpoint="/generate-paper-answers"
+        )
+
+        if response.status_code != 200:
+            err_msg = "Failed to generate answers using AI."
+            try:
+                raw_json = response.json()
+                if isinstance(raw_json, dict):
+                    err_msg = raw_json.get("statusMessage") or raw_json.get("message")
+                    if not err_msg and isinstance(raw_json.get("error"), dict):
+                        err_msg = raw_json.get("error", {}).get("message")
+                    elif not err_msg:
+                        err_msg = raw_json.get("error") or err_msg
+            except Exception:
+                pass
+            return {
+                "status": False,
+                "statusMessage": str(err_msg),
+                "error": str(err_msg),
+                "code": getattr(response, "code", "AI_CREDIT_EXHAUSTED" if response.status_code == 403 else "AI_ERROR")
+            }, response.status_code
+
+        resp_json = response.json()
+        raw_text = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        parsed_data = _parse_llm_json(raw_text) or {}
+        answers_list = parsed_data.get("answers") or []
+
+        return {
+            "status": True,
+            "statusMessage": f"Successfully generated answers for {len(answers_list)} questions.",
+            "data": {
+                "answers": answers_list
+            }
+        }, 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": False,
+            "statusMessage": f"Error generating answers: {str(e)}",
+            "error": str(e)
+        }, 500
+
