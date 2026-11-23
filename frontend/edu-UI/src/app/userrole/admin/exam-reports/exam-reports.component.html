@@ -1,7 +1,7 @@
 <div class="page exam-reports" [class.standalone-mode]="isStandaloneAnswerSheet">
   <div class="main-dashboard-wrap" *ngIf="!isStandaloneAnswerSheet">
-    <!-- Reports Header & Mode Radio Bar -->
-    <div class="reports-header-nav">
+    <!-- Reports Header & Mode Radio Bar (Only shown when both Online & Paper test are available) -->
+    <div class="reports-header-nav" *ngIf="showReportTypeToggle">
       <div class="reports-title-wrap">
         <mat-icon svgIcon="report" class="reports-header-icon"></mat-icon>
         <h2 class="reports-header-title">Test Reports</h2>

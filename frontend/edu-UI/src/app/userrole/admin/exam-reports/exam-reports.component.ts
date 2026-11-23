@@ -50,6 +50,12 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   private searchDebounceTimer: any = null;
 
   activeReportType: 'online' | 'paper' = 'online';
+  allowOnlineTest = true;
+  allowPaperTest = true;
+
+  get showReportTypeToggle(): boolean {
+    return this.allowOnlineTest && this.allowPaperTest;
+  }
 
   // Paper Test state
   paperMasterExams: any[] = [];
@@ -3857,6 +3863,22 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
   }
   onInstituteChange(id: string | null) {
     this.selectedInstituteId = id;
+    if (this.isSuperAdmin && id && this.institutes && this.institutes.length) {
+      const selectedInst: any = this.institutes.find((inst: any) => String(inst.id || inst.institute_id) === String(id));
+      if (selectedInst) {
+        if (selectedInst.allow_online_test !== undefined && selectedInst.allow_online_test !== null) {
+          this.allowOnlineTest = !!selectedInst.allow_online_test;
+        }
+        if (selectedInst.allow_paper_test !== undefined && selectedInst.allow_paper_test !== null) {
+          this.allowPaperTest = !!selectedInst.allow_paper_test;
+        }
+        if (!this.allowOnlineTest && this.allowPaperTest) {
+          this.activeReportType = 'paper';
+        } else if (this.allowOnlineTest && !this.allowPaperTest) {
+          this.activeReportType = 'online';
+        }
+      }
+    }
     if (id) {
       this.userFilters.institute_id = id;
     } else {
@@ -4341,8 +4363,18 @@ export class ExamReportsComponent implements OnInit, OnDestroy {
 
     try {
       const u = JSON.parse(sessionStorage.getItem('user') || sessionStorage.getItem('user_profile') || '{}');
-      if (u && u.allow_online_test === false && u.allow_paper_test === true) {
+      if (u) {
+        if (u.allow_online_test !== undefined && u.allow_online_test !== null) {
+          this.allowOnlineTest = !!u.allow_online_test;
+        }
+        if (u.allow_paper_test !== undefined && u.allow_paper_test !== null) {
+          this.allowPaperTest = !!u.allow_paper_test;
+        }
+      }
+      if (!this.allowOnlineTest && this.allowPaperTest) {
         this.activeReportType = 'paper';
+      } else if (this.allowOnlineTest && !this.allowPaperTest) {
+        this.activeReportType = 'online';
       }
     } catch (e) {}
 

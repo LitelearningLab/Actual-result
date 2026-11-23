@@ -62,12 +62,20 @@ export class AdminResultsComponent implements OnInit {
       themeClass: 'feature-card--blue'
     },
     {
-      title: 'Paper Question',
+      title: 'Create/Edit Paper Test',
       description: 'Create, customize, and publish question papers for offline or printed examinations.',
-      actionText: 'Manage Paper Questions',
+      actionText: 'Create or Manage Paper Tests',
       route: '/question-papers',
       icon: 'description',
       themeClass: 'feature-card--rose'
+    },
+    {
+      title: 'Schedule Paper Test',
+      description: 'Schedule paper tests by selecting question papers, date, batches, and timing.',
+      actionText: 'Schedule a Paper Test',
+      route: '/scheduled-paper-tests',
+      icon: 'event_available',
+      themeClass: 'feature-card--blue'
     },
     {
       title: 'Test Evaluation',
@@ -92,7 +100,7 @@ export class AdminResultsComponent implements OnInit {
 
     return this.allFeatureCards.filter(card => {
       const isOnline = card.route === '/exams' || card.route === '/view-schedule-exam';
-      const isPaper = card.route === '/question-papers' || card.route === '/test-evaluation';
+      const isPaper = card.route === '/question-papers' || card.route === '/scheduled-paper-tests' || card.route === '/test-evaluation';
       if (isOnline && !allowOnline) return false;
       if (isPaper && !allowPaper) return false;
       return true;
