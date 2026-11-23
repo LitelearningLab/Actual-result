@@ -725,7 +725,9 @@
                                             matTooltipPosition="above"
                                             matTooltipClass="question-full-tooltip"
                                             [matTooltipShowDelay]="100"
-                                            style="white-space: pre-line; display: block;">{{ q.question }}</span>
+                                            style="display: block;">
+                                            <app-math-render [text]="q.question"></app-math-render>
+                                        </span>
                                         <div class="q-media-preview" *ngIf="getQuestionImageUrl(q)" style="margin-top: 6px; margin-bottom: 6px;">
                                             <img [src]="getQuestionImageUrl(q)" alt="Question Diagram" style="max-width: 240px; max-height: 160px; border-radius: 6px; border: 1px solid #cbd5e1; object-fit: contain; display: block; background: #fff;" />
                                         </div>

@@ -1998,9 +1998,10 @@ def _parse_llm_json(raw_text):
     """
     Robust JSON parser for LLM responses:
     - Strips markdown code fences (```json ... ```)
-    - Extracts substring between outermost braces { ... }
-    - Handles strict=False to tolerate unescaped control chars
-    - Recovers and auto-repairs truncated JSON objects if output reached max_tokens
+    - Sanitizes invalid escape sequences (LaTeX like \\alpha, \\sqrt, \\times, \\degree, etc.)
+    - Repairs unescaped inner double quotes inside strings (e.g. quotes in slogans, passages, titles)
+    - Auto-repairs truncated JSON objects if output reached max_tokens
+    - Provides resilient regex fallback for sections and questions if structure is broken
     """
     if not raw_text or not str(raw_text).strip():
         return None
@@ -2008,8 +2009,8 @@ def _parse_llm_json(raw_text):
     text = str(raw_text).strip()
 
     # 1. Clean markdown code fences
-    text = re.sub(r"```(?:json)?\s*", "", text)
-    text = re.sub(r"```\s*", "", text)
+    text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"```\s*$", "", text, flags=re.MULTILINE)
     text = text.strip()
 
     # 2. Extract substring between outermost { and }
@@ -2022,45 +2023,83 @@ def _parse_llm_json(raw_text):
     else:
         json_candidate = text
 
+    # Helper to sanitize invalid escape sequences (JSON only allows \" \\ \/ \b \f \n \r \t \uXXXX)
+    def sanitize_escapes(s):
+        return re.sub(r'\\(?![\\"/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', s)
+
     # 3. Direct JSON load with strict=False
     try:
         return json.loads(json_candidate, strict=False)
     except Exception:
         pass
 
-    # 4. If truncated JSON (e.g. hit token limit), repair unclosed brackets/strings
+    # 3b. Try with sanitized invalid backslashes (handles LaTeX formulas, math, and units)
     try:
-        in_string = False
-        escape = False
-        stack = []
-        cleaned = []
+        cleaned_escapes = sanitize_escapes(json_candidate)
+        return json.loads(cleaned_escapes, strict=False)
+    except Exception:
+        pass
 
-        for ch in json_candidate:
+    # 4. Repair unescaped inner double quotes and truncated structures
+    def repair_json_string(s):
+        s = sanitize_escapes(s)
+        out = []
+        in_str = False
+        escape = False
+        i = 0
+        n = len(s)
+        stack = []
+
+        while i < n:
+            ch = s[i]
             if escape:
                 escape = False
-                cleaned.append(ch)
+                out.append(ch)
+                i += 1
                 continue
+
             if ch == '\\':
                 escape = True
-                cleaned.append(ch)
+                out.append(ch)
+                i += 1
                 continue
+
             if ch == '"':
-                in_string = not in_string
-                cleaned.append(ch)
+                if not in_str:
+                    in_str = True
+                    out.append(ch)
+                else:
+                    # Check if this quote is closing the string or is an inner unescaped quote
+                    j = i + 1
+                    while j < n and s[j] in ' \t\r\n':
+                        j += 1
+                    next_ch = s[j] if j < n else ''
+
+                    # In valid JSON, closing quote must be followed by :, ,, }, ], or EOF
+                    if next_ch in [':', ',', '}', ']', '']:
+                        in_str = False
+                        out.append(ch)
+                    else:
+                        # Inner quote! Escape it
+                        out.append('\\"')
+                i += 1
                 continue
-            if not in_string:
+
+            if not in_str:
                 if ch in '{[':
                     stack.append('}' if ch == '{' else ']')
                 elif ch in '}]':
                     if stack and stack[-1] == ch:
                         stack.pop()
-            cleaned.append(ch)
 
-        if in_string:
-            cleaned.append('"')
+            out.append(ch)
+            i += 1
 
-        repaired = "".join(cleaned)
-        # Trim dangling trailing commas or incomplete attributes
+        if in_str:
+            out.append('"')
+
+        repaired = "".join(out)
+        # Trim dangling trailing commas or incomplete keys/values
         repaired = re.sub(r',\s*$', '', repaired)
         repaired = re.sub(r',\s*"[^"]*"\s*:\s*$', '', repaired)
         repaired = re.sub(r'"[^"]*"\s*:\s*$', '', repaired)
@@ -2069,35 +2108,64 @@ def _parse_llm_json(raw_text):
         while stack:
             repaired += stack.pop()
 
-        return json.loads(repaired, strict=False)
+        return repaired
+
+    try:
+        repaired_text = repair_json_string(json_candidate)
+        return json.loads(repaired_text, strict=False)
     except Exception as rep_err:
         print(f"[_parse_llm_json] Repair warning: {rep_err}")
 
-    # 5. Regex extraction of questions as last-resort fallback
+    # 5. Extract questions via resilient fallback if JSON structure was too severely damaged
     try:
-        q_matches = re.findall(r'\{\s*"question"\s*:\s*"([^"]+)"', text)
-        if q_matches:
-            qs = [{"question": m, "marks": 1, "type": "descriptive"} for m in q_matches]
-            return {
-                "title": "Uploaded Question Paper",
-                "total_marks": len(qs),
-                "sections": [{
-                    "name": "Section A",
-                    "sub_heading": "Answer all questions.",
-                    "question_type": "descriptive",
-                    "questions": qs
-                }]
-            }
-    except Exception:
-        pass
+        # Match question blocks { ... "question": ... }
+        q_blocks = re.findall(r'\{\s*"question"\s*:\s*"((?:[^"\\]|\\.)*)"[\s\S]*?\}', text)
+        if not q_blocks:
+            q_matches = re.finditer(r'"question"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
+            q_list = []
+            for qm in q_matches:
+                q_text = qm.group(1).replace('\\"', '"').strip()
+                if q_text:
+                    q_list.append({"question": q_text, "marks": 1, "type": "descriptive"})
+            if q_list:
+                return {
+                    "title": "Uploaded Question Paper",
+                    "total_marks": len(q_list),
+                    "sections": [{
+                        "name": "Section A",
+                        "sub_heading": "Answer all questions.",
+                        "question_type": "descriptive",
+                        "questions": q_list
+                    }]
+                }
+        else:
+            qs = []
+            for block in q_blocks:
+                q_text = block.replace('\\"', '"').strip()
+                if q_text:
+                    qs.append({"question": q_text, "marks": 1, "type": "descriptive"})
+            if qs:
+                return {
+                    "title": "Uploaded Question Paper",
+                    "total_marks": len(qs),
+                    "sections": [{
+                        "name": "Section A",
+                        "sub_heading": "Answer all questions.",
+                        "question_type": "descriptive",
+                        "questions": qs
+                    }]
+                }
+    except Exception as fall_err:
+        print(f"[_parse_llm_json] Fallback warning: {fall_err}")
 
     return None
 
 
-def _extract_vector_drawing_rects(page, min_size=35):
+def _extract_vector_drawing_rects(page, min_size=35, table_rects=None):
     """
     Extracts and clusters vector graphics (geometry shapes, circuit diagrams, coordinate graphs, charts)
-    from a PDF page using PyMuPDF get_drawings(). Filters out full-page borders, rules, and dividers.
+    from a PDF page using PyMuPDF get_drawings(). Filters out full-page borders, rules, dividers,
+    and recognized table grid areas.
     """
     try:
         page_w = getattr(page.rect, "width", 0) or 1
@@ -2170,6 +2238,17 @@ def _extract_vector_drawing_rects(page, min_size=35):
             w = c.x1 - c.x0
             h = c.y1 - c.y0
             if w >= min_size and h >= min_size and w < page_w * 0.9 and h < page_h * 0.9:
+                # Ignore vector clusters that overlap with recognized table bounding boxes
+                if table_rects:
+                    is_table = False
+                    for tr in table_rects:
+                        inter = c & tr
+                        if not inter.is_empty and (inter.get_area() > 0.35 * min(c.get_area(), tr.get_area())):
+                            is_table = True
+                            break
+                    if is_table:
+                        continue
+
                 # Add safe padding
                 padded = fitz.Rect(
                     max(0, c.x0 - 4),
@@ -2192,6 +2271,8 @@ def extract_questions_from_paper(request):
     categorizes question types (objective vs descriptive), organizes them into sections,
     and returns a structured question paper template.
     """
+    doc = None
+    source_pil_img = None
     try:
         file_obj = None
         if request.files and ("file" in request.files or "paper" in request.files):
@@ -2250,12 +2331,56 @@ def extract_questions_from_paper(request):
                 max_pages = total_pages
                 for p_idx in range(max_pages):
                     page = doc[p_idx]
-                    t = page.get_text() or ""
+
+                    # Detect tables natively on page
+                    table_rects = []
+                    extracted_tables = []
+                    try:
+                        tabs = page.find_tables()
+                        if hasattr(tabs, "tables") and tabs.tables:
+                            for tab in tabs.tables:
+                                if tab.bbox:
+                                    t_rect = fitz.Rect(tab.bbox)
+                                    table_rects.append(t_rect)
+                                    t_md = tab.to_markdown() if hasattr(tab, "to_markdown") else ""
+                                    if t_md and t_md.strip():
+                                        extracted_tables.append((t_rect.y0, t_md.strip()))
+                    except Exception as tab_err:
+                        print(f"[extract_questions_from_paper] Page {p_idx + 1} table detect warning: {tab_err}")
+
+                    # Extract page text, integrating detected tables in clean Markdown format
+                    t = ""
+                    if extracted_tables:
+                        try:
+                            blocks = page.get_text("blocks")
+                            non_table_blocks = []
+                            for b in blocks:
+                                b_rect = fitz.Rect(b[:4])
+                                inside_table = False
+                                for tr in table_rects:
+                                    inter = b_rect & tr
+                                    if not inter.is_empty and inter.get_area() > 0.45 * b_rect.get_area():
+                                        inside_table = True
+                                        break
+                                if not inside_table and str(b[4]).strip():
+                                    non_table_blocks.append((b[1], str(b[4]).strip()))
+
+                            items = non_table_blocks + extracted_tables
+                            items.sort(key=lambda x: x[0])
+                            t = "\n\n".join(it[1] for it in items if it[1])
+                        except Exception as merge_err:
+                            print(f"[extract_questions_from_paper] Page {p_idx + 1} table text merge warning: {merge_err}")
+                            t = page.get_text() or ""
+                    else:
+                        t = page.get_text() or ""
+
                     if t.strip():
                         text_pages.append(f"--- Page {p_idx + 1} Text ---\n{t.strip()}")
                     # Render page as JPEG image so vision can see exact visual formatting, options, tables, matching columns
                     try:
-                        pix = page.get_pixmap(dpi=200)
+                        # For multi-page PDFs, use dpi=100 to keep payload compact and avoid hitting LLM vision token limits
+                        dpi_val = 100 if total_pages > 2 else 150
+                        pix = page.get_pixmap(dpi=dpi_val)
                         img_bytes = pix.tobytes("jpeg")
                         b64 = base64.b64encode(img_bytes).decode("utf-8")
                         image_data_uris.append(f"data:image/jpeg;base64,{b64}")
@@ -2349,9 +2474,9 @@ def extract_questions_from_paper(request):
                     except Exception as scan_err:
                         print(f"[extract_questions_from_paper] Page {p_idx + 1} image scan warning: {scan_err}")
 
-                    # 2. Extract vector drawing clusters (diagrams, geometry figures, graphs, circuits)
+                    # 2. Extract vector drawing clusters (diagrams, geometry figures, graphs, circuits), ignoring recognized tables
                     try:
-                        vector_clusters = _extract_vector_drawing_rects(page, min_size=35)
+                        vector_clusters = _extract_vector_drawing_rects(page, min_size=35, table_rects=table_rects)
                         for v_idx, v_rect in enumerate(vector_clusters):
                             # Skip if this vector cluster heavily overlaps with an already extracted raster image
                             overlaps = False
@@ -2490,13 +2615,15 @@ def extract_questions_from_paper(request):
             "   - Set 'marks_per_q' for the section (e.g. 1, 2, 3, 4, 5).\n"
             "   - Each question must have its accurate 'marks' (e.g. 1, 2, 3, 4, 5).\n"
             "7. PRESERVE DATA TABLES, CHARTS & SCHEDULES EXACTLY:\n"
-            "   - When a question contains a data table, schedule, or chart (such as Year | Primary | Secondary | Tertiary, or Production | Share):\n"
+            "   - When a question contains a data table, schedule, account statement, balance sheet, or financial statement (whether present in the text, detected table grids, or visible in page images):\n"
             "   - You MUST extract and transcribe the complete table using clean Markdown table format with headers and rows:\n"
-            "     | Year | Primary | Secondary | Tertiary |\n"
+            "     | Receipts | Amount (₹) | Payments | Amount (₹) |\n"
             "     | :--- | :--- | :--- | :--- |\n"
-            "     | 2000 | 52,000 | 48,500 | 1,33,500 |\n"
-            "     | 2013 | 8,00,500 | 10,74,000 | 38,68,000 |\n"
-            "   - DO NOT omit, merge, or collapse columns. Ensure every row and cell is preserved accurately.\n"
+            "     | To Subscriptions: 2019-20 | 9,000 | | |\n"
+            "     | To Subscriptions: 2020-21 | 40,000 | | |\n"
+            "   - DO NOT omit, merge, or collapse columns or rows. Ensure every row, cell, and number is preserved accurately.\n"
+            "   - If a table is printed as an image or on a scanned page, transcribe all its rows and columns into a clean Markdown table inside the question statement.\n"
+            "   - NEVER drop tables or replace them with synthetic text like '(Table not shown)'.\n"
             "8. PRESERVE QUESTIONS WITH MAPS, DIAGRAMS & IMAGES (MANDATORY DIAGRAM PRESERVATION):\n"
             "   - When a question references or contains an image, map, cartoon, diagram, circuit, graph, geometric figure, or illustration:\n"
             "   - Faithfully transcribe all question text, labels, equations, and instructions. Ensure no question statement, options, or notes are lost.\n"
@@ -2597,10 +2724,11 @@ def extract_questions_from_paper(request):
                 "type": "text",
                 "text": "Here are the original document page images. Inspect them carefully to extract all questions, matching pairs, multiple-choice options, tables, and sub-questions exactly as formatted:"
             })
+            vision_detail = "low" if extracted_text else "auto"
             for uri in image_data_uris:
                 user_content.append({
                     "type": "image_url",
-                    "image_url": {"url": uri}
+                    "image_url": {"url": uri, "detail": vision_detail}
                 })
 
         if not user_content:
@@ -2951,7 +3079,7 @@ def extract_questions_from_paper(request):
             "error": str(e)
         }, 500
     finally:
-        if doc:
+        if doc is not None:
             try:
                 doc.close()
             except Exception:

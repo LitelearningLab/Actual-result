@@ -91,35 +91,69 @@ export class MathService {
       return `${renderedBefore}${tableHtml}${renderedAfter}`;
     }
 
-    // 2. Check if text has a Markdown table: | Col 1 | Col 2 |
-    const mdTableRegex = /(\|[^\r\n]+\|\r?\n\|[-:\s|]+\|\r?\n(?:\|[^\r\n]+\|\r?\n?)+)/;
-    const mdMatch = text.match(mdTableRegex);
-    if (mdMatch) {
-      const tableRaw = mdMatch[1].trim();
-      const lines = tableRaw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-      if (lines.length >= 3) {
-        const headerCells = lines[0].split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
-        const colCount = headerCells.length;
-        const bodyLines = lines.slice(2);
+    // 2. Check if text has a Markdown table
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length - 1; i++) {
+      const headerLine = lines[i].trim();
+      const dividerLine = lines[i + 1].trim();
 
-        // 2-column tables use paper-match-table (side-by-side 50/50); multi-column tables use paper-data-table (proportional widths)
-        const tableClass = colCount === 2 ? 'paper-match-table' : 'paper-data-table';
+      // Divider row must contain dashes and pipes: e.g. |:---|:---| or |---|---| or :---|---:
+      const isDivider = /^\|?[\s:-]+(?:\|[\s:-]+)+\|?$/.test(dividerLine) && dividerLine.includes('-');
+      const isHeader = headerLine.includes('|') && headerLine.length > 2;
 
-        let headerHtml = '<tr>' + headerCells.map(h => `<th>${this.escapeHtml(h)}</th>`).join('') + '</tr>';
-        let bodyHtml = '';
-        for (const bl of bodyLines) {
-          const cells = bl.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
-          bodyHtml += '<tr>' + cells.map(c => `<td>${this.escapeHtml(c)}</td>`).join('') + '</tr>';
+      if (isHeader && isDivider) {
+        const parseRow = (line: string): string[] => {
+          let clean = line.trim();
+          if (clean.startsWith('|')) clean = clean.substring(1);
+          if (clean.endsWith('|')) clean = clean.substring(0, clean.length - 1);
+          return clean.split('|').map(c => c.trim());
+        };
+
+        const headers = parseRow(headerLine);
+        const colCount = headers.length;
+        if (colCount >= 2) {
+          const rows: string[][] = [];
+          let endIdx = i + 2;
+          while (endIdx < lines.length) {
+            const rowLine = lines[endIdx].trim();
+            if (!rowLine.includes('|') && rowLine.length > 0) {
+              break; // Not a table row
+            }
+            if (rowLine.length === 0) {
+              break; // Blank line after table
+            }
+            const cells = parseRow(rowLine);
+            while (cells.length < colCount) cells.push('');
+            rows.push(cells.slice(0, colCount));
+            endIdx++;
+          }
+
+          if (rows.length > 0) {
+            const tableClass = colCount === 2 ? 'paper-match-table' : 'paper-data-table';
+            const renderCell = (c: string): string => {
+              if (!c) return '';
+              return this.hasMathIndicators(c) ? this.parseAndRenderMixed(c) : this.escapeHtml(c);
+            };
+
+            const headerHtml = '<tr>' + headers.map(h => `<th>${renderCell(h)}</th>`).join('') + '</tr>';
+            let bodyHtml = '';
+            for (const r of rows) {
+              bodyHtml += '<tr>' + r.map(c => `<td>${renderCell(c)}</td>`).join('') + '</tr>';
+            }
+
+            const tableHtml = `<table class="${tableClass}"><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>`;
+            const beforeLines = lines.slice(0, i);
+            const afterLines = lines.slice(endIdx);
+
+            const beforeText = beforeLines.join('\n');
+            const afterText = afterLines.join('\n');
+
+            const renderedBefore = beforeText.trim() ? this.escapeHtml(beforeText).replace(/\r?\n/g, '<br/>') + '<br/>' : '';
+            const renderedAfter = afterText.trim() ? '<br/>' + this.escapeHtml(afterText).replace(/\r?\n/g, '<br/>') : '';
+
+            return `${renderedBefore}${tableHtml}${renderedAfter}`;
+          }
         }
-
-        const tableHtml = `<table class="${tableClass}"><thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>`;
-        const before = text.substring(0, mdMatch.index);
-        const after = text.substring((mdMatch.index || 0) + mdMatch[0].length);
-
-        const renderedBefore = this.escapeHtml(before).replace(/\r?\n/g, '<br/>');
-        const renderedAfter = this.escapeHtml(after).replace(/\r?\n/g, '<br/>');
-
-        return `${renderedBefore}${tableHtml}${renderedAfter}`;
       }
     }
 
