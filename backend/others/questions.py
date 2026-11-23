@@ -2313,8 +2313,7 @@ def extract_questions_from_paper(request):
                 "message": err_msg,
             }, err_code
 
-        # Extract text or render page images for OCR/Vision
-        extracted_text = ""
+        # Convert PDF to images using PyMuPDF (dpi=200); or load directly uploaded image for Vision AI
         image_data_uris = []
         extracted_doc_images = []
         source_pil_img = None
@@ -2327,249 +2326,29 @@ def extract_questions_from_paper(request):
                 import fitz
                 doc = fitz.open(stream=file_bytes, filetype="pdf")
                 total_pages = len(doc)
-                text_pages = []
-                max_pages = total_pages
-                for p_idx in range(max_pages):
+                for p_idx in range(total_pages):
                     page = doc[p_idx]
-
-                    # Detect tables natively on page
-                    table_rects = []
-                    extracted_tables = []
                     try:
-                        tabs = page.find_tables()
-                        if hasattr(tabs, "tables") and tabs.tables:
-                            for tab in tabs.tables:
-                                if tab.bbox:
-                                    t_rect = fitz.Rect(tab.bbox)
-                                    table_rects.append(t_rect)
-                                    t_md = tab.to_markdown() if hasattr(tab, "to_markdown") else ""
-                                    if t_md and t_md.strip():
-                                        extracted_tables.append((t_rect.y0, t_md.strip()))
-                    except Exception as tab_err:
-                        print(f"[extract_questions_from_paper] Page {p_idx + 1} table detect warning: {tab_err}")
-
-                    # Extract page text, integrating detected tables in clean Markdown format
-                    t = ""
-                    if extracted_tables:
-                        try:
-                            blocks = page.get_text("blocks")
-                            non_table_blocks = []
-                            for b in blocks:
-                                b_rect = fitz.Rect(b[:4])
-                                inside_table = False
-                                for tr in table_rects:
-                                    inter = b_rect & tr
-                                    if not inter.is_empty and inter.get_area() > 0.45 * b_rect.get_area():
-                                        inside_table = True
-                                        break
-                                if not inside_table and str(b[4]).strip():
-                                    non_table_blocks.append((b[1], str(b[4]).strip()))
-
-                            items = non_table_blocks + extracted_tables
-                            items.sort(key=lambda x: x[0])
-                            t = "\n\n".join(it[1] for it in items if it[1])
-                        except Exception as merge_err:
-                            print(f"[extract_questions_from_paper] Page {p_idx + 1} table text merge warning: {merge_err}")
-                            t = page.get_text() or ""
-                    else:
-                        t = page.get_text() or ""
-
-                    if t.strip():
-                        text_pages.append(f"--- Page {p_idx + 1} Text ---\n{t.strip()}")
-                    # Render page as JPEG image so vision can see exact visual formatting, options, tables, matching columns
-                    try:
-                        # For multi-page PDFs, use dpi=100 to keep payload compact and avoid hitting LLM vision token limits
-                        dpi_val = 100 if total_pages > 2 else 150
-                        pix = page.get_pixmap(dpi=dpi_val)
+                        pix = page.get_pixmap(dpi=200)
                         img_bytes = pix.tobytes("jpeg")
                         b64 = base64.b64encode(img_bytes).decode("utf-8")
                         image_data_uris.append(f"data:image/jpeg;base64,{b64}")
                     except Exception as img_err:
                         print(f"[extract_questions_from_paper] Page {p_idx + 1} render warning: {img_err}")
-
-                    # Extract figures, maps, diagrams, and photos from page
-                    blocks = page.get_text("blocks")
-                    page_w = getattr(page.rect, "width", 0) or 1
-                    page_h = getattr(page.rect, "height", 0) or 1
-                    page_doc_images = []
-
-                    # 1. Extract embedded raster images
-                    try:
-                        img_infos = page.get_image_info(xrefs=True)
-                        seen_xrefs = set()
-                        for info_idx, info in enumerate(img_infos):
-                            bbox = info.get("bbox")
-                            xref = info.get("xref")
-                            if not bbox:
-                                continue
-                            w = bbox[2] - bbox[0]
-                            h = bbox[3] - bbox[1]
-                            # Filter out tiny icons, dots, lines (< 30px)
-                            if w < 30 or h < 30:
-                                continue
-                            # Filter out full-page scanned backgrounds (covering 95%+ of page)
-                            if w >= (page_w * 0.95) and h >= (page_h * 0.95):
-                                continue
-
-                            extracted_img_bytes = None
-                            extracted_ext = "png"
-
-                            # 1. Try native stream extraction if xref is valid
-                            if xref and xref not in seen_xrefs and xref > 0:
-                                seen_xrefs.add(xref)
-                                try:
-                                    img_data = doc.extract_image(xref)
-                                    if img_data and img_data.get("image"):
-                                        extracted_img_bytes = img_data["image"]
-                                        extracted_ext = img_data.get("ext") or "png"
-                                except Exception:
-                                    pass
-
-                            # 2. Render clipped page area if native stream unavailable or failed
-                            if not extracted_img_bytes:
-                                try:
-                                    clip_rect = fitz.Rect(
-                                        max(0, bbox[0] - 2),
-                                        max(0, bbox[1] - 2),
-                                        min(page.rect.width, bbox[2] + 2),
-                                        min(page.rect.height, bbox[3] + 2)
-                                    )
-                                    clip_pix = page.get_pixmap(clip=clip_rect, dpi=180)
-                                    extracted_img_bytes = clip_pix.tobytes("png")
-                                    extracted_ext = "png"
-                                except Exception:
-                                    pass
-
-                            if extracted_img_bytes and len(extracted_img_bytes) > 200:
-                                preceding_blocks = [b for b in blocks if b[3] <= (bbox[1] + 20) and str(b[4]).strip()]
-                                preceding_text = preceding_blocks[-1][4].strip() if preceding_blocks else ""
-
-                                q_num_match = re.search(r'(?:^|\n)\s*(?:Q(?:uestion)?\s*)?(\d+)[\.\)\:\-]', preceding_text)
-                                q_num = int(q_num_match.group(1)) if q_num_match else None
-
-                                try:
-                                    img_fname = f"paper_q_img_p{p_idx+1}_{info_idx+1}.{extracted_ext}"
-                                    upload_res = gcs_storage.upload_media(
-                                        file_bytes=extracted_img_bytes,
-                                        filename=img_fname,
-                                        folder_prefix="questions/images",
-                                        expected_type="image"
-                                    )
-                                    img_url = upload_res.get("url") or upload_res.get("file_url")
-                                    if img_url:
-                                        item_data = {
-                                            "page": p_idx + 1,
-                                            "bbox": [bbox[0], bbox[1], bbox[2], bbox[3]],
-                                            "q_num": q_num,
-                                            "url": img_url,
-                                            "gcs_path": upload_res.get("gcs_path"),
-                                            "mime_type": upload_res.get("mime_type") or f"image/{extracted_ext}",
-                                            "file_size": len(extracted_img_bytes),
-                                            "preceding_text": preceding_text[:120]
-                                        }
-                                        extracted_doc_images.append(item_data)
-                                        page_doc_images.append(item_data)
-                                except Exception as up_err:
-                                    print(f"[extract_questions_from_paper] Image upload warning: {up_err}")
-                    except Exception as scan_err:
-                        print(f"[extract_questions_from_paper] Page {p_idx + 1} image scan warning: {scan_err}")
-
-                    # 2. Extract vector drawing clusters (diagrams, geometry figures, graphs, circuits), ignoring recognized tables
-                    try:
-                        vector_clusters = _extract_vector_drawing_rects(page, min_size=35, table_rects=table_rects)
-                        for v_idx, v_rect in enumerate(vector_clusters):
-                            # Skip if this vector cluster heavily overlaps with an already extracted raster image
-                            overlaps = False
-                            for ed in page_doc_images:
-                                if ed.get("bbox"):
-                                    ed_b = ed["bbox"]
-                                    ed_rect = fitz.Rect(ed_b[0], ed_b[1], ed_b[2], ed_b[3])
-                                    inter = v_rect & ed_rect
-                                    if not inter.is_empty and (inter.get_area() > 0.35 * min(v_rect.get_area(), ed_rect.get_area())):
-                                        overlaps = True
-                                        break
-                            if overlaps:
-                                continue
-
-                            clip_pix = page.get_pixmap(clip=v_rect, dpi=200)
-                            v_bytes = clip_pix.tobytes("png")
-                            if v_bytes and len(v_bytes) > 200:
-                                preceding_blocks = [b for b in blocks if b[3] <= (v_rect.y0 + 20) and str(b[4]).strip()]
-                                preceding_text = preceding_blocks[-1][4].strip() if preceding_blocks else ""
-                                q_num_match = re.search(r'(?:^|\n)\s*(?:Q(?:uestion)?\s*)?(\d+)[\.\)\:\-]', preceding_text)
-                                q_num = int(q_num_match.group(1)) if q_num_match else None
-
-                                img_fname = f"paper_q_vec_p{p_idx+1}_{v_idx+1}.png"
-                                upload_res = gcs_storage.upload_media(
-                                    file_bytes=v_bytes,
-                                    filename=img_fname,
-                                    folder_prefix="questions/images",
-                                    expected_type="image"
-                                )
-                                img_url = upload_res.get("url") or upload_res.get("file_url")
-                                if img_url:
-                                    item_data = {
-                                        "page": p_idx + 1,
-                                        "bbox": [v_rect.x0, v_rect.y0, v_rect.x1, v_rect.y1],
-                                        "q_num": q_num,
-                                        "url": img_url,
-                                        "gcs_path": upload_res.get("gcs_path"),
-                                        "mime_type": "image/png",
-                                        "file_size": len(v_bytes),
-                                        "preceding_text": preceding_text[:120]
-                                    }
-                                    extracted_doc_images.append(item_data)
-                                    page_doc_images.append(item_data)
-                    except Exception as vec_err:
-                        print(f"[extract_questions_from_paper] Page {p_idx + 1} vector extract warning: {vec_err}")
-
-                extracted_text = "\n\n".join(text_pages).strip()
             except Exception as pdf_err:
-                print(f"[extract_questions_from_paper] PDF parse warning: {pdf_err}")
+                print(f"[extract_questions_from_paper] PDF render warning: {pdf_err}")
         else:
-            # Direct image file (JPG, JPEG, PNG, WEBP, BMP, etc.)
+            # Direct image file (PNG, JPG, JPEG, WEBP, BMP, etc.) - directly pass to Vision AI without PyMuPDF
             try:
                 from PIL import Image, ImageOps
                 img_io = io.BytesIO(file_bytes)
                 source_pil_img = Image.open(img_io)
                 source_pil_img = ImageOps.exif_transpose(source_pil_img)
-                if source_pil_img.mode in ("RGBA", "P"):
-                    rgb_bg = Image.new("RGB", source_pil_img.size, (255, 255, 255))
-                    rgb_bg.paste(source_pil_img, mask=source_pil_img.split()[3] if source_pil_img.mode == "RGBA" else None)
-                    source_pil_img = rgb_bg
-                elif source_pil_img.mode != "RGB":
-                    source_pil_img = source_pil_img.convert("RGB")
-
-                # Prepare high-resolution JPEG representation for Vision LLM
-                max_dim = 2400
-                w, h = source_pil_img.size
-                if max(w, h) > max_dim:
-                    scale = max_dim / float(max(w, h))
-                    vision_img = source_pil_img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
-                else:
-                    vision_img = source_pil_img
-
-                buf = io.BytesIO()
-                vision_img.save(buf, format="JPEG", quality=95)
-                b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
-                image_data_uris.append(f"data:image/jpeg;base64,{b64}")
-
-                # Also attempt text extraction if image contains embedded text stream via fitz
-                try:
-                    import fitz
-                    img_doc = fitz.open(stream=file_bytes)
-                    if len(img_doc) > 0:
-                        t = img_doc[0].get_text() or ""
-                        if t.strip():
-                            extracted_text = t.strip()
-                    img_doc.close()
-                except Exception:
-                    pass
-            except Exception as img_read_err:
-                print(f"[extract_questions_from_paper] Image read warning: {img_read_err}")
-                mime = "image/png" if filename.endswith(".png") else "image/jpeg"
-                b64 = base64.b64encode(file_bytes).decode("utf-8")
-                image_data_uris.append(f"data:{mime};base64,{b64}")
+            except Exception as pil_err:
+                print(f"[extract_questions_from_paper] PIL open warning: {pil_err}")
+            mime = "image/png" if filename.endswith(".png") else "image/jpeg"
+            b64 = base64.b64encode(file_bytes).decode("utf-8")
+            image_data_uris.append(f"data:{mime};base64,{b64}")
 
         system_prompt = (
             "You are an expert exam assessment and question paper parser AI. "
@@ -2700,38 +2479,23 @@ def extract_questions_from_paper(request):
         )
 
         user_content = []
-        if extracted_text:
+        user_content.append({
+            "type": "text",
+            "text": (
+                "Inspect the provided question paper images carefully. "
+                "Using only Vision AI, read every page and extract ALL sections, all questions, sub-questions, "
+                "options (A, B, C, D), tables (formatted as clean Markdown tables with headers and rows), "
+                "mathematical equations (formatted in LaTeX), and diagrams (with diagram_box [ymin, xmin, ymax, xmax] normalized 0-1000 and page) "
+                "exactly as formatted in the document."
+            )
+        })
+        for uri in image_data_uris:
             user_content.append({
-                "type": "text",
-                "text": f"Here is the text extracted from the document:\n\n{extracted_text}"
+                "type": "image_url",
+                "image_url": {"url": uri}
             })
-        if extracted_doc_images:
-            imgs_info_lines = ["The document contains the following extracted diagrams/images:"]
-            for d_idx, d_img in enumerate(extracted_doc_images, 1):
-                line = f"- Image {d_idx} (Page {d_img.get('page', 1)}): URL: {d_img['url']}"
-                if d_img.get('q_num'):
-                    line += f" (Positioned at/under Question {d_img['q_num']})"
-                if d_img.get('preceding_text'):
-                    line += f" [Text near image: '{d_img['preceding_text']}']"
-                imgs_info_lines.append(line)
-            imgs_info_lines.append("Assign 'image_url' for any question matching these images. For any other diagrams or figures present on the pages/images, specify 'diagram_box': [ymin, xmin, ymax, xmax] (normalized 0-1000) and 'page'. DO NOT omit the question or write text placeholders.")
-            user_content.append({
-                "type": "text",
-                "text": "\n".join(imgs_info_lines)
-            })
-        if image_data_uris:
-            user_content.append({
-                "type": "text",
-                "text": "Here are the original document page images. Inspect them carefully to extract all questions, matching pairs, multiple-choice options, tables, and sub-questions exactly as formatted:"
-            })
-            vision_detail = "low" if extracted_text else "auto"
-            for uri in image_data_uris:
-                user_content.append({
-                    "type": "image_url",
-                    "image_url": {"url": uri, "detail": vision_detail}
-                })
 
-        if not user_content:
+        if not user_content or not image_data_uris:
             return {
                 "status": False,
                 "statusMessage": "Could not read text or images from the uploaded file.",
@@ -2764,6 +2528,10 @@ def extract_questions_from_paper(request):
         try:
             resp_json = response.json()
             raw_text = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+            print("\n" + "=" * 60)
+            print("[VISION AI EXTRACTION JSON RESPONSE]:")
+            print(raw_text)
+            print("=" * 60 + "\n", flush=True)
             parsed_data = _parse_llm_json(raw_text)
             if not parsed_data or not isinstance(parsed_data, dict):
                 raise ValueError("Parsed data is empty or invalid dict")

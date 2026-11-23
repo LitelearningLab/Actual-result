@@ -2076,6 +2076,16 @@ export class InstituteRegisterComponent {
           this._snack.open(res.statusMessage, 'Close', { duration: 3500 });
           this.form.patchValue({ allocated_credits: res.data.allocated_credits });
           this.remainingCredits = res.data.remaining_credits;
+          try {
+            const raw = sessionStorage.getItem('edit_institute');
+            if (raw) {
+              const instObj = JSON.parse(raw);
+              instObj.allocated_credits = res.data.allocated_credits;
+              instObj.remaining_credits = res.data.remaining_credits;
+              instObj.used_credits = res.data.used_credits;
+              sessionStorage.setItem('edit_institute', JSON.stringify(instObj));
+            }
+          } catch (e) {}
           this.closeModals();
           this.loadTransactions();
         } else {

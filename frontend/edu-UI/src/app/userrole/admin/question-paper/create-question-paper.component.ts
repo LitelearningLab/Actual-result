@@ -3840,6 +3840,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       next: (res) => {
         this.uploadPaperLoading = false;
         if (res && res.status && res.data) {
+          console.log('[Vision AI Question Paper JSON Response]:', res.data);
           const data = res.data;
           const extractedSections = data.sections || [];
           if (!extractedSections.length) {

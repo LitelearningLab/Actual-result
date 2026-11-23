@@ -1228,8 +1228,13 @@ def add_or_deduct_institute_credits(request):
         ).scalar() or 0)
         previous_available = max(0, current_allocated - used_credits)
 
-        new_allocated = current_allocated + credits_amt
-        new_available = previous_available + credits_amt
+        # Base allocation on whichever is higher: current allocation or actual used credits.
+        # If an institute was in overdraft/deficit (used_credits > current_allocated),
+        # adding credits must absorb the deficit so the newly added amount is 
+        # immediately available as usable balance.
+        base_allocation = max(current_allocated, used_credits)
+        new_allocated = base_allocation + credits_amt
+        new_available = new_allocated - used_credits
         tx_type = "ADDITION"
         signed_credits = credits_amt
 
