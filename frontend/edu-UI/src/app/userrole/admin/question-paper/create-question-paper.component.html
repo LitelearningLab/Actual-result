@@ -737,6 +737,11 @@
                                                 {{ formatOptionText(opt, optIdx) }}
                                             </span>
                                         </div>
+                                        <!-- Inline Answer Preview -->
+                                        <div class="q-inline-answer" *ngIf="q.answer" style="margin-top: 6px; display: inline-flex; align-items: flex-start; gap: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 3px 8px; font-size: 12px; color: #166534;">
+                                            <strong style="color: #15803d; font-size: 11.5px; text-transform: uppercase;">Ans:</strong>
+                                            <span style="font-weight: 500; line-height: 1.35;">{{ q.answer }}</span>
+                                        </div>
                                     </div>
                                     <div class="q-marks-wrap">
                                         <input class="q-marks-input" type="number" [(ngModel)]="q.marks" (ngModelChange)="markDirty()" min="0"
@@ -1229,6 +1234,18 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Answer / Model Solution -->
+                <div class="form-group" style="margin-top: 14px;">
+                    <label class="field-label">
+                        <mat-icon style="font-size: 16px; width: 16px; height: 16px; vertical-align: middle; margin-right: 4px; color: #16a34a;">check_circle</mat-icon>
+                        <span>{{ (editQType === 'choose' || (editQOptions && editQOptions.length > 0)) ? 'Correct Answer / Selected Option' : 'Answer / Model Solution' }}</span>
+                    </label>
+                    <textarea class="qp-textarea" [(ngModel)]="editQAnswer" rows="3" placeholder="Enter the correct answer, selected option text, or model solution..."></textarea>
+                    <span class="upload-hint" *ngIf="editQType === 'choose' || (editQOptions && editQOptions.length > 0)">
+                        Tip: You can paste the option text or write the model answer explanation here.
+                    </span>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn-modal-cancel" type="button" (click)="closeEditQuestionModal()">Cancel</button>
@@ -1567,7 +1584,7 @@
 
     <!-- ═══ Modal: Answer Key Management ═══ -->
     <div class="modal-backdrop" *ngIf="showAnswerKeyModal" (mousedown)="$event.target === $event.currentTarget ? closeAnswerKeyModal() : null">
-        <div class="modal-dialog answer-key-dialog" (click)="$event.stopPropagation()">
+        <div class="modal-dialog answer-key-dialog" [class.wide-dialog]="answerKeyModalStep === 'review'" (click)="$event.stopPropagation()">
             <div class="modal-header">
                 <div class="modal-header-title-wrap">
                     <div class="header-icon-wrap answer-key-icon-wrap">
@@ -1627,6 +1644,23 @@
                         <div class="ak-option-action">
                             <button type="button" class="btn-ak-select">
                                 <span>Generate</span>
+                                <mat-icon>arrow_forward</mat-icon>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Option 3: Edit Existing Answers (if answer key already generated/uploaded) -->
+                    <div class="ak-option-card" (click)="openReviewExistingAnswers()" *ngIf="hasAnswerKey">
+                        <div class="ak-option-icon" style="background: #eef2ff; color: #4f46e5;">
+                            <mat-icon>edit_note</mat-icon>
+                        </div>
+                        <div class="ak-option-content">
+                            <h4>Edit Existing Answers</h4>
+                            <p>Review, modify, or update the current answers and model solutions for this question paper.</p>
+                        </div>
+                        <div class="ak-option-action">
+                            <button type="button" class="btn-ak-select">
+                                <span>Edit</span>
                                 <mat-icon>arrow_forward</mat-icon>
                             </button>
                         </div>
@@ -1766,6 +1800,65 @@
                         <span>{{ generateAnswersError }}</span>
                     </div>
                 </div>
+
+                <!-- Step: Review & Edit Generated Answers -->
+                <div class="ak-step-container ak-review-step" *ngIf="answerKeyModalStep === 'review'">
+                    <div class="ak-step-header">
+                        <button type="button" class="btn-ak-back" (click)="setAnswerKeyStep('choose')">
+                            <mat-icon>arrow_back</mat-icon> Back
+                        </button>
+                        <div class="ak-review-title-wrap">
+                            <span class="ak-step-title">Review &amp; Edit Answers</span>
+                            <span class="ak-review-count-badge" *ngIf="reviewAnswersList.length">{{ reviewAnswersList.length }} Questions</span>
+                        </div>
+                    </div>
+
+                    <div class="ak-review-hint-box">
+                        <mat-icon>info</mat-icon>
+                        <span>Review the answers formulated by AI below. For multiple-choice questions, select the correct option. For descriptive questions, edit the model answer text directly.</span>
+                    </div>
+
+                    <div class="ak-review-list-container">
+                        <div class="ak-review-q-card" *ngFor="let item of reviewAnswersList; let qI = index">
+                            <div class="ak-review-q-meta">
+                                <span class="ak-q-number">Q{{ item.global_idx }}</span>
+                                <span class="ak-q-type-chip">{{ item.question_type === 'choose' ? 'OBJECTIVE' : 'DESCRIPTIVE' }}</span>
+                                <span class="ak-q-marks-chip">{{ item.marks }} {{ item.marks === 1 ? 'Mark' : 'Marks' }}</span>
+                            </div>
+
+                            <div class="ak-review-q-statement">
+                                <app-math-render [text]="item.question_text"></app-math-render>
+                            </div>
+
+                            <div class="ak-review-q-img" *ngIf="item.image_url">
+                                <img [src]="item.image_url" alt="Question Diagram" />
+                            </div>
+
+                            <!-- Multiple Choice: Select Option -->
+                            <div class="ak-review-options-section" *ngIf="item.options && item.options.length > 0">
+                                <span class="ak-field-tag">Select Correct Option:</span>
+                                <div class="ak-options-select-grid">
+                                    <div class="ak-opt-choice-box" *ngFor="let opt of item.options; let optIdx = index"
+                                        [class.is-correct]="item.selected_option_idx === optIdx"
+                                        (click)="onReviewOptionSelected(item, optIdx)">
+                                        <div class="ak-radio-indicator">
+                                            <div class="ak-radio-dot" *ngIf="item.selected_option_idx === optIdx"></div>
+                                        </div>
+                                        <span class="ak-opt-letter">({{ getOptionLetter(optIdx) }})</span>
+                                        <span class="ak-opt-label">{{ opt.text }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Answer Text / Model Solution -->
+                            <div class="ak-review-answer-section">
+                                <span class="ak-field-tag">{{ (item.options && item.options.length > 0) ? 'Answer Summary / Selected Option Text:' : 'Model Answer / Solution:' }}</span>
+                                <textarea class="qp-textarea ak-ans-textarea" [(ngModel)]="item.answer" rows="3"
+                                    placeholder="Enter or refine the model solution..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer">
@@ -1782,6 +1875,12 @@
                     <button class="btn-modal-confirm btn-generate-confirm" type="button" (click)="startAIGenerateAnswers()" [disabled]="generateAnswersLoading">
                         <mat-icon>auto_awesome</mat-icon>
                         <span>{{ generateAnswersLoading ? 'Generating Answers...' : 'Generate Answers' }}</span>
+                    </button>
+                </ng-container>
+                <ng-container *ngIf="answerKeyModalStep === 'review'">
+                    <button class="btn-modal-confirm btn-apply-answers-confirm" type="button" (click)="saveReviewedAnswers()">
+                        <mat-icon>check_circle</mat-icon>
+                        <span>Apply Answers ({{ reviewAnswersList.length }})</span>
                     </button>
                 </ng-container>
             </div>

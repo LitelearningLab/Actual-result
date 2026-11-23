@@ -190,7 +190,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
   // ── Answer Key Modal State ──
   showAnswerKeyModal = false;
-  answerKeyModalStep: 'choose' | 'upload' | 'generate' = 'choose';
+  answerKeyModalStep: 'choose' | 'upload' | 'generate' | 'review' = 'choose';
+  reviewAnswersList: any[] = [];
   uploadAnswerKeyFile: File | null = null;
   uploadAnswerKeyFileName = '';
   uploadAnswerKeyFileSize = '';
@@ -3931,6 +3932,22 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       q.type = this.editQType === 'choose' ? 'descriptive' : this.editQType;
     }
     q.answer = this.editQAnswer.trim();
+    if (validOpts.length > 0 && q.answer) {
+      q.options = validOpts.map((optStr) => {
+        const isMatch = q.answer.toLowerCase() === optStr.toLowerCase() ||
+          (optStr.length > 2 && q.answer.toLowerCase().includes(optStr.toLowerCase())) ||
+          (q.answer.length > 2 && optStr.toLowerCase().includes(q.answer.toLowerCase()));
+        return {
+          text: optStr,
+          option_text: optStr,
+          is_correct: isMatch,
+          isCorrect: isMatch
+        };
+      });
+    }
+    if (q.answer) {
+      this.hasUploadedOrGeneratedAnswerKey = true;
+    }
     (q as any).image_url = this.editQImageUrl;
     if ((q as any).media && Array.isArray((q as any).media)) {
       if (this.editQImageUrl) {
@@ -4181,7 +4198,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.generateAnswersError = '';
   }
 
-  setAnswerKeyStep(step: 'choose' | 'upload' | 'generate') {
+  setAnswerKeyStep(step: 'choose' | 'upload' | 'generate' | 'review') {
     if (this.uploadAnswerKeyLoading || this.generateAnswersLoading) return;
     this.answerKeyModalStep = step;
     this.uploadAnswerKeyError = '';
@@ -4292,9 +4309,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         this.uploadAnswerKeyLoading = false;
         if (res && res.status && res.data) {
           const answers = res.data.answers || [];
-          this.applyAnswersToQuestions(answers);
-          this.closeAnswerKeyModal();
-          notify(`Answer key uploaded and mapped successfully to ${answers.length} questions!`, 'success');
+          this.populateReviewAnswersList(answers);
+          this.answerKeyModalStep = 'review';
+          notify(`Answer key mapped to ${answers.length} questions! Review and edit them below.`, 'success');
         } else {
           const msg = res?.statusMessage || 'Failed to map answer key to questions';
           this.uploadAnswerKeyError = msg;
@@ -4347,9 +4364,9 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         this.generateAnswersLoading = false;
         if (res && res.status && res.data) {
           const answers = res.data.answers || [];
-          this.applyAnswersToQuestions(answers);
-          this.closeAnswerKeyModal();
-          notify(`Answers successfully generated for ${answers.length} questions!`, 'success');
+          this.populateReviewAnswersList(answers);
+          this.answerKeyModalStep = 'review';
+          notify(`Answers successfully generated for ${answers.length} questions! Review and edit them below.`, 'success');
         } else {
           const msg = res?.statusMessage || 'Failed to generate answers';
           this.generateAnswersError = msg;
@@ -4372,6 +4389,119 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         notify(this.generateAnswersError, 'error');
       }
     });
+  }
+
+  populateReviewAnswersList(answersList: any[]) {
+    const ansMap = new Map<string, any>();
+    (answersList || []).forEach((a, idx) => {
+      if (a.question_id) ansMap.set(String(a.question_id), a);
+      if (a.question_index !== undefined) ansMap.set(`idx_${a.question_index}`, a);
+      ansMap.set(`seq_${idx}`, a);
+    });
+
+    this.reviewAnswersList = [];
+    let globalIdx = 0;
+    this.sections.forEach((sec, secIdx) => {
+      (sec.questions || []).forEach((q, qIdx) => {
+        const qId = String(q.id || `q_${globalIdx}`);
+        const matched = ansMap.get(qId) || ansMap.get(`idx_${globalIdx}`) || ansMap.get(`seq_${globalIdx}`);
+        const qType = String(q.type || (q as any).question_type || 'descriptive').toLowerCase();
+        const rawOpts = q.options && Array.isArray(q.options) ? q.options : [];
+        const isChoose = qType === 'choose' || qType === 'multi' || rawOpts.length > 0;
+
+        let initialAns = matched?.answer ? String(matched.answer).trim() : (q.answer || '');
+        let chosenOptIdx = matched?.correct_option_index !== undefined ? Number(matched.correct_option_index) : -1;
+
+        const clonedOpts = rawOpts.map((opt: any, optI: number) => {
+          const optText = (typeof opt === 'string' ? opt : opt.text || opt.option_text || opt.value || '').trim();
+          let isCorr = false;
+          if (chosenOptIdx >= 0 && chosenOptIdx === optI) {
+            isCorr = true;
+          } else if (typeof opt === 'object' && (opt.is_correct || opt.isCorrect)) {
+            isCorr = true;
+            if (chosenOptIdx < 0) chosenOptIdx = optI;
+          } else if (initialAns && initialAns.toLowerCase().includes(optText.toLowerCase()) && optText.length > 0) {
+            isCorr = true;
+            if (chosenOptIdx < 0) chosenOptIdx = optI;
+          }
+          return {
+            text: optText,
+            is_correct: isCorr
+          };
+        });
+
+        if (isChoose && chosenOptIdx >= 0 && chosenOptIdx < clonedOpts.length) {
+          clonedOpts.forEach((o, oI) => o.is_correct = oI === chosenOptIdx);
+          if (!initialAns) initialAns = clonedOpts[chosenOptIdx].text;
+        } else if (isChoose && clonedOpts.length > 0 && chosenOptIdx < 0) {
+          chosenOptIdx = 0;
+          clonedOpts[0].is_correct = true;
+          if (!initialAns) initialAns = clonedOpts[0].text;
+        }
+
+        this.reviewAnswersList.push({
+          section_idx: secIdx,
+          question_idx: qIdx,
+          global_idx: globalIdx + 1,
+          question_id: qId,
+          question_text: q.question,
+          question_type: isChoose ? 'choose' : qType,
+          marks: q.marks !== null && q.marks !== undefined ? Number(q.marks) : 1,
+          options: clonedOpts,
+          selected_option_idx: chosenOptIdx >= 0 ? chosenOptIdx : 0,
+          answer: initialAns,
+          image_url: q.image_url || (q.media && q.media.length ? (q.media[0].file_url || q.media[0].url) : '')
+        });
+
+        globalIdx++;
+      });
+    });
+  }
+
+  onReviewOptionSelected(item: any, optIdx: number) {
+    item.selected_option_idx = optIdx;
+    item.options.forEach((opt: any, idx: number) => {
+      opt.is_correct = idx === optIdx;
+    });
+    const selectedOpt = item.options[optIdx];
+    if (selectedOpt) {
+      item.answer = selectedOpt.text;
+    }
+  }
+
+  openReviewExistingAnswers() {
+    this.populateReviewAnswersList([]);
+    this.answerKeyModalStep = 'review';
+  }
+
+  saveReviewedAnswers() {
+    if (!this.reviewAnswersList || !this.reviewAnswersList.length) {
+      this.closeAnswerKeyModal();
+      return;
+    }
+
+    this.reviewAnswersList.forEach((item) => {
+      const sec = this.sections[item.section_idx];
+      if (sec && sec.questions && sec.questions[item.question_idx]) {
+        const q = sec.questions[item.question_idx];
+        q.answer = String(item.answer || '').trim();
+        if (q.options && Array.isArray(q.options) && q.options.length > 0) {
+          q.options.forEach((opt: any, optIdx: number) => {
+            const isMatch = optIdx === item.selected_option_idx;
+            if (typeof opt === 'object') {
+              opt.is_correct = isMatch;
+              opt.isCorrect = isMatch;
+            }
+          });
+        }
+      }
+    });
+
+    this.hasUploadedOrGeneratedAnswerKey = true;
+    this.markDirty();
+    this.paginatedGuidePages = this.buildPaginatedPages(true);
+    this.closeAnswerKeyModal();
+    notify(`Answers successfully saved and applied for ${this.reviewAnswersList.length} questions!`, 'success');
   }
 
   applyAnswersToQuestions(answersList: any[]) {

@@ -1069,6 +1069,76 @@ def ensure_exam_columns(session):
         session.rollback()
 
 
+def _sync_question_answer_options(session, qid, q_item, created_by=None):
+    if not qid:
+        return
+    try:
+        q_type = str(q_item.get("type") or q_item.get("question_type") or "descriptive").lower()
+        answer_str = str(q_item.get("answer") or "").strip()
+        raw_options = q_item.get("options") or []
+
+        existing_opts = session.query(Option).filter_by(question_id=str(qid), active_status=1).all()
+
+        is_objective = q_type in ["choose", "multi"] or (raw_options and len(raw_options) > 0)
+        if is_objective:
+            correct_incoming_idx = None
+            for idx, r_opt in enumerate(raw_options):
+                if isinstance(r_opt, dict) and (
+                    r_opt.get("is_correct") in (1, True, "1", "true")
+                    or r_opt.get("isCorrect") in (1, True, "1", "true")
+                ):
+                    correct_incoming_idx = idx
+                    break
+
+            if existing_opts:
+                for idx, opt_obj in enumerate(existing_opts):
+                    is_corr = 0
+                    if correct_incoming_idx is not None and idx == correct_incoming_idx:
+                        is_corr = 1
+                    elif answer_str and opt_obj.option_text:
+                        o_txt = opt_obj.option_text.strip().lower()
+                        a_txt = answer_str.lower()
+                        if a_txt == o_txt or (len(o_txt) > 2 and o_txt in a_txt) or (len(a_txt) > 2 and a_txt in o_txt):
+                            is_corr = 1
+                    opt_obj.is_correct = is_corr
+            elif raw_options:
+                for idx, r_opt in enumerate(raw_options):
+                    opt_text = (
+                        r_opt.get("text") or r_opt.get("option_text") or r_opt.get("value")
+                        if isinstance(r_opt, dict)
+                        else str(r_opt)
+                    ).strip()
+                    is_corr = 0
+                    if correct_incoming_idx is not None and idx == correct_incoming_idx:
+                        is_corr = 1
+                    elif answer_str and opt_text:
+                        o_txt = opt_text.lower()
+                        a_txt = answer_str.lower()
+                        if a_txt == o_txt or (len(o_txt) > 2 and o_txt in a_txt) or (len(a_txt) > 2 and a_txt in o_txt):
+                            is_corr = 1
+                    session.add(
+                        Option(
+                            question_id=str(qid),
+                            option_text=opt_text,
+                            is_correct=is_corr,
+                        )
+                    )
+        elif answer_str:
+            if existing_opts:
+                existing_opts[0].option_text = answer_str
+                existing_opts[0].is_correct = 1
+            else:
+                session.add(
+                    Option(
+                        question_id=str(qid),
+                        option_text=answer_str,
+                        is_correct=1,
+                    )
+                )
+    except Exception as e:
+        print(f"[_sync_question_answer_options] Error syncing options for question {qid}: {e}", flush=True)
+
+
 def add_exam(request):
     # get exam details from the request
     data = request.get_json(silent=True) or {}
@@ -1270,6 +1340,9 @@ def add_exam(request):
                             ))
                         elif existing_qm.file_url != q_img:
                             existing_qm.file_url = q_img
+
+                    # Sync question answer and option correctness in DB
+                    _sync_question_answer_options(session, qid, q_item, created_by=created_by)
 
                     if cat_id:
                         category_counts[cat_id] = category_counts.get(cat_id, 0) + 1
@@ -1596,6 +1669,9 @@ def update_exam(request):
                             ))
                         elif existing_qm.file_url != q_img:
                             existing_qm.file_url = q_img
+
+                    # Sync question answer and option correctness in DB
+                    _sync_question_answer_options(session, qid, q_item, created_by=created_by)
 
                     if cat_id:
                         category_counts[cat_id] = category_counts.get(cat_id, 0) + 1
@@ -2827,6 +2903,10 @@ def get_exam_details(request):
                             for opt in q_opts
                         ]
 
+                        # Determine correct answer from Option table
+                        correct_opt = next((opt for opt in q_opts if opt.is_correct in (1, True, "1")), None)
+                        ans_text = (correct_opt.option_text or "").strip() if correct_opt else ""
+
                         sec_questions.append(
                             {
                                 "question_id": str(q_obj.question_id),
@@ -2835,6 +2915,7 @@ def get_exam_details(request):
                                 "question": q_obj.question_text,
                                 "question_type": q_obj.question_type,
                                 "marks": q_obj.marks,
+                                "answer": ans_text,
                                 "media": media_list,
                                 "image_url": media_list[0]["file_url"] if (media_list and media_list[0].get("file_url")) else "",
                                 "options": opt_list,
