@@ -2851,7 +2851,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       /!\[([^\]]*)\]\(([^)]+)\)/.test(qText)
     );
     if (hasImage) {
-      textHeight += 180;
+      textHeight += 195;
     }
 
     let optionsOrAnsHeight = 0;
@@ -2906,8 +2906,8 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     // Footer: 24px + 8px margin = 32px.
     // Running header on Page 2+: 30px.
     // Exact usable content height = 1122.5 - 98 - 32 - 30 = 962.5px.
-    // 960px ensures questions comfortably break before reaching or overlapping the footer.
-    const USABLE_PAGE_HEIGHT = 960;
+    // 925px provides a safe buffer so questions and diagrams comfortably break before reaching or overlapping the footer.
+    const USABLE_PAGE_HEIGHT = 925;
 
     // Estimate Page 1 Examination Header height
     let p1HeaderHeight = 20; // divider + margins

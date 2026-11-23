@@ -2377,6 +2377,9 @@ def extract_questions_from_paper(request):
             "     * NEVER output Column-I and Column-II stacked vertically one after another in a single column. Always pair them side by side into two columns.\n"
             "     * Extract the final matching options (e.g. (A) a - i, b - iii... (B)...) into the 'options' array.\n"
             "   - Set 'type': 'choose'.\n"
+            "5. NO VISUALLY IMPAIRED SUBSTITUTE TEXT IN MAIN QUESTIONS:\n"
+            "   - When a question has a visual map, figure, or diagram, focus strictly on that question and diagram.\n"
+            "   - Do NOT append substitute questions or notes like 'Note: The following question is for Visually Impaired Candidates only in lieu of...' into the question statement.\n"
             "   - A section containing multiple choice questions MUST have 'question_type': 'objective'.\n"
             "   - NEVER leave 'options' empty if choices exist in the document.\n"
             "5. SUB-QUESTIONS & SOURCE / PASSAGE QUESTIONS:\n"
@@ -2646,6 +2649,8 @@ def extract_questions_from_paper(request):
                 # Clean any synthetic descriptions added by vision LLM
                 q_text = re.sub(r'\s*\(\s*(?:The\s+)?printed\s+question\s+includes\s+[^)]+\)\s*', ' ', q_text, flags=re.IGNORECASE).strip()
                 q_text = re.sub(r'\s*\(\s*(?:Image|Figure|Map|Chart)\s+(?:is\s+)?(?:not\s+shown|included|attached)[^)]*\)\s*', ' ', q_text, flags=re.IGNORECASE).strip()
+                # Clean alternative questions intended only for visually impaired candidates in lieu of visual questions
+                q_text = re.sub(r'(?is)\s*Note\s*:\s*The\s+following\s+question[^\n]*in\s+lieu\s+of[^\n]*.*$', '', q_text).strip()
 
                 try:
                     q_marks = float(q.get("marks") or 1)
