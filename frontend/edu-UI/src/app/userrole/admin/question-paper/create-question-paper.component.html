@@ -743,6 +743,9 @@
                                             [ngModelOptions]="{standalone: true}" [disabled]="readOnly" />
                                         <span class="q-marks-label">marks</span>
                                     </div>
+                                    <button class="q-btn-edit" type="button" (click)="openEditQuestionModal(secIdx, qIdx)" title="Edit Question" *ngIf="!readOnly">
+                                        <mat-icon>edit</mat-icon>
+                                    </button>
                                     <button class="q-btn-del" type="button" (click)="removeQuestionFromSection(secIdx, qIdx)" title="Remove" *ngIf="!readOnly">
                                         <mat-icon>close</mat-icon>
                                     </button>
@@ -1113,8 +1116,8 @@
                     <label class="field-label">Marks per Question</label>
                     <input class="qp-input" type="number" [(ngModel)]="newSectionMarksPerQ" min="0" step="0.5" placeholder="e.g. 1" />
                 </div>
-                <!-- Question Type -->
-                <div class="form-group">
+                <!-- Question Type (Hidden ONLY when isUploadedPaper is true) -->
+                <div class="form-group" *ngIf="!isUploadedPaper">
                     <label class="field-label">Question Type <span class="req">*</span></label>
                     <div class="type-cards">
                         <div class="type-card" [class.selected]="newSectionType === 'objective'" (click)="newSectionType = 'objective'">
@@ -1139,6 +1142,92 @@
                 <button class="btn-modal-confirm" type="button" (click)="confirmAddSection()">
                     <mat-icon>check</mat-icon>
                     <span>{{ editingSectionIndex >= 0 ? 'Save Changes' : 'Add Section' }}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Modal: Edit Question ═══ -->
+    <div class="modal-backdrop" *ngIf="showEditQuestionModal" (mousedown)="$event.target === $event.currentTarget ? closeEditQuestionModal() : null">
+        <div class="modal-dialog edit-question-dialog" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Edit Question</h3>
+                <button mat-icon-button type="button" (click)="closeEditQuestionModal()">
+                    <mat-icon>close</mat-icon>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- Question Statement -->
+                <div class="form-group">
+                    <label class="field-label">Question Text / Statement <span class="req">*</span></label>
+                    <textarea class="qp-textarea" [(ngModel)]="editQText" rows="4" placeholder="Enter question statement, table markdown, or formula..."></textarea>
+                </div>
+
+                <!-- Marks & Type Row -->
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label class="field-label">Marks <span class="req">*</span></label>
+                        <input class="qp-input" type="number" [(ngModel)]="editQMarks" min="0" step="0.5" />
+                    </div>
+                    <div class="form-group">
+                        <label class="field-label">Question Format</label>
+                        <select class="qp-select" [(ngModel)]="editQType">
+                            <option value="descriptive">Descriptive</option>
+                            <option value="choose">Objective (MCQ)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Attached Image / Diagram -->
+                <div class="form-group">
+                    <label class="field-label">Attached Diagram / Figure</label>
+                    <input #editImgFileInput type="file" accept="image/*" (change)="onEditImageFileSelected($event)" style="display: none;" />
+                    
+                    <div class="edit-q-image-wrap" *ngIf="editQImageUrl">
+                        <img [src]="editQImageUrl" alt="Question Diagram" />
+                        <div class="edit-q-image-actions">
+                            <button class="btn-change-image" type="button" (click)="editImgFileInput.click()" [disabled]="editQUploadingImage">
+                                <mat-icon>add_photo_alternate</mat-icon> {{ editQUploadingImage ? 'Uploading...' : 'Change Image' }}
+                            </button>
+                            <button class="btn-remove-image" type="button" (click)="removeEditImage()" [disabled]="editQUploadingImage">
+                                <mat-icon>delete</mat-icon> Remove Image
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="edit-q-image-empty" *ngIf="!editQImageUrl">
+                        <button class="btn-upload-q-image" type="button" (click)="editImgFileInput.click()" [disabled]="editQUploadingImage">
+                            <mat-icon>add_photo_alternate</mat-icon>
+                            <span>{{ editQUploadingImage ? 'Uploading...' : 'Upload Diagram / Image' }}</span>
+                        </button>
+                        <span class="upload-hint">Upload a map, chart, or diagram for this question</span>
+                    </div>
+                </div>
+
+                <!-- Multiple Choice Options -->
+                <div class="form-group" *ngIf="editQType === 'choose' || (editQOptions && editQOptions.length > 0)">
+                    <div class="options-header-row">
+                        <label class="field-label">Options</label>
+                        <button class="btn-add-opt" type="button" (click)="addEditOption()">
+                            <mat-icon>add</mat-icon> Add Option
+                        </button>
+                    </div>
+                    <div class="edit-options-list">
+                        <div class="edit-opt-row" *ngFor="let opt of editQOptions; let optI = index; trackBy: trackByIndex">
+                            <span class="opt-letter">{{ getOptionLetter(optI) }}</span>
+                            <input class="qp-input opt-input" type="text" [(ngModel)]="editQOptions[optI]" [placeholder]="'Option ' + getOptionLetter(optI)" />
+                            <button class="btn-opt-del" type="button" (click)="removeEditOption(optI)" title="Delete option">
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-cancel" type="button" (click)="closeEditQuestionModal()">Cancel</button>
+                <button class="btn-modal-confirm" type="button" (click)="saveEditedQuestion()">
+                    <mat-icon>check</mat-icon>
+                    <span>Save Changes</span>
                 </button>
             </div>
         </div>

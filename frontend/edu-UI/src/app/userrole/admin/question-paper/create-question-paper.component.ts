@@ -429,6 +429,21 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   showUnsavedChangesModal = false;
   pendingDeactivateResolve: ((value: boolean) => void) | null = null;
 
+  // ── Uploaded Question Paper flag ──
+  isUploadedPaper = false;
+
+  // ── Edit Question modal state ──
+  showEditQuestionModal = false;
+  editingQuestionSecIdx = -1;
+  editingQuestionIdx = -1;
+  editQText = '';
+  editQMarks = 1;
+  editQType = 'descriptive';
+  editQOptions: string[] = [];
+  editQAnswer = '';
+  editQImageUrl = '';
+  editQUploadingImage = false;
+
   get terminology(): InstituteTerminology {
     let ind = '';
     const instId = this.institute;
@@ -3734,6 +3749,138 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     }
   }
 
+  // ── Edit Question Methods ──
+  openEditQuestionModal(secIdx: number, qIdx: number) {
+    const sec = this.sections[secIdx];
+    if (!sec || !sec.questions || !sec.questions[qIdx]) return;
+    const q = sec.questions[qIdx];
+    this.editingQuestionSecIdx = secIdx;
+    this.editingQuestionIdx = qIdx;
+    this.editQText = q.question || '';
+    this.editQMarks = Number(q.marks) || 1;
+    this.editQType = (q.options && q.options.length > 0) ? 'choose' : (q.type || 'descriptive');
+    this.editQOptions = (q.options && Array.isArray(q.options))
+      ? q.options.map((o: any) => typeof o === 'string' ? o : (o.option_text || o.text || ''))
+      : [];
+    this.editQAnswer = q.answer || '';
+    this.editQImageUrl = this.getQuestionImageUrl(q) || '';
+    this.showEditQuestionModal = true;
+  }
+
+  closeEditQuestionModal() {
+    this.showEditQuestionModal = false;
+    this.editingQuestionSecIdx = -1;
+    this.editingQuestionIdx = -1;
+    this.editQText = '';
+    this.editQMarks = 1;
+    this.editQOptions = [];
+    this.editQAnswer = '';
+    this.editQImageUrl = '';
+  }
+
+  addEditOption() {
+    this.editQOptions.push('');
+  }
+
+  removeEditOption(optIdx: number) {
+    if (optIdx >= 0 && optIdx < this.editQOptions.length) {
+      this.editQOptions.splice(optIdx, 1);
+    }
+  }
+
+  removeEditImage() {
+    this.editQImageUrl = '';
+  }
+
+  onEditImageFileSelected(event: any) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+    const file = input.files[0];
+    if (!file.type.startsWith('image/')) {
+      notify('Please select a valid image file (PNG, JPG, JPEG, WEBP, etc.)', 'error');
+      input.value = '';
+      return;
+    }
+
+    this.editQUploadingImage = true;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('media_type', 'image');
+
+    this.http.post<any>(`${API_BASE}/questions/upload-media`, formData).subscribe({
+      next: (res) => {
+        this.editQUploadingImage = false;
+        if (res && res.status && res.data) {
+          this.editQImageUrl = res.data.url || res.data.file_url || '';
+          notify('Image uploaded successfully', 'success');
+        } else {
+          const reader = new FileReader();
+          reader.onload = (e: any) => {
+            this.editQImageUrl = e.target.result;
+          };
+          reader.readAsDataURL(file);
+          notify('Image selected', 'info');
+        }
+      },
+      error: () => {
+        this.editQUploadingImage = false;
+        const reader = new FileReader();
+        reader.onload = (e: any) => {
+          this.editQImageUrl = e.target.result;
+        };
+        reader.readAsDataURL(file);
+        notify('Image loaded', 'info');
+      }
+    });
+    input.value = '';
+  }
+
+  saveEditedQuestion() {
+    if (this.editingQuestionSecIdx < 0 || this.editingQuestionIdx < 0) return;
+    const sec = this.sections[this.editingQuestionSecIdx];
+    if (!sec || !sec.questions || !sec.questions[this.editingQuestionIdx]) return;
+    const q = sec.questions[this.editingQuestionIdx];
+
+    q.question = this.editQText.trim();
+    q.marks = Number(this.editQMarks) || 1;
+    const validOpts = this.editQOptions.map((o) => (o || '').trim()).filter((o) => o.length > 0);
+    q.options = validOpts;
+    if (validOpts.length > 0) {
+      q.type = 'choose';
+    } else {
+      q.type = this.editQType === 'choose' ? 'descriptive' : this.editQType;
+    }
+    q.answer = this.editQAnswer.trim();
+    (q as any).image_url = this.editQImageUrl;
+    if ((q as any).media && Array.isArray((q as any).media)) {
+      if (this.editQImageUrl) {
+        (q as any).media = [{ media_type: 'image', file_url: this.editQImageUrl, url: this.editQImageUrl }];
+      } else {
+        (q as any).media = [];
+      }
+    } else if (this.editQImageUrl) {
+      (q as any).media = [{ media_type: 'image', file_url: this.editQImageUrl, url: this.editQImageUrl }];
+    }
+
+    this.markDirty();
+    this.closeEditQuestionModal();
+    if (this.showPreviewPaper) {
+      this.paginatedPaperPages = this.buildPaginatedPages(false);
+    }
+    if (this.showPreviewGuide) {
+      this.paginatedGuidePages = this.buildPaginatedPages(true);
+    }
+    notify('Question updated successfully', 'success');
+  }
+
+  getOptionLetter(idx: number): string {
+    return String.fromCharCode(65 + idx);
+  }
+
+  trackByIndex(index: number, item: any): any {
+    return index;
+  }
+
   // ── Upload Existing Question Paper Methods ──
   openUploadPaperModal() {
     this.uploadPaperFile = null;
@@ -3841,6 +3988,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         this.uploadPaperLoading = false;
         if (res && res.status && res.data) {
           console.log('[Vision AI Question Paper JSON Response]:', res.data);
+          this.isUploadedPaper = true;
           const data = res.data;
           const extractedSections = data.sections || [];
           if (!extractedSections.length) {
