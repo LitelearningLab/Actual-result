@@ -4450,11 +4450,78 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           options: clonedOpts,
           selected_option_idx: chosenOptIdx >= 0 ? chosenOptIdx : 0,
           answer: initialAns,
-          image_url: q.image_url || (q.media && q.media.length ? (q.media[0].file_url || q.media[0].url) : '')
+          image_url: q.image_url || (q.media && q.media.length ? (q.media[0].file_url || q.media[0].url) : ''),
+          fineTunePrompt: '',
+          fineTuningLoading: false
         });
 
         globalIdx++;
       });
+    });
+  }
+
+  cleanOptionDisplay(text: any, idx?: number): string {
+    if (!text) return '';
+    let str = String(text).trim();
+    // Strip redundant leading prefixes like (A), (a), A., A), A:, etc.
+    str = str.replace(/^\(?([a-zA-Z0-9])[\.\)\:\-]\s*/, '').trim();
+    return str || String(text).trim();
+  }
+
+  fineTuneAnswer(item: any) {
+    const prompt = (item?.fineTunePrompt || '').trim();
+    if (!prompt) return;
+
+    item.fineTuningLoading = true;
+    const payload = {
+      institute_id: this.institute,
+      user_id: this.getCurrentUserId() || '',
+      question_text: item.question_text || '',
+      current_answer: item.answer || '',
+      instruction: prompt,
+      question_type: item.question_type || (item.options && item.options.length ? 'choose' : 'descriptive'),
+      options: item.options || [],
+      marks: item.marks || 1
+    };
+
+    const url = `${API_BASE}/fine-tune-paper-answer`;
+    this.http.post<any>(url, payload).subscribe({
+      next: (res) => {
+        item.fineTuningLoading = false;
+        if (res && res.status && res.data) {
+          const newAns = res.data.answer || '';
+          item.answer = newAns;
+          if (res.data.correct_option_index !== undefined && res.data.correct_option_index !== null) {
+            const corrIdx = Number(res.data.correct_option_index);
+            if (corrIdx >= 0 && corrIdx < (item.options || []).length) {
+              this.onReviewOptionSelected(item, corrIdx);
+            }
+          } else if (item.options && item.options.length) {
+            const matchedIdx = item.options.findIndex((o: any) =>
+              o.text && newAns && (
+                o.text.toLowerCase() === newAns.toLowerCase() ||
+                newAns.toLowerCase().includes(o.text.toLowerCase()) ||
+                o.text.toLowerCase().includes(newAns.toLowerCase())
+              )
+            );
+            if (matchedIdx >= 0) {
+              this.onReviewOptionSelected(item, matchedIdx);
+            }
+          }
+          item.fineTunePrompt = '';
+          notify(`Q${item.global_idx} answer fine-tuned successfully!`, 'success');
+        } else {
+          notify(res?.statusMessage || 'Failed to fine-tune answer', 'error');
+        }
+      },
+      error: (err) => {
+        item.fineTuningLoading = false;
+        if (this.aiCreditAlert && this.aiCreditAlert.handleAiError(err, 'Answer Fine-Tuning')) {
+          return;
+        }
+        const msg = err?.error?.statusMessage || err?.error?.message || 'Failed to fine-tune answer with AI.';
+        notify(typeof msg === 'object' ? JSON.stringify(msg) : msg, 'error');
+      }
     });
   }
 
@@ -4501,7 +4568,35 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.markDirty();
     this.paginatedGuidePages = this.buildPaginatedPages(true);
     this.closeAnswerKeyModal();
-    notify(`Answers successfully saved and applied for ${this.reviewAnswersList.length} questions!`, 'success');
+    notify(`Answers applied for ${this.reviewAnswersList.length} questions!`, 'success');
+
+    // Auto-persist directly to database if exam already exists
+    if (this.editMode && this.editExamId) {
+      const payload = {
+        exam_id: this.editExamId,
+        created_by: this.getCurrentUserId(),
+        sections: this.sections.map((sec, idx) => ({
+          section_id: sec.section_id || null,
+          name: sec.name,
+          questions: (sec.questions || []).map((q, qIdx) => ({
+            question_id: q.id,
+            type: q.type,
+            options: q.options || [],
+            answer: q.answer || '',
+          })),
+        })),
+      };
+      this.http.post<any>(`${API_BASE}/sync-paper-answers`, payload).subscribe({
+        next: (res) => {
+          if (res?.status) {
+            notify(`Answers saved directly to database (${res.count || this.reviewAnswersList.length} questions)!`, 'success');
+          }
+        },
+        error: (err) => {
+          console.error('Failed to auto-sync answers to DB', err);
+        }
+      });
+    }
   }
 
   applyAnswersToQuestions(answersList: any[]) {

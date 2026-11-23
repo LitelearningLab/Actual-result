@@ -5127,6 +5127,106 @@
                     }
                 }
             }
+
+            .ak-fine-tune-box {
+                margin-top: 8px;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                border: 1px dashed #cbd5e1;
+                border-radius: 8px;
+                padding: 8px 12px;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+
+                .fine-tune-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+
+                    .ft-sparkle-icon {
+                        font-size: 15px;
+                        width: 15px;
+                        height: 15px;
+                        color: #7c3aed;
+                    }
+
+                    .ft-title {
+                        font-size: 11.5px;
+                        font-weight: 700;
+                        color: #475569;
+                        letter-spacing: 0.2px;
+                        text-transform: uppercase;
+                    }
+                }
+
+                .fine-tune-input-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+
+                    .fine-tune-input {
+                        flex: 1;
+                        height: 34px;
+                        font-size: 12.5px;
+                        border: 1px solid #cbd5e1;
+                        border-radius: 6px;
+                        padding: 0 10px;
+                        background: #ffffff;
+                        color: #0f172a;
+
+                        &:focus {
+                            border-color: #7c3aed;
+                            box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12);
+                            outline: none;
+                        }
+
+                        &::placeholder {
+                            color: #94a3b8;
+                            font-size: 12px;
+                        }
+                    }
+
+                    .btn-fine-tune-action {
+                        height: 34px;
+                        padding: 0 14px;
+                        background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+                        color: #ffffff;
+                        border: none;
+                        border-radius: 6px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                        cursor: pointer;
+                        white-space: nowrap;
+                        transition: all 0.15s ease;
+                        box-shadow: 0 1px 4px rgba(124, 58, 237, 0.25);
+
+                        mat-icon {
+                            font-size: 15px;
+                            width: 15px;
+                            height: 15px;
+
+                            &.spin-icon {
+                                animation: spin 1s infinite linear;
+                            }
+                        }
+
+                        &:hover:not(:disabled) {
+                            background: linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%);
+                            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.35);
+                        }
+
+                        &:disabled {
+                            background: #e2e8f0;
+                            color: #94a3b8;
+                            cursor: not-allowed;
+                            box-shadow: none;
+                        }
+                    }
+                }
+            }
         }
     }
 }

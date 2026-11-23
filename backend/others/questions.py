@@ -3224,3 +3224,127 @@ def generate_paper_answers(request):
             "error": str(e)
         }, 500
 
+
+def fine_tune_paper_answer(request):
+    """
+    Fine-tunes or refines an individual question's answer using AI based on a custom prompt/instruction.
+    Supports both descriptive questions and multiple-choice questions.
+    """
+    try:
+        body = request.get_json(silent=True) or request.form or {}
+        institute_id = body.get("institute_id")
+        user_id = body.get("user_id") or "System"
+        question_text = body.get("question_text") or ""
+        current_answer = body.get("current_answer") or ""
+        instruction = body.get("instruction") or ""
+        question_type = (body.get("question_type") or "descriptive").lower()
+        options = body.get("options") or []
+        marks = body.get("marks") or 1
+
+        if not question_text:
+            return {"status": False, "statusMessage": "Question text is required."}, 400
+        if not instruction:
+            return {"status": False, "statusMessage": "Instruction / prompt is required for fine-tuning."}, 400
+
+        # AI credits check
+        from others.ai_credits import check_institute_ai_access
+        has_access, err_msg, err_code = check_institute_ai_access(
+            institute_id=institute_id,
+            user_id=user_id,
+            request_obj=request
+        )
+        if not has_access:
+            return {
+                "status": False,
+                "error": err_msg,
+                "statusMessage": err_msg,
+                "message": err_msg,
+            }, err_code
+
+        system_prompt = (
+            "You are an expert academic examiner and subject matter expert. "
+            "Your task is to refine, improve, or re-evaluate the answer to an examination question based strictly on the user's instructions."
+        )
+
+        is_objective = question_type in ["choose", "multi"] or (isinstance(options, list) and len(options) > 0)
+
+        if is_objective:
+            opts_str = "\n".join([f"Option {chr(65 + idx)}: {opt.get('text') if isinstance(opt, dict) else str(opt)}" for idx, opt in enumerate(options)])
+            user_message = f"""Question: {question_text}
+Available Options:
+{opts_str}
+Current Answer: {current_answer}
+Marks: {marks}
+
+User Fine-Tuning Instruction:
+"{instruction}"
+
+Based on the question, options, and user instruction, identify the single correct option.
+Return ONLY valid JSON matching this schema:
+{{
+  "correct_option_index": <0-based integer index of correct option>,
+  "answer": "<Exact text of the correct option>"
+}}"""
+        else:
+            user_message = f"""Question: {question_text}
+Current Model Answer: {current_answer}
+Marks: {marks}
+
+User Fine-Tuning Instruction:
+"{instruction}"
+
+Refine the model answer according to the user instruction while maintaining academic accuracy and appropriate depth for {marks} marks.
+Return ONLY valid JSON matching this schema:
+{{
+  "answer": "<The refined and improved model answer>"
+}}"""
+
+        client = openai_client()
+        response = client.chat_completion(
+            system_message=system_prompt,
+            InputData=user_message,
+            aimodel=1,
+            max_tokens=2048,
+            temperature=0.2,
+            timeout=120.0,
+            response_format={"type": "json_object"},
+            user_name=user_id,
+            institute_id=institute_id,
+            feature_name="AI Answer Fine-Tuning",
+            endpoint="/fine-tune-paper-answer"
+        )
+
+        if response.status_code != 200:
+            err_msg = "Failed to fine-tune answer using AI."
+            try:
+                raw_json = response.json()
+                if isinstance(raw_json, dict):
+                    err_msg = raw_json.get("statusMessage") or raw_json.get("message") or raw_json.get("error") or err_msg
+            except Exception:
+                pass
+            return {"status": False, "statusMessage": str(err_msg), "error": str(err_msg)}, response.status_code
+
+        resp_json = response.json()
+        raw_text = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+        parsed_data = _parse_llm_json(raw_text) or {}
+        new_answer = parsed_data.get("answer") or ""
+        correct_idx = parsed_data.get("correct_option_index")
+
+        return {
+            "status": True,
+            "statusMessage": "Answer successfully fine-tuned.",
+            "data": {
+                "answer": new_answer,
+                "correct_option_index": correct_idx
+            }
+        }, 200
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {
+            "status": False,
+            "statusMessage": f"Error fine-tuning answer: {str(e)}",
+            "error": str(e)
+        }, 500
+

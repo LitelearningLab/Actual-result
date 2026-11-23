@@ -1845,16 +1845,37 @@
                                             <div class="ak-radio-dot" *ngIf="item.selected_option_idx === optIdx"></div>
                                         </div>
                                         <span class="ak-opt-letter">({{ getOptionLetter(optIdx) }})</span>
-                                        <span class="ak-opt-label">{{ opt.text }}</span>
+                                        <span class="ak-opt-label">{{ cleanOptionDisplay(opt.text, optIdx) }}</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Answer Text / Model Solution -->
-                            <div class="ak-review-answer-section">
-                                <span class="ak-field-tag">{{ (item.options && item.options.length > 0) ? 'Answer Summary / Selected Option Text:' : 'Model Answer / Solution:' }}</span>
+                            <!-- Answer Text / Model Solution (Visible ONLY for Descriptive Questions) -->
+                            <div class="ak-review-answer-section" *ngIf="!item.options || item.options.length === 0">
+                                <span class="ak-field-tag">Model Answer / Solution:</span>
                                 <textarea class="qp-textarea ak-ans-textarea" [(ngModel)]="item.answer" rows="3"
                                     placeholder="Enter or refine the model solution..."></textarea>
+                            </div>
+
+                            <!-- AI Fine-Tuning Box (Visible ONLY for Descriptive Questions) -->
+                            <div class="ak-fine-tune-box" *ngIf="!item.options || item.options.length === 0">
+                                <div class="fine-tune-header">
+                                    <mat-icon class="ft-sparkle-icon">auto_awesome</mat-icon>
+                                    <span class="ft-title">AI Fine-Tuning</span>
+                                </div>
+                                <div class="fine-tune-input-row">
+                                    <input type="text" class="qp-input fine-tune-input"
+                                        [(ngModel)]="item.fineTunePrompt"
+                                        [placeholder]="(item.options && item.options.length > 0) ? 'Prompt AI to re-evaluate (e.g. check standard key, clarify ambiguity)...' : 'Prompt AI to refine answer (e.g. summarize in 3 points, include formulas)...'"
+                                        (keydown.enter)="fineTuneAnswer(item)"
+                                        [disabled]="item.fineTuningLoading" />
+                                    <button type="button" class="btn-fine-tune-action"
+                                        (click)="fineTuneAnswer(item)"
+                                        [disabled]="item.fineTuningLoading || !item.fineTunePrompt?.trim()">
+                                        <mat-icon [class.spin-icon]="item.fineTuningLoading">{{ item.fineTuningLoading ? 'sync' : 'auto_awesome' }}</mat-icon>
+                                        <span>{{ item.fineTuningLoading ? 'Refining...' : 'Fine-Tune' }}</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -18,7 +18,7 @@ from others.exams import add_exam, autosave_exam_answers, get_active_exam_status
 from others.examschedule import add_exam_schedule, get_exam_schedule_details, delete_exam_schedule
 from others.examschedule import update_exam_schedule
 from others.category import add_categories, get_categories_list, get_category_details
-from others.questions import add_question, get_questions_details, bulk_upload_questions, create_question_using_llm, fine_tune_questions_using_llm, upload_question_media, delete_question_media, extract_questions_from_paper, extract_and_map_answer_key, generate_paper_answers
+from others.questions import add_question, get_questions_details, bulk_upload_questions, create_question_using_llm, fine_tune_questions_using_llm, upload_question_media, delete_question_media, extract_questions_from_paper, extract_and_map_answer_key, generate_paper_answers, fine_tune_paper_answer
 from others.exam_review import review_user_exam, validate_answers, update_review_comments, update_manual_review_status, get_attempt_evaluation_progress
 from others.exam_reports import get_user_wise_report, get_exam_analytics
 from others.exam_reports import get_question_wrong_answers
@@ -512,6 +512,12 @@ def extract_and_map_answer_key_route():
 @admin_required
 def generate_paper_answers_route():
     response_data, status_code = generate_paper_answers(request)
+    return jsonify(response_data), status_code
+
+@edu_blueprint.route('/fine-tune-paper-answer', methods=['POST'])
+@admin_required
+def fine_tune_paper_answer_route():
+    response_data, status_code = fine_tune_paper_answer(request)
     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/questions/upload-media', methods=['POST'])
@@ -1034,6 +1040,14 @@ def register_exam_route():
 def update_exam_route():
     from others.exams import update_exam
     response_data, status_code = update_exam(request)
+    return jsonify(response_data), status_code
+
+
+@edu_blueprint.route('/sync-paper-answers', methods=['POST'])
+@admin_required
+def sync_paper_answers_route():
+    from others.exams import sync_paper_answers
+    response_data, status_code = sync_paper_answers(request)
     return jsonify(response_data), status_code
 
 

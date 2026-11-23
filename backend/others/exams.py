@@ -1139,6 +1139,39 @@ def _sync_question_answer_options(session, qid, q_item, created_by=None):
         print(f"[_sync_question_answer_options] Error syncing options for question {qid}: {e}", flush=True)
 
 
+def sync_paper_answers(request):
+    data = request.get_json(silent=True) or {}
+    exam_id = data.get("exam_id")
+    sections = data.get("sections") or []
+    created_by = data.get("created_by")
+
+    db = SQLiteDB()
+    session = db.connect()
+    if not session:
+        return {"statusMessage": "Error connecting to database", "status": False}, 500
+
+    try:
+        updated_count = 0
+        for sec in sections:
+            questions = sec.get("questions") or []
+            for q_item in questions:
+                qid = q_item.get("question_id") or q_item.get("id")
+                if qid:
+                    _sync_question_answer_options(session, qid, q_item, created_by=created_by)
+                    updated_count += 1
+        session.commit()
+        return {
+            "status": True,
+            "statusMessage": f"Successfully synced answers for {updated_count} questions to database.",
+            "count": updated_count,
+        }, 200
+    except Exception as e:
+        session.rollback()
+        return {"statusMessage": f"Error syncing answers: {str(e)}", "status": False}, 500
+    finally:
+        session.close()
+
+
 def add_exam(request):
     # get exam details from the request
     data = request.get_json(silent=True) or {}
