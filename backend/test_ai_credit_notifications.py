@@ -124,43 +124,73 @@ class TestAICreditNotifications(unittest.TestCase):
 
         self.manager.create_notification(inst_A, "ALLOCATION", "INFO", "Inst A Allocation", "Allocated to A")
         self.manager.create_notification(inst_B, "ALLOCATION", "INFO", "Inst B Allocation", "Allocated to B")
+        self.manager.create_notification(inst_A, "LOW_BALANCE", "WARNING", "Inst A Low Balance", "Low balance A")
+        self.manager.create_notification(inst_B, "CRITICAL_BALANCE", "CRITICAL", "Inst B Critical", "Critical balance B")
 
-        # Admin of Inst A
+        # Admin of Inst A sees Inst A notifications (both ALLOCATION and LOW_BALANCE)
         notifs_A = self.manager.get_notifications(institute_id=inst_A, is_super_admin=False)
-        self.assertEqual(notifs_A["total"], 1)
-        self.assertEqual(notifs_A["notifications"][0]["institute_id"], inst_A)
+        self.assertEqual(notifs_A["total"], 2)
+        for n in notifs_A["notifications"]:
+            self.assertEqual(n["institute_id"], inst_A)
 
-        # Admin of Inst B
+        # Admin of Inst B sees Inst B notifications
         notifs_B = self.manager.get_notifications(institute_id=inst_B, is_super_admin=False)
-        self.assertEqual(notifs_B["total"], 1)
-        self.assertEqual(notifs_B["notifications"][0]["institute_id"], inst_B)
+        self.assertEqual(notifs_B["total"], 2)
+        for n in notifs_B["notifications"]:
+            self.assertEqual(n["institute_id"], inst_B)
 
-        # Super Admin seeing all
+        # Super Admin sees actionable alerts (LOW_BALANCE, CRITICAL_BALANCE) across all institutes,
+        # but manual top-up receipts (ALLOCATION) are suppressed to prevent self-notification echo
         notifs_super = self.manager.get_notifications(institute_id=None, is_super_admin=True)
         super_ids = [n["institute_id"] for n in notifs_super["notifications"]]
         self.assertIn(inst_A, super_ids)
         self.assertIn(inst_B, super_ids)
+        super_event_types = [n["event_type"] for n in notifs_super["notifications"]]
+        self.assertNotIn("ALLOCATION", super_event_types)
+        self.assertNotIn("ADJUSTMENT", super_event_types)
+        self.assertIn("LOW_BALANCE", super_event_types)
+        self.assertIn("CRITICAL_BALANCE", super_event_types)
 
     def test_05_sse_stream_subscription_and_broadcast(self):
         inst_id = f"test-inst-sse-{uuid.uuid4().hex[:6]}"
-        gen = self.manager.subscribe(institute_id=inst_id, is_super_admin=False)
-        # First chunk is initial connection comment
-        conn_chunk = next(gen)
-        self.assertIn(": connected", conn_chunk)
+        gen_inst = self.manager.subscribe(institute_id=inst_id, is_super_admin=False)
+        gen_super = self.manager.subscribe(institute_id=None, is_super_admin=True)
 
-        # Broadcast a notification
-        notif = {
+        # Initial connection comment
+        self.assertIn(": connected", next(gen_inst))
+        self.assertIn(": connected", next(gen_super))
+
+        # 1. Broadcast an ADJUSTMENT (Top-up):
+        # Target institute receives it, but Super Admin stream does NOT receive it (suppressed self-echo)
+        adj_notif = {
             "notification_id": str(uuid.uuid4()),
             "institute_id": inst_id,
+            "event_type": "ADJUSTMENT",
+            "title": "Credits Added",
+            "message": "100,000 credits added by Super Admin"
+        }
+        self.manager.broadcast(adj_notif, inst_id)
+
+        inst_chunk = next(gen_inst)
+        self.assertIn("Credits Added", inst_chunk)
+
+        # Super admin listener queue should be empty (no event queued)
+        super_queue = self.manager.super_admin_listeners[-1]
+        self.assertTrue(super_queue.empty(), "ADJUSTMENT notification must not be broadcast to Super Admin")
+
+        # 2. Broadcast a LOW_BALANCE alert:
+        # Both target institute AND Super Admin receive it
+        low_notif = {
+            "notification_id": str(uuid.uuid4()),
+            "institute_id": inst_id,
+            "event_type": "LOW_BALANCE",
             "title": "Low Balance",
             "message": "Only 30k left"
         }
-        self.manager.broadcast(notif, inst_id)
+        self.manager.broadcast(low_notif, inst_id)
 
-        # Next chunk should be the event
-        event_chunk = next(gen)
-        self.assertIn("event: credit_notification", event_chunk)
-        self.assertIn("Low Balance", event_chunk)
+        self.assertIn("Low Balance", next(gen_inst))
+        self.assertIn("Low Balance", next(gen_super))
 
     def test_06_flask_routes_registered(self):
         import app as flask_app_mod

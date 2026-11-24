@@ -250,7 +250,7 @@ class AICreditNotificationManager:
         """
         payload = f"event: credit_notification\ndata: {json.dumps(notification_data)}\n\n"
         with self.sync_lock:
-            # Send to institute-scoped subscribers
+            # 1. Send to institute-scoped subscribers (the institute admin receives it)
             inst_queues = list(self.listeners.get(str(institute_id), []))
             for q in inst_queues:
                 try:
@@ -258,12 +258,16 @@ class AICreditNotificationManager:
                 except queue.Full:
                     pass
 
-            # Send to Super Admin global subscribers
-            for q in list(self.super_admin_listeners):
-                try:
-                    q.put_nowait(payload)
-                except queue.Full:
-                    pass
+            # 2. Send to Super Admin global subscribers:
+            # Only broadcast system/operational alerts (e.g. LOW_BALANCE, CRITICAL_BALANCE, EXHAUSTED)
+            # Suppress self-action credit adjustments/allocations so Super Admin's bell is not echoed
+            event_type = notification_data.get("event_type")
+            if event_type not in ("ADJUSTMENT", "ALLOCATION", "RENEWAL"):
+                for q in list(self.super_admin_listeners):
+                    try:
+                        q.put_nowait(payload)
+                    except queue.Full:
+                        pass
 
     def subscribe(self, institute_id=None, is_super_admin=False):
         """
@@ -310,8 +314,12 @@ class AICreditNotificationManager:
             q = session.query(AICreditNotification)
             if not is_super_admin and institute_id:
                 q = q.filter(AICreditNotification.institute_id == str(institute_id).strip())
-            elif is_super_admin and institute_id and str(institute_id).strip().lower() != 'all':
-                q = q.filter(AICreditNotification.institute_id == str(institute_id).strip())
+            elif is_super_admin:
+                if institute_id and str(institute_id).strip().lower() != 'all':
+                    q = q.filter(AICreditNotification.institute_id == str(institute_id).strip())
+                # For Super Admin: bell shows operational alerts (e.g. LOW_BALANCE, CRITICAL_BALANCE, EXHAUSTED)
+                # Suppress self-action credit adjustment/allocation receipts intended for institute admins
+                q = q.filter(AICreditNotification.event_type.notin_(["ADJUSTMENT", "ALLOCATION", "RENEWAL"]))
 
             # Unread count
             unread_count = q.filter(AICreditNotification.is_read == False).count()
@@ -416,8 +424,10 @@ class AICreditNotificationManager:
             q = session.query(AICreditNotification).filter(AICreditNotification.is_read == False)
             if not is_super_admin and institute_id:
                 q = q.filter(AICreditNotification.institute_id == str(institute_id).strip())
-            elif is_super_admin and institute_id and str(institute_id).strip().lower() != 'all':
-                q = q.filter(AICreditNotification.institute_id == str(institute_id).strip())
+            elif is_super_admin:
+                if institute_id and str(institute_id).strip().lower() != 'all':
+                    q = q.filter(AICreditNotification.institute_id == str(institute_id).strip())
+                q = q.filter(AICreditNotification.event_type.notin_(["ADJUSTMENT", "ALLOCATION", "RENEWAL"]))
 
             records = q.all()
             count = len(records)
