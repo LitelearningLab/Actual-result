@@ -1,4 +1,23 @@
 # Changelog
+## [2.6.2] - 2026-11-25
+
+### Features & Enhancements
+- **Real-Time AI Credit Notifications & SSE Alerts**:
+  - Added `AICreditNotificationManager` in `backend/others/ai_credit_notifications.py` with automated credit tracking, SSE streaming endpoints in `backend/app.py`, and tests in `backend/test_ai_credit_notifications.py`.
+  - Added `ai-credit-notification.service.ts` and updated `ai-credit-alert.service.ts` and `navbar-main.component.ts/.html/.scss` for live header credit alerts.
+  - Updated `backend/db/models.py`, `backend/others/ai_credits.py`, and `backend/others/institute.py` to support notification tracking.
+- **Exam Evaluation, Paper Schedules & Bulk Evaluation**:
+  - Added `backend/migrations/migrate_exam_attempt_v2.sql` and updated `backend/db/models.py`, `backend/others/exams.py`, `backend/others/bulk_eval_manager.py`, and `backend/others/paper_schedules.py`.
+  - Updated `test-evaluation.component.ts/.html/.scss` for scheduled paper test evaluation workflows.
+- **LLM Client & OCR Processing**:
+  - Updated `backend/others/llm.py` and `backend/others/ocr.py` for OpenAI credit management, token auditing, and OCR processing.
+- **Navigation UI**:
+  - Updated `side-nav.component.ts/.html/.scss` with responsive support and collapsible menu groups.
+
+### Version Tracking
+- Bumped application patch version to `2.6.2` across `version.ts`, `package.json`, and changelog.
+
+---
 ## [2.6.1] - 2026-11-24
 
 ### Features & Enhancements
