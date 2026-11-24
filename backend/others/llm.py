@@ -125,7 +125,6 @@ class openai_client:
                 self.url,
                 headers=self.headers,
                 json=payload,
-                verify=False,
                 timeout=timeout,
             )
         except httpx.ReadTimeout:

@@ -324,11 +324,11 @@ def get_pagination():
 
 edu_blueprint = Blueprint('edu', __name__, url_prefix='/edu/api')
 
-@edu_blueprint.route('/ocr-extract', methods=['POST'])
-@jwt_required
-def ocr_extract_route():
-    response_data, status_code = extract_text_from_image(request)
-    return jsonify(response_data), status_code
+# @edu_blueprint.route('/ocr-extract', methods=['POST'])
+# @jwt_required
+# def ocr_extract_route():
+#     response_data, status_code = extract_text_from_image(request)
+#     return jsonify(response_data), status_code
 
 @edu_blueprint.route('/settings/ai-confidence-threshold', methods=['GET', 'PUT'])
 @admin_required
