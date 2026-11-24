@@ -7025,6 +7025,41 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
         except Exception as fallback_err:
             print(f"[split_multi_student_pdf] Fallback roster parse error: {fallback_err}")
 
+    # Resolve institute ID for credit verification
+    split_inst_id = (
+        (request.form.get("institute_id") or "").strip()
+        or target_exam_institute_id
+        or (getattr(current_user, "institute_id", None) if current_user else None)
+    )
+    if not split_inst_id and exam_id:
+        try:
+            from others.ai_credits import AICreditManager
+            split_inst_id = AICreditManager.resolve_institute_id(
+                explicit_inst_id=None,
+                exam_id=exam_id
+            )
+        except Exception:
+            pass
+
+    # Pre-flight AI Credit check: block before expensive page extraction and OpenAI calls if quota exhausted
+    if split_inst_id:
+        try:
+            from others.ai_credits import AICreditManager
+            has_credits, credit_msg, credit_code, _ = AICreditManager.check_credit_availability(
+                institute_id=split_inst_id,
+                required_tokens=1000
+            )
+            if not has_credits:
+                return {
+                    "status": False,
+                    "statusMessage": credit_msg or "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
+                    "credit_error": True,
+                    "error_code": credit_code or "EXHAUSTED",
+                    "available_credits": 0
+                }, 402
+        except Exception as _chk_err:
+            print(f"[split_multi_student_pdf] Credit check notice: {_chk_err}")
+
     # 3. Pre-extract page texts and images for all pages
     page_data = []
     for p_idx in range(total_pages):

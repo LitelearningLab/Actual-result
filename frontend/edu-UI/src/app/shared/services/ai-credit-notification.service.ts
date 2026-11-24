@@ -1,6 +1,6 @@
 import { Injectable, NgZone, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, Subscription } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, Subscription } from 'rxjs';
 import { API_BASE } from 'src/app/shared/api.config';
 import { NotificationService } from 'src/app/shared/services/notification.service';
 
@@ -32,6 +32,9 @@ export class AiCreditNotificationService implements OnDestroy {
 
   private isLoadingSubject = new BehaviorSubject<boolean>(false);
   public isLoading$ = this.isLoadingSubject.asObservable();
+
+  private newNotificationSubject = new Subject<AiCreditNotificationItem>();
+  public newNotification$ = this.newNotificationSubject.asObservable();
 
   private eventSource?: EventSource;
   private reconnectTimer: any;
@@ -117,6 +120,7 @@ export class AiCreditNotificationService implements OnDestroy {
             if (!exists) {
               this.notificationsSubject.next([newNotif, ...current]);
               this.unreadCountSubject.next(this.unreadCountSubject.value + 1);
+              this.newNotificationSubject.next(newNotif);
 
               // Surface brief banner toast on critical alerts
               if (newNotif.severity === 'EXHAUSTED') {

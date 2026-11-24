@@ -1,4 +1,17 @@
 <div class="navbar-main" role="banner">
+  <!-- Floating Notification Toast (Top-Right Floating Tooltip/Toast) -->
+  <div class="floating-notif-toast" *ngIf="floatingToast" (click)="onToastClick()" [ngClass]="getCardTierClass(floatingToast)" role="alert">
+    <div class="toast-icon-wrap">
+      <mat-icon>{{ getNotificationIcon(floatingToast) }}</mat-icon>
+    </div>
+    <div class="toast-body">
+      <div class="toast-title">{{ getNotificationTitle(floatingToast) }}</div>
+      <div class="toast-sub">Click to view AI Credits</div>
+    </div>
+    <button type="button" class="toast-close-btn" (click)="dismissToast($event)" title="Dismiss" aria-label="Close">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
   <div class="navbar-inner">
     <!-- Left: Module title & breadcrumb -->
     <div class="navbar-left">

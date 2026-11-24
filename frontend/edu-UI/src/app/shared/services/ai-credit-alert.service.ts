@@ -57,8 +57,13 @@ export class AiCreditAlertService {
     const normalizedMsg = String(msg).toLowerCase();
 
     const isCreditError =
+      status === 402 ||
       status === 403 ||
+      error?.error?.credit_error ||
+      error?.credit_error ||
       normalizedMsg.includes('quota exhausted') ||
+      normalizedMsg.includes('credit quota') ||
+      normalizedMsg.includes('credits') ||
       normalizedMsg.includes('credits used') ||
       normalizedMsg.includes('allocate more credits') ||
       normalizedMsg.includes('allocate ai credits') ||

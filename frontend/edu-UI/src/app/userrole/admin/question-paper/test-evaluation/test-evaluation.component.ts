@@ -3671,7 +3671,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         } else {
           this.recalculateKpiTotals();
           this.filterStudents();
-          notify(res?.statusMessage || 'Failed to split and identify multi-student PDF.', 'error');
+          if (res?.credit_error || !this.aiCreditAlert.handleAiError(res, 'Student Paper Identification')) {
+            notify(res?.statusMessage || 'Failed to split and identify multi-student PDF.', 'error');
+          }
         }
       },
       error: (err) => {
@@ -3683,7 +3685,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.recalculateKpiTotals();
         this.filterStudents();
         console.error('Error splitting multi-student PDF:', err);
-        notify(err?.error?.statusMessage || 'Error analyzing and splitting multi-student PDF.', 'error');
+
+        // Raise AI Credit modal popup if credits are exhausted
+        if (!this.aiCreditAlert.handleAiError(err, 'Student Paper Identification')) {
+          notify(err?.error?.statusMessage || 'Error analyzing and splitting multi-student PDF.', 'error');
+        }
       }
     });
   }

@@ -38,6 +38,11 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
   unreadNotificationCount = 0;
   creditNotifications: AiCreditNotificationItem[] = [];
 
+  // Floating Toast State (Top-Right Floating Tooltip/Toast)
+  floatingToast: AiCreditNotificationItem | null = null;
+  private toastTimer: any = null;
+  private newNotifSubscription?: Subscription;
+
   creditAlertLevel: 'none' | 'warning' | 'critical' | 'exhausted' = 'none';
   creditAlert: {
     title: string;
@@ -376,6 +381,34 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
         this.hasUnreadNotification = (count > 0);
       });
     }
+    if (!this.newNotifSubscription) {
+      this.newNotifSubscription = this.aiNotificationService.newNotification$.subscribe(notif => {
+        this.showFloatingToast(notif);
+      });
+    }
+  }
+
+  showFloatingToast(notif: AiCreditNotificationItem): void {
+    if (!notif) return;
+    this.floatingToast = notif;
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => {
+      this.floatingToast = null;
+    }, 7000);
+  }
+
+  onToastClick(): void {
+    if (!this.floatingToast) return;
+    const notif = this.floatingToast;
+    this.floatingToast = null;
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.onNotificationClick(notif);
+  }
+
+  dismissToast(event?: Event): void {
+    if (event) event.stopPropagation();
+    this.floatingToast = null;
+    if (this.toastTimer) clearTimeout(this.toastTimer);
   }
 
   getNotificationTitle(notif: AiCreditNotificationItem): string {
@@ -662,6 +695,8 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     if (this.globalInstituteSubscription) this.globalInstituteSubscription.unsubscribe();
     if (this.aiNotifSubscription) this.aiNotifSubscription.unsubscribe();
     if (this.aiUnreadSubscription) this.aiUnreadSubscription.unsubscribe();
+    if (this.newNotifSubscription) this.newNotifSubscription.unsubscribe();
+    if (this.toastTimer) clearTimeout(this.toastTimer);
     this.aiNotificationService.closeStream();
   }
 }
