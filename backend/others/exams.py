@@ -7026,39 +7026,47 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
             print(f"[split_multi_student_pdf] Fallback roster parse error: {fallback_err}")
 
     # Resolve institute ID for credit verification
-    split_inst_id = (
-        (request.form.get("institute_id") or "").strip()
-        or target_exam_institute_id
-        or (getattr(current_user, "institute_id", None) if current_user else None)
-    )
-    if not split_inst_id and exam_id:
+    split_inst_id = (request.form.get("institute_id") or "").strip()
+    if not split_inst_id:
         try:
             from others.ai_credits import AICreditManager
             split_inst_id = AICreditManager.resolve_institute_id(
+                request_obj=request,
                 explicit_inst_id=None,
+                user_id=getattr(current_user, "user_id", None) if current_user else None,
                 exam_id=exam_id
             )
         except Exception:
             pass
+    if not split_inst_id:
+        split_inst_id = target_exam_institute_id or (getattr(current_user, "institute_id", None) if current_user else None)
 
     # Pre-flight AI Credit check: block before expensive page extraction and OpenAI calls if quota exhausted
     if split_inst_id:
         try:
             from others.ai_credits import AICreditManager
-            has_credits, credit_msg, credit_code, _ = AICreditManager.check_credit_availability(
+            has_access, err_msg, status_code, remaining = AICreditManager.check_and_reserve(
                 institute_id=split_inst_id,
-                required_tokens=1000
+                user_id=getattr(current_user, "user_id", None) if current_user else None,
+                estimated_tokens=1000,
+                feature_name="Paper Evaluation",
+                request_obj=request,
+                exam_id=exam_id
             )
-            if not has_credits:
+            if not has_access:
+                try:
+                    doc.close()
+                except Exception:
+                    pass
                 return {
                     "status": False,
-                    "statusMessage": credit_msg or "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
+                    "statusMessage": err_msg or "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
                     "credit_error": True,
-                    "error_code": credit_code or "EXHAUSTED",
-                    "available_credits": 0
+                    "error_code": "AI_CREDIT_EXHAUSTED",
+                    "available_credits": remaining or 0
                 }, 402
         except Exception as _chk_err:
-            print(f"[split_multi_student_pdf] Credit check notice: {_chk_err}")
+            print(f"[split_multi_student_pdf] Credit check error: {_chk_err}", flush=True)
 
     # 3. Pre-extract page texts and images for all pages
     page_data = []
@@ -7232,6 +7240,15 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                             return parsed
                 else:
                     print(f"[split_multi_student_pdf] OpenAI Vision error on page {p_num}: HTTP {resp.status_code}", flush=True)
+                    resp_code = getattr(resp, "code", "")
+                    resp_txt = str(getattr(resp, "text", "") or getattr(resp, "message", "") or "").lower()
+                    if resp.status_code in (402, 403) or resp_code == "AI_CREDIT_EXHAUSTED" or "credit" in resp_txt:
+                        return {
+                            "page_num": p_num,
+                            "credit_exhausted": True,
+                            "error_message": getattr(resp, "message", None) or "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
+                            "matched": False
+                        }
             except Exception as vis_err:
                 print(f"[split_multi_student_pdf] Vision error on page {p_num}: {vis_err}", flush=True)
 
@@ -7274,6 +7291,21 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                     inspections_by_pnum[res["page_num"]] = res
                 except Exception as ex:
                     print(f"[split_multi_student_pdf] Future error: {ex}")
+
+        # Check if credit exhaustion was detected during page inspection
+        exhausted_insp = next((insp for insp in inspections_by_pnum.values() if insp.get("credit_exhausted")), None)
+        if exhausted_insp:
+            try:
+                doc.close()
+            except Exception:
+                pass
+            return {
+                "status": False,
+                "statusMessage": exhausted_insp.get("error_message") or "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
+                "credit_error": True,
+                "error_code": "AI_CREDIT_EXHAUSTED",
+                "available_credits": 0
+            }, 402
 
         for s_idx, (start_idx, end_idx) in enumerate(chunks):
             start_pnum = start_idx + 1
@@ -7320,6 +7352,21 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                     inspections_by_pnum[res["page_num"]] = res
                 except Exception as ex:
                     print(f"[split_multi_student_pdf] Future error: {ex}")
+
+        # Check if credit exhaustion was detected during page inspection
+        exhausted_insp = next((insp for insp in inspections_by_pnum.values() if insp.get("credit_exhausted")), None)
+        if exhausted_insp:
+            try:
+                doc.close()
+            except Exception:
+                pass
+            return {
+                "status": False,
+                "statusMessage": exhausted_insp.get("error_message") or "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
+                "credit_error": True,
+                "error_code": "AI_CREDIT_EXHAUSTED",
+                "available_credits": 0
+            }, 402
 
         # Group all pages across the PDF by student (Merges multi-page papers for each student)
         student_page_groups = {}  # key -> dict with student info and list of page indices
@@ -7440,6 +7487,16 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
         credit_estimation = AICreditManager.calculate_evaluation_capacity(target_inst, student_pages_list)
     except Exception as ce_err:
         print(f"[split_multi_student_pdf] Credit capacity calc error: {ce_err}")
+
+    if credit_estimation and credit_estimation.get("has_allocation") and (credit_estimation.get("available_credits", 0) <= 0):
+        return {
+            "status": False,
+            "statusMessage": "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
+            "credit_error": True,
+            "error_code": "AI_CREDIT_EXHAUSTED",
+            "available_credits": 0,
+            "credit_estimation": credit_estimation
+        }, 402
 
     return {
         "status": True,

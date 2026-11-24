@@ -256,6 +256,15 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (saved && String(saved).trim()) {
       return String(saved).trim();
     }
+    try {
+      const saCtx = sessionStorage.getItem('super_admin_institute_context');
+      if (saCtx) {
+        const parsed = JSON.parse(saCtx);
+        if (parsed?.institute_id && String(parsed.institute_id).trim()) {
+          return String(parsed.institute_id).trim();
+        }
+      }
+    } catch (_) {}
     const u = this.auth.currentUserValue || JSON.parse(sessionStorage.getItem('user') || '{}');
     return (u && u.institute_id) ? String(u.institute_id).trim() : '';
   }
@@ -3519,6 +3528,43 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Pre-flight AI credit quota check before uploading large multi-student PDF
+    const targetInstId = this.getTargetInstituteId();
+    this.http.post<any>(`${API_BASE}/test-evaluation/estimate-credits`, {
+      pages: 1,
+      student_count: 1,
+      institute_id: targetInstId,
+      exam_id: this.selectedExamId
+    }).subscribe({
+      next: (estRes) => {
+        if (estRes && estRes.status === false && (estRes.credit_error || estRes.error_code === 'EXHAUSTED')) {
+          this.aiCreditAlert.handleAiError(estRes, 'Student Paper Identification');
+          return;
+        }
+        if (estRes && estRes.has_allocation && estRes.available_credits <= 0) {
+          this.aiCreditAlert.handleAiError({
+            status: 402,
+            error: {
+              credit_error: true,
+              statusMessage: 'AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.'
+            }
+          }, 'Student Paper Identification');
+          return;
+        }
+        this.executeMultiStudentPdfSplit(file);
+      },
+      error: (err) => {
+        if (err && (err.status === 402 || err.status === 403 || err?.error?.credit_error)) {
+          this.aiCreditAlert.handleAiError(err, 'Student Paper Identification');
+          return;
+        }
+        // Fallback: continue with split if estimate returned non-credit error
+        this.executeMultiStudentPdfSplit(file);
+      }
+    });
+  }
+
+  executeMultiStudentPdfSplit(file: File): void {
     this.hasStartedEvaluation = false;
     this.combinedPdfFileName = file.name;
     this.isSplittingPdf = true;
@@ -3568,6 +3614,14 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         const scanIdx = this.bulkFiles.findIndex((b) => b.id === tempScanId);
         if (scanIdx !== -1) {
           this.bulkFiles.splice(scanIdx, 1);
+        }
+
+        // Intercept credit error in payload if present
+        if (res?.credit_error || (res?.credit_estimation?.has_allocation && res?.credit_estimation?.available_credits <= 0)) {
+          this.recalculateKpiTotals();
+          this.filterStudents();
+          this.aiCreditAlert.handleAiError(res, 'Student Paper Identification');
+          return;
         }
 
         if (res && res.status && res.segments && res.segments.length > 0) {
