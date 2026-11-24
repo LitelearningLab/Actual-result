@@ -673,10 +673,25 @@ def get_ai_credits_summary_api():
             remaining_credits = max(0, allocated_credits - used_credits) if allocated_credits > 0 else 0
             percentage_used = round((used_credits / allocated_credits * 100), 1) if allocated_credits > 0 else 0.0
 
-            is_low_credit = False
-            if allocated_credits > 0:
-                remaining_pct = (remaining_credits / allocated_credits) * 100
-                is_low_credit = remaining_pct <= alert_threshold
+            if allocated_credits == 0:
+                credit_tier = "not_allocated"
+                status = "Not Allocated"
+            elif remaining_credits <= 0:
+                credit_tier = "exhausted"
+                status = "Exhausted"
+            elif remaining_credits <= 5000:
+                credit_tier = "critical"
+                status = "Critical Balance"
+            elif remaining_credits <= 40000:
+                credit_tier = "low_balance"
+                status = "Low Balance"
+            else:
+                credit_tier = "healthy"
+                status = "Active"
+
+            is_low_credit = credit_tier in ("low_balance", "critical", "exhausted")
+            is_critical_credit = credit_tier in ("critical", "exhausted")
+            is_exhausted = credit_tier == "exhausted"
 
             session.close()
             return jsonify({
@@ -695,6 +710,10 @@ def get_ai_credits_summary_api():
                     "total_tokens": used_credits,
                     "total_operations": total_operations,
                     "is_low_credit": is_low_credit,
+                    "is_critical_credit": is_critical_credit,
+                    "is_exhausted": is_exhausted,
+                    "credit_tier": credit_tier,
+                    "status": status,
                     "alert_threshold": alert_threshold
                 }
             }), 200
@@ -719,10 +738,25 @@ def get_ai_credits_summary_api():
         remaining_credits = max(0, allocated_credits - used_credits) if allocated_credits > 0 else 0
         percentage_used = round((used_credits / allocated_credits * 100), 1) if allocated_credits > 0 else 0.0
 
-        is_low_credit = False
-        if allocated_credits > 0:
-            remaining_pct = (remaining_credits / allocated_credits) * 100
-            is_low_credit = remaining_pct <= alert_threshold
+        if allocated_credits == 0:
+            credit_tier = "not_allocated"
+            status = "Not Allocated"
+        elif remaining_credits <= 0:
+            credit_tier = "exhausted"
+            status = "Exhausted"
+        elif remaining_credits <= 5000:
+            credit_tier = "critical"
+            status = "Critical Balance"
+        elif remaining_credits <= 40000:
+            credit_tier = "low_balance"
+            status = "Low Balance"
+        else:
+            credit_tier = "healthy"
+            status = "Active"
+
+        is_low_credit = credit_tier in ("low_balance", "critical", "exhausted")
+        is_critical_credit = credit_tier in ("critical", "exhausted")
+        is_exhausted = credit_tier == "exhausted"
 
         session.close()
         return jsonify({
@@ -741,6 +775,10 @@ def get_ai_credits_summary_api():
                 "total_tokens": used_credits,
                 "total_operations": total_operations,
                 "is_low_credit": is_low_credit,
+                "is_critical_credit": is_critical_credit,
+                "is_exhausted": is_exhausted,
+                "credit_tier": credit_tier,
+                "status": status,
                 "alert_threshold": alert_threshold
             }
         }), 200
@@ -1497,9 +1535,11 @@ def get_all_institutes_overview_api():
 
             if allocated == 0:
                 status = "Not Allocated"
-            elif used >= allocated:
+            elif used >= allocated or remaining <= 0:
                 status = "Exhausted"
-            elif remaining > 0 and ((remaining / allocated) * 100) <= threshold:
+            elif remaining <= 5000:
+                status = "Critical Balance"
+            elif remaining <= 40000:
                 status = "Low Balance"
             else:
                 status = "Active"

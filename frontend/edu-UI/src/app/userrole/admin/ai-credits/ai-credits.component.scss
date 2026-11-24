@@ -119,6 +119,23 @@
   background-color: #dcfce7;
   color: #15803d;
 
+  &.tier-healthy {
+    background-color: #dcfce7;
+    color: #15803d;
+  }
+  &.tier-low_balance {
+    background-color: #fef3c7;
+    color: #b45309;
+  }
+  &.tier-critical {
+    background-color: #fee2e2;
+    color: #dc2626;
+  }
+  &.tier-exhausted {
+    background-color: #fee2e2;
+    color: #7f1d1d;
+  }
+
   &.low-credit {
     background-color: #fee2e2;
     color: #b91c1c;
@@ -149,9 +166,16 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 
-  &.card-alert {
+  &.card-alert,
+  &.card-critical,
+  &.card-exhausted {
     border-color: #fecaca;
     background: #fffafa;
+  }
+
+  &.card-low_balance {
+    border-color: #fde68a;
+    background: #fffbeb;
   }
 
   .kpi-icon-wrap {
@@ -178,7 +202,8 @@
       color: #7c3aed;
     }
 
-    &.icon-green {
+    &.icon-green,
+    &.icon-healthy {
       background: #ecfdf5;
       color: #059669;
     }
@@ -188,10 +213,34 @@
       color: #0d9488;
     }
 
-    &.icon-red {
+    &.icon-red,
+    &.icon-critical {
       background: #fef2f2;
       color: #dc2626;
     }
+
+    &.icon-low_balance {
+      background: #fef3c7;
+      color: #d97706;
+    }
+
+    &.icon-exhausted {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+  }
+
+  .text-low_balance {
+    color: #d97706 !important;
+    font-weight: 600;
+  }
+  .text-critical {
+    color: #dc2626 !important;
+    font-weight: 600;
+  }
+  .text-exhausted {
+    color: #991b1b !important;
+    font-weight: 600;
   }
 
   .kpi-content {
@@ -1224,6 +1273,11 @@
   &.status-warning {
     background-color: #fef3c7;
     color: #b45309;
+  }
+
+  &.status-critical {
+    background-color: #fee2e2;
+    color: #dc2626;
   }
 
   &.status-danger {

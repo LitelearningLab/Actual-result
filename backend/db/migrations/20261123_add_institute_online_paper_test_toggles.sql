@@ -58,3 +58,23 @@ BEGIN
     VALUES (NEWID(), 'Paper Evaluation', '/test-evaluation', GETDATE());
 END
 GO
+
+-- Grant paper test page permissions to existing admin users whose institute has allow_paper_test = 1
+INSERT INTO dbo.UserPageAccess (access_id, user_id, page_id, can_view, can_add, can_edit, can_delete, created_date)
+SELECT 
+    NEWID(),
+    u.user_id,
+    p.page_id,
+    1, 1, 1, 1,
+    GETDATE()
+FROM dbo.Users u
+INNER JOIN dbo.Institutes i ON u.institute_id = i.institute_id
+CROSS JOIN dbo.Pages p
+WHERE u.user_role = 'admin'
+  AND ISNULL(i.allow_paper_test, 1) = 1
+  AND p.page_name IN ('Create/Edit Paper Test', 'Schedule Paper Test')
+  AND NOT EXISTS (
+      SELECT 1 FROM dbo.UserPageAccess upa 
+      WHERE upa.user_id = u.user_id AND upa.page_id = p.page_id
+  );
+GO

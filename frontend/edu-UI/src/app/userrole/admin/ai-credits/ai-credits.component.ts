@@ -2920,12 +2920,52 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     return 'primary';
   }
 
+  get creditTierStatus(): 'healthy' | 'low_balance' | 'critical' | 'exhausted' {
+    const rem = Number(this.summary?.remaining_credits ?? 0);
+    const alloc = Number(this.summary?.allocated_credits ?? 0);
+    if (alloc === 0) return 'healthy';
+    if (rem <= 0) return 'exhausted';
+    if (rem <= 5000) return 'critical';
+    if (rem <= 40000) return 'low_balance';
+    return 'healthy';
+  }
+
+  get creditStatusText(): string {
+    switch (this.creditTierStatus) {
+      case 'exhausted': return 'Quota Exhausted';
+      case 'critical': return 'Critical Balance';
+      case 'low_balance': return 'Low Balance';
+      default: return 'Active Quota';
+    }
+  }
+
+  get kpiSubtext(): string {
+    switch (this.creditTierStatus) {
+      case 'exhausted': return 'Quota Exhausted (0 tokens)';
+      case 'critical': return 'Critical Quota (≤ 5,000)';
+      case 'low_balance': return 'Quota Running Low (≤ 40,000)';
+      default: return 'Healthy Balance (> 40,000)';
+    }
+  }
+
+  get kpiIcon(): string {
+    switch (this.creditTierStatus) {
+      case 'exhausted': return 'error';
+      case 'critical': return 'warning';
+      case 'low_balance': return 'warning';
+      default: return 'check_circle';
+    }
+  }
+
   getStatusBadgeClass(status: string): string {
     switch ((status || '').toLowerCase()) {
       case 'active':
         return 'status-active';
       case 'low balance':
         return 'status-warning';
+      case 'critical balance':
+      case 'critical':
+        return 'status-critical';
       case 'exhausted':
         return 'status-danger';
       case 'not allocated':

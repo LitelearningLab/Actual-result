@@ -25,13 +25,53 @@
         <span class="institute-inline-name" [title]="instituteDisplayName">{{ instituteDisplayName }}</span>
       </div>
 
-      <!-- Notifications (Removed) -->
-      <!-- <button mat-icon-button
-        aria-label="Show notifications"
-        class="navbar-icon-btn notifications-btn"
-        title="Notifications">
-        <mat-icon fontSet="material-icons-outlined" class="navbar-icon">notifications</mat-icon>
-      </button> -->
+      <!-- Notifications Bell (Only visible for Admin & Super Admin) -->
+      <div class="notifications-wrapper" *ngIf="isAdminUser">
+        <button mat-icon-button
+          type="button"
+          aria-label="Show notifications"
+          class="navbar-icon-btn notifications-btn"
+          (click)="toggleNotifications($event)"
+          title="Notifications">
+          <mat-icon fontSet="material-icons-outlined" class="navbar-icon">notifications</mat-icon>
+          <span class="badge-dot" *ngIf="hasUnreadNotification && creditAlertLevel !== 'none'" [ngClass]="creditAlertLevel"></span>
+        </button>
+
+        <!-- Notification Dropdown Flyout -->
+        <div class="notifications-dropdown" *ngIf="isNotificationPanelOpen" (click)="$event.stopPropagation()">
+          <div class="notif-header">
+            <div class="notif-title-group">
+              <mat-icon class="notif-header-icon">notifications_active</mat-icon>
+              <span class="notif-header-title">Notifications</span>
+            </div>
+            <button class="notif-dismiss-btn" *ngIf="hasUnreadNotification" (click)="markNotificationsAsRead()">Mark as read</button>
+          </div>
+
+          <div class="notif-body">
+            <div class="notif-card" *ngIf="creditAlert; else noAlertTpl" [ngClass]="creditAlert.tierClass">
+              <div class="notif-card-icon-wrap">
+                <mat-icon>{{ creditAlert.icon }}</mat-icon>
+              </div>
+              <div class="notif-card-content">
+                <div class="notif-card-title">{{ creditAlert.title }}</div>
+                <div class="notif-card-msg">{{ creditAlert.message }}</div>
+                <div class="notif-card-meta">
+                  <span class="notif-tokens-badge">{{ creditAlert.remainingText }}</span>
+                  <button class="notif-action-link" (click)="navigateToCredits()">View Credits &rarr;</button>
+                </div>
+              </div>
+            </div>
+
+            <ng-template #noAlertTpl>
+              <div class="notif-empty">
+                <mat-icon class="notif-empty-icon">check_circle</mat-icon>
+                <div class="notif-empty-title">All Caught Up!</div>
+                <div class="notif-empty-sub">Your AI credits are in healthy standing.</div>
+              </div>
+            </ng-template>
+          </div>
+        </div>
+      </div>
 
       <!-- User Menu -->
       <button mat-icon-button
@@ -45,6 +85,7 @@
   </div>
 </div>
 
+<div class="notifications-backdrop" *ngIf="isNotificationPanelOpen" (click)="closeNotifications()"></div>
 <div class="user-panel-backdrop" *ngIf="isUserPanelOpen" (click)="closeUserPanel()"></div>
 <aside class="user-side-panel" [class.open]="isUserPanelOpen" role="dialog" aria-modal="true" aria-label="User profile">
   <!-- Top Profile Header -->

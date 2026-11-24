@@ -8,8 +8,8 @@
       </div>
       <p class="subtitle" *ngIf="summary">
         Scope: <strong>{{ summary.institute_name }}</strong>
-        <span class="quota-pill" [class.low-credit]="summary.is_low_credit">
-          {{ summary.is_low_credit ? 'Low Balance' : 'Active Quota' }}
+        <span class="quota-pill" [ngClass]="'tier-' + creditTierStatus">
+          {{ creditStatusText }}
         </span>
         <button
           *ngIf="isSuperAdmin && selectedInstituteId !== 'all'"
@@ -73,15 +73,15 @@
     </div>
 
     <!-- Card 2: Remaining Credits -->
-    <div class="kpi-card card-remaining" [class.card-alert]="summary?.is_low_credit">
-      <div class="kpi-icon-wrap" [ngClass]="summary?.is_low_credit ? 'icon-red' : 'icon-green'">
-        <mat-icon>{{ summary?.is_low_credit ? 'warning' : 'check_circle' }}</mat-icon>
+    <div class="kpi-card card-remaining" [ngClass]="'card-' + creditTierStatus">
+      <div class="kpi-icon-wrap" [ngClass]="'icon-' + creditTierStatus">
+        <mat-icon>{{ kpiIcon }}</mat-icon>
       </div>
       <div class="kpi-content">
         <span class="kpi-label">Remaining Credits</span>
         <span class="kpi-value">{{ (summary?.remaining_credits || 0) | number }}</span>
-        <span class="kpi-subtext" [class.text-danger]="summary?.is_low_credit">
-          {{ summary?.is_low_credit ? 'Quota Running Low' : 'Healthy Balance' }}
+        <span class="kpi-subtext" [ngClass]="'text-' + creditTierStatus">
+          {{ kpiSubtext }}
         </span>
       </div>
     </div>

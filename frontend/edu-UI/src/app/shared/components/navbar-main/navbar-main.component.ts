@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, OnDestroy, TemplateRef, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, TemplateRef, ViewChild, HostListener } from '@angular/core';
 import { Subscription, filter } from 'rxjs';
 import { AuthService } from '../../../home/service/auth.service';
 import { Router, NavigationEnd ,RouterModule} from '@angular/router';
@@ -14,6 +14,7 @@ import { PageMetaService } from '../../services/page-meta.service';
 import { GlobalInstituteContextService } from '../../services/global-institute-context.service';
 import { SidenavService } from '../../services/sidenav.service';
 import { getInstituteTerminology, InstituteTerminology } from '../../services/institute-terminology.service';
+import { NotificationService } from 'src/app/shared/services/notification.service';
 
 @Component({
   selector: 'app-navbar-main',
@@ -29,6 +30,18 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
   appVersion = APP_VERSION;
   moduleName: string = '';
   moduleData: string = '';
+
+  // Notifications State
+  isNotificationPanelOpen = false;
+  hasUnreadNotification = false;
+  creditAlertLevel: 'none' | 'warning' | 'critical' | 'exhausted' = 'none';
+  creditAlert: {
+    title: string;
+    message: string;
+    remainingText: string;
+    tierClass: string;
+    icon: string;
+  } | null = null;
 
   instituteShortName = (() => {
     try {
@@ -195,14 +208,20 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     public dialog: MatDialog,
     private http: HttpClient,
     private globalInstituteContext: GlobalInstituteContextService,
-    private sidenavService: SidenavService
+    private sidenavService: SidenavService,
+    private notificationService: NotificationService
   ) {
     this.pageMetaSubscription = this.pageMeta.getMetaObservable().subscribe(m => {
       this.moduleName = m.title || '';
       this.moduleData = m.subtitle || '';
     });
 
-    this.authSubscription = this.authService.isLoggedIn$.subscribe(v => this.isLogin = !!v);
+    this.authSubscription = this.authService.isLoggedIn$.subscribe(v => {
+      this.isLogin = !!v;
+      if (this.isLogin) {
+        this.checkAiCreditAlerts();
+      }
+    });
     this.userSubscription = this.authService.user$.subscribe(u => {
       if (u) {
         this.userObj = u;
@@ -212,6 +231,7 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
         this.instituteDisplayName = this.getNavbarInstituteName(u.institute_name || u.institute || this.displayInstitute || this.instituteShortName);
         this.userRole = u.role || this.userRole;
         this.initials = (this.displayName || 'G').split(' ').map((s: string) => s[0]).slice(0,2).join('').toUpperCase();
+        this.checkAiCreditAlerts();
       } else {
         this.displayName = this.getStoredDisplayName();
         this.displayInstitute = sessionStorage.getItem('institute') || '';
@@ -222,12 +242,14 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
 
     this.globalInstituteSubscription = this.globalInstituteContext.selectedInstitute$.subscribe(() => {
       this.instituteDisplayName = this.getNavbarInstituteName();
+      this.checkAiCreditAlerts();
     });
 
     this.routerSubscription = this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {
         this.closeUserPanel();
+        this.closeNotifications();
       });
   }
 
@@ -235,7 +257,131 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     this.sidenavService.toggleMobile();
   }
 
-  ngOnInit(): void { }
+  ngOnInit(): void {
+    this.checkAiCreditAlerts();
+  }
+
+  toggleNotifications(event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    this.isNotificationPanelOpen = !this.isNotificationPanelOpen;
+    if (this.isNotificationPanelOpen) {
+      this.closeUserPanel();
+      this.markNotificationsAsRead();
+    }
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (this.isNotificationPanelOpen) {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.notifications-wrapper')) {
+        this.closeNotifications();
+      }
+    }
+  }
+
+  closeNotifications(): void {
+    this.isNotificationPanelOpen = false;
+  }
+
+  markNotificationsAsRead(): void {
+    this.hasUnreadNotification = false;
+    sessionStorage.setItem('credit_notification_read', 'true');
+  }
+
+  navigateToCredits(): void {
+    this.closeNotifications();
+    this.router.navigate(['/ai-credits']);
+  }
+
+  checkAiCreditAlerts(): void {
+    if (!this.isLogin || !this.isAdminUser) {
+      this.creditAlertLevel = 'none';
+      this.creditAlert = null;
+      this.hasUnreadNotification = false;
+      return;
+    }
+    const activeInstituteId = this.globalInstituteContext.activeInstituteId || (this.userObj?.institute_id ? String(this.userObj.institute_id) : '');
+    const url = activeInstituteId ? `${API_BASE}/get-ai-credit-summary?institute_id=${encodeURIComponent(activeInstituteId)}` : `${API_BASE}/get-ai-credit-summary`;
+
+    this.http.get<any>(url).subscribe({
+      next: (res) => {
+        if (!res || !res.status || !res.data) return;
+        const data = res.data;
+        const remaining = Number(data.remaining_credits ?? 0);
+        const allocated = Number(data.allocated_credits ?? 0);
+
+        if (allocated === 0) {
+          this.creditAlertLevel = 'none';
+          this.creditAlert = null;
+          this.hasUnreadNotification = false;
+          return;
+        }
+
+        let newLevel: 'none' | 'warning' | 'critical' | 'exhausted' = 'none';
+        let alertObj: any = null;
+
+        if (remaining <= 0) {
+          newLevel = 'exhausted';
+          alertObj = {
+            title: 'AI Quota Exhausted',
+            message: 'Your AI credits have reached 0. AI features are paused until refilled.',
+            remainingText: '0 credits left',
+            tierClass: 'tier-exhausted',
+            icon: 'error'
+          };
+        } else if (remaining <= 5000) {
+          newLevel = 'critical';
+          alertObj = {
+            title: 'Critical Low Balance Alert',
+            message: `Only ${remaining.toLocaleString()} AI credits remaining! Refill immediately.`,
+            remainingText: `${remaining.toLocaleString()} credits left (≤ 5,000)`,
+            tierClass: 'tier-critical',
+            icon: 'warning'
+          };
+        } else if (remaining <= 40000) {
+          newLevel = 'warning';
+          alertObj = {
+            title: 'Low Balance Warning',
+            message: `Remaining credits: ${remaining.toLocaleString()} (below the 40,000 threshold).`,
+            remainingText: `${remaining.toLocaleString()} credits left (≤ 40,000)`,
+            tierClass: 'tier-warning',
+            icon: 'notifications_active'
+          };
+        } else {
+          newLevel = 'none';
+        }
+
+        this.creditAlertLevel = newLevel;
+        this.creditAlert = alertObj;
+
+        if (newLevel !== 'none') {
+          const lastTier = sessionStorage.getItem('last_notified_credit_tier');
+          const isRead = sessionStorage.getItem('credit_notification_read') === 'true';
+
+          // Pop up toast once per session unless tier escalates
+          if (lastTier !== newLevel) {
+            sessionStorage.setItem('last_notified_credit_tier', newLevel);
+            sessionStorage.removeItem('credit_notification_read');
+            this.hasUnreadNotification = true;
+
+            if (newLevel === 'exhausted') {
+              this.notificationService.error('AI Quota Exhausted! 0 credits remaining.');
+            } else if (newLevel === 'critical') {
+              this.notificationService.critical(`Critical Balance: Only ${remaining.toLocaleString()} credits remaining!`);
+            } else if (newLevel === 'warning') {
+              this.notificationService.warning(`Low Balance: ${remaining.toLocaleString()} credits left (below 40,000).`);
+            }
+          } else {
+            this.hasUnreadNotification = !isRead;
+          }
+        } else {
+          this.hasUnreadNotification = false;
+        }
+      },
+      error: () => {}
+    });
+  }
 
   private getUserDisplayName(user: any, fallback: string = 'Guest'): string {
     const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim();
