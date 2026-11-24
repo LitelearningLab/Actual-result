@@ -11,6 +11,14 @@ import { IconModule } from '../../icons/icon.module';
 import { APP_VERSION } from '../../../../environments/version';
 import { SidenavService } from '../../services/sidenav.service';
 
+export interface NavMenuItem {
+  label: string;
+  path?: string;
+  icon?: string;
+  isGroup?: boolean;
+  children?: NavMenuItem[];
+}
+
 @Component({
   selector: 'app-side-nav',
   standalone: true,
@@ -20,15 +28,20 @@ import { SidenavService } from '../../services/sidenav.service';
 })
 export class SideNavComponent implements OnInit, OnDestroy {
   public appVersion = APP_VERSION;
-  @HostBinding('class.collapsed') get hostCollapsed() { return this.collapsed }
+  @HostBinding('class.collapsed') get hostCollapsed() { return this.collapsed; }
   isLogin = false;
   userRole: string | null = null;
   userName = sessionStorage.getItem('username') || '';
   userInstitute: string | null = sessionStorage.getItem('userInstitute') || '';
+
+  navItems: NavMenuItem[] = [];
   menus: Array<{ label: string, path: string, icon?: string }> = [];
+
   collapsed = false;
   isMobileOpen = false;
   selectedMenu: string | null = null;
+  expandedGroup: string | null = null;
+
   private routerSubscription: Subscription;
   private authSubscription?: Subscription;
   private userSubscription?: Subscription;
@@ -75,12 +88,16 @@ export class SideNavComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Set initial selected menu based on current URL
+    // Set initial selected menu and expanded group based on current URL
     this.updateSelectedMenuFromUrl(this.router.url);
   }
 
   /** Route-to-menu mapping for related routes */
   private readonly routeToMenuMap: Record<string, string> = {
+    '/admin-dashboard': 'Admin Dashboard',
+    '/super-admin-dashboard': 'Super Admin Dashboard',
+    '/view-institutes': 'Institutes',
+    '/institute-register': 'Institutes',
     '/user-register': 'Users',
     '/view-users': 'Users',
     '/category': 'Question Banks',
@@ -91,35 +108,96 @@ export class SideNavComponent implements OnInit, OnDestroy {
     '/create-exam': 'Create/Edit Test',
     '/view-schedule-exam': 'Schedule Test',
     '/schedule-exam': 'Schedule Test',
-    '/view-institutes': 'Institutes',
-    '/institute-register': 'Institutes',
     '/admin/exam-reports': 'Test Reports',
+    '/user/exam': 'Test Inbox',
     '/user/exam/run': 'Test Inbox',
-    '/user/paper-test-results': 'Paper Test Results',
     '/question-papers': 'Create/Edit Paper Test',
     '/create-question-paper': 'Create/Edit Paper Test',
     '/scheduled-paper-tests': 'Scheduled Paper Test',
     '/test-evaluation': 'Paper Evaluation',
+    '/user/paper-test-results': 'Paper Test Results',
+    '/user/paper-review': 'Paper Test Results',
     '/admin/ai-credits': 'AI Credits',
   };
 
-  /** Updates selectedMenu by finding which menu path matches the current URL */
+  /** Updates selectedMenu and ensures the correct accordion group is expanded */
   private updateSelectedMenuFromUrl(url: string): void {
-    if (!url || !this.menus.length) return;
+    if (!url || !this.navItems.length) return;
+
     // Check the route mapping first
     for (const [route, menuLabel] of Object.entries(this.routeToMenuMap)) {
       if (url.startsWith(route)) {
         this.selectedMenu = menuLabel;
+        this.autoExpandGroupForMenu(menuLabel);
         return;
       }
     }
+
     // Fallback: find menu whose path is a prefix of the current URL
-    const matched = this.menus.find(m => url.startsWith(m.path));
-    this.selectedMenu = matched?.label || null;
+    for (const item of this.navItems) {
+      if (item.path && url.startsWith(item.path)) {
+        this.selectedMenu = item.label;
+        return;
+      }
+      if (item.children) {
+        const childMatch = item.children.find(c => c.path && url.startsWith(c.path));
+        if (childMatch) {
+          this.selectedMenu = childMatch.label;
+          this.expandedGroup = item.label;
+          return;
+        }
+      }
+    }
   }
 
-  onMenuClick(menu: { label: string, path: string, icon?: string }){
-    try{ this.selectedMenu = menu?.label || null; }catch(e){ this.selectedMenu = null; }
+  /** Automatically expands the accordion group that contains the given child menu */
+  private autoExpandGroupForMenu(menuLabel: string): void {
+    for (const item of this.navItems) {
+      if (item.isGroup && item.children?.some(c => c.label === menuLabel)) {
+        this.expandedGroup = item.label;
+        return;
+      }
+    }
+  }
+
+  /** Accordion group toggle handler: collapses previous group when expanding a new one */
+  toggleGroup(group: NavMenuItem): void {
+    if (this.collapsed && !this.isMobileOpen) {
+      this.sidenavService.setCollapsed(false);
+      this.expandedGroup = group.label;
+      this.updateParentSidenavClass();
+      return;
+    }
+
+    if (this.expandedGroup === group.label) {
+      // Click an expanded group -> collapse it
+      this.expandedGroup = null;
+    } else {
+      // Click a collapsed group -> expand it and collapse previous group
+      this.expandedGroup = group.label;
+    }
+  }
+
+  isGroupExpanded(groupLabel: string): boolean {
+    return this.expandedGroup === groupLabel;
+  }
+
+  isGroupActive(group: NavMenuItem): boolean {
+    return !!group.children?.some(c => c.label === this.selectedMenu);
+  }
+
+  onGroupClick(group: NavMenuItem): void {
+    this.toggleGroup(group);
+  }
+
+  onMenuClick(menu: NavMenuItem): void {
+    try { this.selectedMenu = menu?.label || null; } catch(e) { this.selectedMenu = null; }
+    this.closeMobile();
+  }
+
+  onSubmenuClick(child: NavMenuItem, parent: NavMenuItem): void {
+    try { this.selectedMenu = child?.label || null; } catch(e) { this.selectedMenu = null; }
+    this.expandedGroup = parent.label;
     this.closeMobile();
   }
 
@@ -194,10 +272,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
     } catch (e) { /* no-op */ }
   }
 
-
-
   // Method to update login status from sessionStorage
-  // legacy method kept but primary sources are AuthService observables
   private updateLoginStatus(): void {
     const loginStatus = sessionStorage.getItem('isLogin');
     this.isLogin = loginStatus === 'true';
@@ -215,7 +290,7 @@ export class SideNavComponent implements OnInit, OnDestroy {
   }
 
   private setupMenus() {
-    // default empty
+    this.navItems = [];
     this.menus = [];
     if (!this.isLogin) return;
 
@@ -239,48 +314,94 @@ export class SideNavComponent implements OnInit, OnDestroy {
     } catch (e) {}
 
     if (isSuper) {
-      this.menus.push({ label: 'Super Admin Dashboard', path: '/super-admin-dashboard', icon: 'dashboard' });
-      this.menus.push({ label: 'Institutes', path: '/view-institutes', icon: 'institute' });
+      this.navItems.push({ label: 'Super Admin Dashboard', path: '/super-admin-dashboard', icon: 'dashboard' });
+      this.navItems.push({ label: 'Institutes', path: '/view-institutes', icon: 'institute' });
     }
 
     if (isAdmin || isSuper) {
-      this.menus.push({ label: 'Admin Dashboard', path: '/admin-dashboard', icon: 'admin' });
-      this.menus.push({ label: 'Users', path: '/view-users', icon: 'users' });
-      this.menus.push({ label: 'Question Banks', path: '/category', icon: 'category' });
-      this.menus.push({ label: 'Questions', path: '/view-questions', icon: 'quiz' });
+      this.navItems.push({ label: 'Admin Dashboard', path: '/admin-dashboard', icon: 'admin' });
+      this.navItems.push({ label: 'Users', path: '/view-users', icon: 'users' });
+      this.navItems.push({ label: 'Question Banks', path: '/category', icon: 'category' });
+      this.navItems.push({ label: 'Questions', path: '/view-questions', icon: 'quiz' });
 
-      // Online Test Add-ons
+      // Online Test Group
       if (isSuper || allowOnline) {
-        this.menus.push({ label: 'Create/Edit Test', path: '/exams', icon: 'exam' });
-        this.menus.push({ label: 'Schedule Test', path: '/view-schedule-exam', icon: 'calendar' });
+        const onlineChildren: NavMenuItem[] = [
+          { label: 'Create/Edit Test', path: '/exams', icon: 'exam' },
+          { label: 'Schedule Test', path: '/view-schedule-exam', icon: 'calendar' },
+          { label: 'Test Inbox', path: '/user/exam', icon: 'assignment' }
+        ];
+        this.navItems.push({
+          label: 'Online Test',
+          icon: 'exam',
+          isGroup: true,
+          children: onlineChildren
+        });
       }
 
-      // Paper Test Add-ons
+      // Paper Test Group
       if (isSuper || allowPaper) {
-        this.menus.push({ label: 'Create/Edit Paper Test', path: '/question-papers', icon: 'exam' });
-        this.menus.push({ label: 'Scheduled Paper Test', path: '/scheduled-paper-tests', icon: 'calendar' });
-        this.menus.push({ label: 'Paper Evaluation', path: '/test-evaluation', icon: 'assignment' });
+        const paperChildren: NavMenuItem[] = [
+          { label: 'Create/Edit Paper Test', path: '/question-papers', icon: 'exam' },
+          { label: 'Scheduled Paper Test', path: '/scheduled-paper-tests', icon: 'calendar' },
+          { label: 'Paper Evaluation', path: '/test-evaluation', icon: 'assignment' },
+          { label: 'Paper Test Results', path: '/user/paper-test-results', icon: 'report' }
+        ];
+        this.navItems.push({
+          label: 'Paper Test',
+          icon: 'assignment',
+          isGroup: true,
+          children: paperChildren
+        });
       }
 
-      // Default modules based on enabled engine
-      if (isSuper || allowOnline) {
-        this.menus.push({ label: 'Test Inbox', path: '/user/exam', icon: 'assignment' });
-      }
-      if (isSuper || allowPaper) {
-        this.menus.push({ label: 'Paper Test Results', path: '/user/paper-test-results', icon: 'report' });
-      }
-
-      this.menus.push({ label: 'Test Reports', path: '/admin/exam-reports', icon: 'report' });
-      this.menus.push({ label: 'AI Credits', path: '/admin/ai-credits', icon: 'brain' });
+      this.navItems.push({ label: 'Test Reports', path: '/admin/exam-reports', icon: 'report' });
+      this.navItems.push({ label: 'AI Credits', path: '/admin/ai-credits', icon: 'brain' });
     } else if (isStudent) {
-      this.menus.push({ label: 'Test Inbox', path: '/user/exam', icon: 'assignment' });
-      this.menus.push({ label: 'Paper Test Results', path: '/user/paper-test-results', icon: 'report' });
+      const studentOnlineItems: NavMenuItem[] = [];
+      if (allowOnline) {
+        studentOnlineItems.push({ label: 'Test Inbox', path: '/user/exam', icon: 'assignment' });
+      }
+      const studentPaperItems: NavMenuItem[] = [];
+      if (allowPaper) {
+        studentPaperItems.push({ label: 'Paper Test Results', path: '/user/paper-test-results', icon: 'report' });
+      }
+
+      if (studentOnlineItems.length > 0) {
+        this.navItems.push({
+          label: 'Online Test',
+          icon: 'exam',
+          isGroup: true,
+          children: studentOnlineItems
+        });
+      }
+      if (studentPaperItems.length > 0) {
+        this.navItems.push({
+          label: 'Paper Test',
+          icon: 'assignment',
+          isGroup: true,
+          children: studentPaperItems
+        });
+      }
     }
 
-    // After menus are set, update selected menu based on current URL
+    // Populate flat menus array for backward compatibility
+    for (const item of this.navItems) {
+      if (item.path) {
+        this.menus.push({ label: item.label, path: item.path, icon: item.icon });
+      }
+      if (item.children) {
+        for (const child of item.children) {
+          if (child.path) {
+            this.menus.push({ label: child.label, path: child.path, icon: child.icon });
+          }
+        }
+      }
+    }
+
+    // Update selected menu and expanded group based on current URL
     this.updateSelectedMenuFromUrl(this.router.url);
   }
-
 
   ngOnDestroy(): void {
     if (this.routerSubscription) this.routerSubscription.unsubscribe();

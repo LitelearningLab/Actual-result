@@ -55,28 +55,91 @@
 
   <!-- Navigation -->
   <nav class="menu" role="menubar" aria-label="Main menu">
-    <ng-container *ngFor="let m of menus">
+    <ng-container *ngFor="let item of navItems">
+      <!-- Standalone Menu Item -->
       <a
-        [routerLink]="m.path"
+        *ngIf="!item.isGroup"
+        [routerLink]="item.path"
         class="menu-item"
         role="menuitem"
         routerLinkActive="active"
         [routerLinkActiveOptions]="{ exact: false }"
-        (click)="onMenuClick(m)"
-        [ngClass]="{ active: selectedMenu === m.label }"
-        [attr.aria-current]="selectedMenu === m.label ? 'page' : null"
-        [attr.data-tooltip]="m.label"
-        [matTooltip]="m.label"
+        (click)="onMenuClick(item)"
+        [ngClass]="{ active: selectedMenu === item.label }"
+        [attr.aria-current]="selectedMenu === item.label ? 'page' : null"
+        [attr.data-tooltip]="item.label"
+        [matTooltip]="item.label"
         [matTooltipDisabled]="!collapsed || isMobileOpen"
         matTooltipPosition="right"
         matTooltipClass="sidenav-stylish-tooltip"
         matTooltipShowDelay="100"
       >
         <span class="menu-icon-wrap">
-          <mat-icon class="menu-icon" svgIcon="{{ m.icon || 'menu' }}"></mat-icon>
+          <mat-icon class="menu-icon" [svgIcon]="item.icon || 'menu'"></mat-icon>
         </span>
-        <span class="menu-label" *ngIf="!collapsed || isMobileOpen">{{ m.label }}</span>
+        <span class="menu-label" *ngIf="!collapsed || isMobileOpen">{{ item.label }}</span>
       </a>
+
+      <!-- Collapsible Accordion Group -->
+      <div
+        *ngIf="item.isGroup"
+        class="menu-group"
+        [class.is-expanded]="isGroupExpanded(item.label)"
+        [class.has-active-child]="isGroupActive(item)"
+      >
+        <!-- Parent Group Header -->
+        <button
+          type="button"
+          class="menu-item group-header"
+          [class.expanded]="isGroupExpanded(item.label)"
+          [class.active-parent]="isGroupActive(item)"
+          (click)="onGroupClick(item)"
+          [attr.aria-expanded]="isGroupExpanded(item.label)"
+          [attr.aria-label]="item.label"
+          [attr.data-tooltip]="item.label"
+          [matTooltip]="item.label"
+          [matTooltipDisabled]="!collapsed || isMobileOpen"
+          matTooltipPosition="right"
+          matTooltipClass="sidenav-stylish-tooltip"
+          matTooltipShowDelay="100"
+        >
+          <span class="menu-icon-wrap">
+            <mat-icon class="menu-icon" [svgIcon]="item.icon || 'menu'"></mat-icon>
+          </span>
+          <span class="menu-label group-label" *ngIf="!collapsed || isMobileOpen">{{ item.label }}</span>
+          <mat-icon
+            class="group-chevron"
+            *ngIf="!collapsed || isMobileOpen"
+          >
+            expand_more
+          </mat-icon>
+        </button>
+
+        <!-- Submenu Items (indented ~24px, collapsible) -->
+        <div
+          class="submenu-list"
+          [class.expanded]="isGroupExpanded(item.label) && (!collapsed || isMobileOpen)"
+          [attr.aria-hidden]="!isGroupExpanded(item.label)"
+        >
+          <a
+            *ngFor="let child of item.children"
+            [routerLink]="child.path"
+            class="submenu-item"
+            role="menuitem"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: false }"
+            (click)="onSubmenuClick(child, item)"
+            [ngClass]="{ active: selectedMenu === child.label }"
+            [attr.aria-current]="selectedMenu === child.label ? 'page' : null"
+          >
+            <span class="submenu-icon-wrap" *ngIf="child.icon">
+              <mat-icon class="submenu-icon" [svgIcon]="child.icon"></mat-icon>
+            </span>
+            <span class="submenu-bullet" *ngIf="!child.icon"></span>
+            <span class="submenu-label">{{ child.label }}</span>
+          </a>
+        </div>
+      </div>
     </ng-container>
   </nav>
 

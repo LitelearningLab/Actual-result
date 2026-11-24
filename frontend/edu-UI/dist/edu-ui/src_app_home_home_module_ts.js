@@ -261,6 +261,10 @@ const routes = [{
     requiredRole: ['admin', 'super_admin', 'superadmin', 'super-admin']
   }
 }, {
+  path: 'ai-credits',
+  redirectTo: 'admin/ai-credits',
+  pathMatch: 'full'
+}, {
   path: 'admin-dashboard',
   component: _userrole_admin_results_results_component__WEBPACK_IMPORTED_MODULE_16__.AdminResultsComponent,
   canActivate: [_shared_guards_permission_guard__WEBPACK_IMPORTED_MODULE_25__.PermissionGuard],
