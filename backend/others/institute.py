@@ -344,8 +344,21 @@ def insert_institute(data):
                     created_date=datetime.utcnow()
                 )
                 session.add(init_tx)
-            except Exception:
-                pass
+
+                from others.ai_credit_notifications import credit_notification_manager
+                credit_notification_manager.create_notification(
+                    institute_id=str(institute_id),
+                    event_type="ALLOCATION",
+                    severity="INFO",
+                    title="AI Credits Allocated",
+                    message=f"{allocated_credits:,} AI credits allocated to {new_inst.name}.",
+                    credits_amount=allocated_credits,
+                    remaining_credits=allocated_credits,
+                    allocated_credits=allocated_credits,
+                    created_by=created_by or "Super Admin"
+                )
+            except Exception as _ne:
+                print(f"[register_institute] Credit notification notice: {_ne}")
 
         operation = "insert_locations"
         head_office_data = data.get('headOffice') or {}
@@ -1223,6 +1236,22 @@ def update_institute_credits(request):
         except Exception as _ar_err:
             print(f"[Institute Credits] Auto-resume trigger warning: {_ar_err}")
 
+        try:
+            from others.ai_credit_notifications import credit_notification_manager
+            credit_notification_manager.create_notification(
+                institute_id=str(institute_id),
+                event_type="RENEWAL",
+                severity="INFO",
+                title="AI Credit Quota Renewed",
+                message=f"AI credit quota renewed to {new_credits:,} credits (Available: {remaining:,}).",
+                credits_amount=new_credits,
+                remaining_credits=remaining,
+                allocated_credits=new_credits,
+                created_by="Super Admin"
+            )
+        except Exception as _ne:
+            print(f"[update_institute_credits] Notification error: {_ne}")
+
         return {
             "status": True,
             "statusMessage": "Institute credits updated successfully",
@@ -1310,6 +1339,21 @@ def add_or_deduct_institute_credits(request):
         except Exception as _ar_err:
             print(f"[Institute Credits] Auto-resume trigger warning: {_ar_err}")
 
+        try:
+            from others.ai_credit_notifications import credit_notification_manager
+            credit_notification_manager.create_notification(
+                institute_id=str(institute_id),
+                event_type="ADJUSTMENT",
+                severity="INFO",
+                title=f"{credits_amt:,} credits added by {performed_by}",
+                message=f"Added {credits_amt:,} credits by {performed_by}. Reason: {reason}. Available: {new_available:,}.",
+                credits_amount=signed_credits,
+                remaining_credits=new_available,
+                allocated_credits=new_allocated,
+                created_by=performed_by
+            )
+        except Exception as _ne:
+            print(f"[add_or_deduct_institute_credits] Notification error: {_ne}")
         return {
             "status": True,
             "statusMessage": f"Successfully added {credits_amt:,} credits.",

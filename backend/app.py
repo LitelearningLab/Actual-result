@@ -397,6 +397,94 @@ def ai_credits_institutes_overview_route():
 def ai_credits_test_usage_route():
     return get_test_ai_usage_api()
 
+# Alias to eliminate legacy 404s
+@edu_blueprint.route('/get-ai-credit-summary', methods=['GET'])
+@admin_required
+def legacy_ai_credits_summary_route():
+    return get_ai_credits_summary_api()
+
+# AI Credit Notification System Routes
+@edu_blueprint.route('/ai-credits/notifications', methods=['GET'])
+@admin_required
+def get_ai_credit_notifications_route():
+    from others.ai_credit_notifications import credit_notification_manager
+    current_user = get_current_user_from_request()
+    is_super = is_super_admin(current_user)
+    inst_id = request.args.get('institute_id') or (None if is_super else getattr(current_user, 'institute_id', None))
+    is_read_param = request.args.get('is_read')
+    is_read = (is_read_param.lower() == 'true') if is_read_param is not None else None
+    page = request.args.get('pageNumber', request.args.get('page', 1, type=int), type=int)
+    page_size = request.args.get('pageSize', 20, type=int)
+
+    data = credit_notification_manager.get_notifications(
+        institute_id=inst_id,
+        is_super_admin=is_super,
+        is_read=is_read,
+        page=page,
+        page_size=page_size
+    )
+    return jsonify({"status": True, "data": data}), 200
+
+@edu_blueprint.route('/ai-credits/notifications/unread-count', methods=['GET'])
+@admin_required
+def get_ai_credit_unread_count_route():
+    from others.ai_credit_notifications import credit_notification_manager
+    current_user = get_current_user_from_request()
+    is_super = is_super_admin(current_user)
+    inst_id = request.args.get('institute_id') or (None if is_super else getattr(current_user, 'institute_id', None))
+
+    data = credit_notification_manager.get_notifications(
+        institute_id=inst_id,
+        is_super_admin=is_super,
+        page=1,
+        page_size=1
+    )
+    return jsonify({"status": True, "unread_count": data.get("unread_count", 0)}), 200
+
+@edu_blueprint.route('/ai-credits/notifications/mark-read', methods=['POST'])
+@admin_required
+def mark_ai_credit_notification_read_route():
+    from others.ai_credit_notifications import credit_notification_manager
+    current_user = get_current_user_from_request()
+    body = request.get_json(silent=True) or {}
+    notification_id = body.get('notification_id')
+    if not notification_id:
+        return jsonify({"status": False, "statusMessage": "notification_id is required"}), 400
+
+    uid = getattr(current_user, 'user_id', None)
+    success = credit_notification_manager.mark_as_read(notification_id, user_id=uid)
+    return jsonify({"status": success, "statusMessage": "Marked as read" if success else "Notification not found"}), 200 if success else 404
+
+@edu_blueprint.route('/ai-credits/notifications/mark-all-read', methods=['POST'])
+@admin_required
+def mark_all_ai_credit_notifications_read_route():
+    from others.ai_credit_notifications import credit_notification_manager
+    current_user = get_current_user_from_request()
+    is_super = is_super_admin(current_user)
+    body = request.get_json(silent=True) or {}
+    inst_id = body.get('institute_id') or request.args.get('institute_id') or (None if is_super else getattr(current_user, 'institute_id', None))
+    uid = getattr(current_user, 'user_id', None)
+
+    count = credit_notification_manager.mark_all_as_read(institute_id=inst_id, is_super_admin=is_super, user_id=uid)
+    return jsonify({"status": True, "statusMessage": f"Marked {count} notifications as read", "count": count}), 200
+
+@edu_blueprint.route('/ai-credits/notifications/stream', methods=['GET'])
+@admin_required
+def ai_credits_notifications_stream_route():
+    from others.ai_credit_notifications import credit_notification_manager
+    current_user = get_current_user_from_request()
+    is_super = is_super_admin(current_user)
+    inst_id = request.args.get('institute_id') or (None if is_super else getattr(current_user, 'institute_id', None))
+
+    response = Response(
+        credit_notification_manager.subscribe(institute_id=inst_id, is_super_admin=is_super),
+        mimetype='text/event-stream'
+    )
+    response.headers['Cache-Control'] = 'no-cache, no-transform'
+    response.headers['X-Accel-Buffering'] = 'no'
+    response.headers['Connection'] = 'keep-alive'
+    return response
+
 @edu_blueprint.route('/get-institutes', methods=['GET'])
 @super_admin_required
 def get_institutes():

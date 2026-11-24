@@ -629,6 +629,22 @@ def record_ai_usage(
         )
         session.add(insert_record)
         session.commit()
+
+        # Non-blocking evaluation of credit alert thresholds
+        if resolved_inst:
+            try:
+                from others.ai_credit_notifications import credit_notification_manager
+                allocated, used_tokens, remaining, has_alloc = AICreditManager.get_institute_balance(session, resolved_inst)
+                if has_alloc:
+                    credit_notification_manager.check_balance_thresholds(
+                        session=session,
+                        institute_id=resolved_inst,
+                        remaining_credits=remaining,
+                        allocated_credits=allocated
+                    )
+            except Exception as _notif_err:
+                print(f"[record_ai_usage] Notification threshold check notice: {_notif_err}")
+
         session.close()
     except Exception as db_err:
         print(f"[record_ai_usage] Failed to record usage: {db_err}")

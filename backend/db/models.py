@@ -721,4 +721,21 @@ class InstituteCreditTransaction(Base):
     performed_by = Column(String(100), default='Super Admin')
     created_date = Column(DateTime, default=datetime.datetime.utcnow)
 
+class AICreditNotification(Base):
+    __tablename__ = 'AI_Credit_Notifications'
+    notification_id = Column(String(36), primary_key=True, default=generate_uuid)
+    institute_id = Column(String(64), nullable=False, index=True)
+    event_type = Column(String(64), nullable=False)          # 'LOW_BALANCE', 'CRITICAL_BALANCE', 'EXHAUSTED', 'ALLOCATION', 'RENEWAL', 'ADJUSTMENT'
+    severity = Column(String(32), nullable=False)            # 'INFO', 'WARNING', 'CRITICAL', 'EXHAUSTED'
+    title = Column(String(255), nullable=False)
+    message = Column(String(1000), nullable=False)
+    credits_amount = Column(BigInteger, nullable=True)
+    remaining_credits = Column(BigInteger, nullable=True)
+    allocated_credits = Column(BigInteger, nullable=True)
+    is_read = Column(Boolean, default=False, nullable=False)
+    read_at = Column(DateTime, nullable=True)
+    read_by = Column(String(64), nullable=True)
+    created_by = Column(String(100), default='System')
+    created_date = Column(DateTime, default=datetime.datetime.utcnow)
+
 

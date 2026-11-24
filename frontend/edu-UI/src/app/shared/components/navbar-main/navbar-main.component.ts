@@ -15,6 +15,7 @@ import { GlobalInstituteContextService } from '../../services/global-institute-c
 import { SidenavService } from '../../services/sidenav.service';
 import { getInstituteTerminology, InstituteTerminology } from '../../services/institute-terminology.service';
 import { NotificationService } from 'src/app/shared/services/notification.service';
+import { AiCreditNotificationService, AiCreditNotificationItem } from '../../services/ai-credit-notification.service';
 
 @Component({
   selector: 'app-navbar-main',
@@ -34,6 +35,9 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
   // Notifications State
   isNotificationPanelOpen = false;
   hasUnreadNotification = false;
+  unreadNotificationCount = 0;
+  creditNotifications: AiCreditNotificationItem[] = [];
+
   creditAlertLevel: 'none' | 'warning' | 'critical' | 'exhausted' = 'none';
   creditAlert: {
     title: string;
@@ -42,6 +46,14 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     tierClass: string;
     icon: string;
   } | null = null;
+
+  get highestAlertLevel(): 'warning' | 'critical' | 'exhausted' | 'info' {
+    const unread = this.creditNotifications.filter(n => !n.is_read);
+    if (unread.some(n => n.severity === 'EXHAUSTED')) return 'exhausted';
+    if (unread.some(n => n.severity === 'CRITICAL')) return 'critical';
+    if (unread.some(n => n.severity === 'WARNING')) return 'warning';
+    return 'info';
+  }
 
   instituteShortName = (() => {
     try {
@@ -61,6 +73,8 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
   private userSubscription?: Subscription;
   private pageMetaSubscription?: Subscription;
   private globalInstituteSubscription?: Subscription;
+  private aiNotifSubscription?: Subscription;
+  private aiUnreadSubscription?: Subscription;
 
   username = sessionStorage.getItem('username') || 'Guest';
   userRole = sessionStorage.getItem('userRole') || 'unknown user role';
@@ -209,7 +223,8 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private globalInstituteContext: GlobalInstituteContextService,
     private sidenavService: SidenavService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private aiNotificationService: AiCreditNotificationService
   ) {
     this.pageMetaSubscription = this.pageMeta.getMetaObservable().subscribe(m => {
       this.moduleName = m.title || '';
@@ -220,6 +235,7 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
       this.isLogin = !!v;
       if (this.isLogin) {
         this.checkAiCreditAlerts();
+        this.initAiNotifications();
       }
     });
     this.userSubscription = this.authService.user$.subscribe(u => {
@@ -232,6 +248,7 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
         this.userRole = u.role || this.userRole;
         this.initials = (this.displayName || 'G').split(' ').map((s: string) => s[0]).slice(0,2).join('').toUpperCase();
         this.checkAiCreditAlerts();
+        this.initAiNotifications();
       } else {
         this.displayName = this.getStoredDisplayName();
         this.displayInstitute = sessionStorage.getItem('institute') || '';
@@ -243,6 +260,10 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     this.globalInstituteSubscription = this.globalInstituteContext.selectedInstitute$.subscribe(() => {
       this.instituteDisplayName = this.getNavbarInstituteName();
       this.checkAiCreditAlerts();
+      if (this.isAdminUser) {
+        const activeInst = this.globalInstituteContext.activeInstituteId || (this.userObj?.institute_id ? String(this.userObj.institute_id) : null);
+        this.aiNotificationService.setInstituteScope(activeInst);
+      }
     });
 
     this.routerSubscription = this.router.events
@@ -259,6 +280,7 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.checkAiCreditAlerts();
+    this.initAiNotifications();
   }
 
   toggleNotifications(event?: MouseEvent): void {
@@ -266,7 +288,6 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     this.isNotificationPanelOpen = !this.isNotificationPanelOpen;
     if (this.isNotificationPanelOpen) {
       this.closeUserPanel();
-      this.markNotificationsAsRead();
     }
   }
 
@@ -284,14 +305,141 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     this.isNotificationPanelOpen = false;
   }
 
-  markNotificationsAsRead(): void {
+  markNotificationAsRead(notificationId: string, event?: Event): void {
+    if (event) event.stopPropagation();
+    this.creditNotifications = this.creditNotifications.filter(n => n.notification_id !== notificationId);
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
+    this.hasUnreadNotification = this.unreadNotificationCount > 0;
+    this.aiNotificationService.markAsRead(notificationId).subscribe();
+  }
+
+  markAllNotificationsAsRead(event?: Event): void {
+    if (event) event.stopPropagation();
+    this.creditNotifications = [];
+    this.unreadNotificationCount = 0;
     this.hasUnreadNotification = false;
-    sessionStorage.setItem('credit_notification_read', 'true');
+    this.aiNotificationService.markAllAsRead().subscribe({
+      error: (err) => console.warn('[AiNotification] mark-all-read error:', err)
+    });
+  }
+
+  onNotificationClick(notif: AiCreditNotificationItem): void {
+    if (!notif) return;
+
+    // 1. Mark as read on backend
+    if (!notif.is_read) {
+      this.aiNotificationService.markAsRead(notif.notification_id).subscribe({
+        error: (err) => console.warn('[AiNotification] mark-read error:', err)
+      });
+    }
+
+    // 2. Immediately remove from dropdown list so it completely disappears
+    this.creditNotifications = this.creditNotifications.filter(n => n.notification_id !== notif.notification_id);
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
+    this.hasUnreadNotification = this.unreadNotificationCount > 0;
+
+    // 3. Close notification dropdown
+    this.closeNotifications();
+
+    // 4. Redirect to AI credits page
+    this.router.navigate(['/admin/ai-credits']).catch(() => {
+      this.router.navigateByUrl('/admin/ai-credits');
+    });
+  }
+
+  markNotificationsAsRead(): void {
+    this.markAllNotificationsAsRead();
+  }
+
+  private initAiNotifications(): void {
+    if (!this.isAdminUser) return;
+    const activeInst = this.globalInstituteContext.activeInstituteId || (this.userObj?.institute_id ? String(this.userObj.institute_id) : null);
+    this.aiNotificationService.init(activeInst);
+
+    if (!this.aiNotifSubscription) {
+      this.aiNotifSubscription = this.aiNotificationService.notifications$.subscribe(notifs => {
+        // Only keep unread notifications in the dropdown list so read ones disappear
+        this.creditNotifications = (notifs || []).filter(n => !n.is_read);
+      });
+    }
+    if (!this.aiUnreadSubscription) {
+      this.aiUnreadSubscription = this.aiNotificationService.unreadCount$.subscribe(count => {
+        this.unreadNotificationCount = count || 0;
+        this.hasUnreadNotification = (count > 0);
+      });
+    }
+  }
+
+  getNotificationTitle(notif: AiCreditNotificationItem): string {
+    if (!notif) return 'Notification';
+    const rawTitle = notif.title || '';
+    // If title already has numbers and "credits" (e.g. "2,000 credits added by Super Admin")
+    if (/\d+/.test(rawTitle) && rawTitle.toLowerCase().includes('credit')) {
+      return rawTitle;
+    }
+    // If credits_amount is provided
+    if (notif.credits_amount) {
+      const amt = Math.abs(Number(notif.credits_amount)).toLocaleString();
+      return `${amt} credits added by ${notif.created_by || 'Super Admin'}`;
+    }
+    // If message contains "Added X credits"
+    const match = (notif.message || '').match(/Added\s+([0-9,]+)\s+credits/i);
+    if (match && match[1]) {
+      return `${match[1]} credits added by ${notif.created_by || 'Super Admin'}`;
+    }
+    return rawTitle || 'Notification';
+  }
+
+  isCreditNotification(notif: any): boolean {
+    const et = String(notif?.event_type || '').toUpperCase();
+    return ['LOW_BALANCE', 'CRITICAL_BALANCE', 'EXHAUSTED', 'ALLOCATION', 'RENEWAL', 'ADJUSTMENT'].includes(et) ||
+           String(notif?.title || '').toLowerCase().includes('credit');
+  }
+
+  getNotificationIcon(notif: AiCreditNotificationItem): string {
+    switch (notif.severity) {
+      case 'EXHAUSTED': return 'error';
+      case 'CRITICAL': return 'warning';
+      case 'WARNING': return 'notifications_active';
+      default: return 'auto_awesome';
+    }
+  }
+
+  getCardTierClass(notif: AiCreditNotificationItem): string {
+    switch (notif.severity) {
+      case 'EXHAUSTED': return 'tier-exhausted';
+      case 'CRITICAL': return 'tier-critical';
+      case 'WARNING': return 'tier-warning';
+      default: return 'tier-info';
+    }
+  }
+
+  formatRelativeTime(dateStr?: string | null): string {
+    if (!dateStr) return '';
+    try {
+      const now = new Date();
+      const past = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+      const diffSec = Math.floor((now.getTime() - past.getTime()) / 1000);
+      if (diffSec < 60) return 'Just now';
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffMin < 60) return `${diffMin}m ago`;
+      const diffHr = Math.floor(diffMin / 60);
+      if (diffHr < 24) return `${diffHr}h ago`;
+      const diffDay = Math.floor(diffHr / 24);
+      if (diffDay < 7) return `${diffDay}d ago`;
+      return past.toLocaleDateString();
+    } catch {
+      return '';
+    }
+  }
+
+  trackNotificationById(index: number, item: AiCreditNotificationItem): string {
+    return item?.notification_id || String(index);
   }
 
   navigateToCredits(): void {
     this.closeNotifications();
-    this.router.navigate(['/ai-credits']);
+    this.router.navigate(['/admin/ai-credits']);
   }
 
   checkAiCreditAlerts(): void {
@@ -302,7 +450,7 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
       return;
     }
     const activeInstituteId = this.globalInstituteContext.activeInstituteId || (this.userObj?.institute_id ? String(this.userObj.institute_id) : '');
-    const url = activeInstituteId ? `${API_BASE}/get-ai-credit-summary?institute_id=${encodeURIComponent(activeInstituteId)}` : `${API_BASE}/get-ai-credit-summary`;
+    const url = activeInstituteId ? `${API_BASE}/ai-credits/summary?institute_id=${encodeURIComponent(activeInstituteId)}` : `${API_BASE}/ai-credits/summary`;
 
     this.http.get<any>(url).subscribe({
       next: (res) => {
@@ -500,6 +648,9 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     if (this.userSubscription) this.userSubscription.unsubscribe();
     if (this.pageMetaSubscription) this.pageMetaSubscription.unsubscribe();
     if (this.globalInstituteSubscription) this.globalInstituteSubscription.unsubscribe();
+    if (this.aiNotifSubscription) this.aiNotifSubscription.unsubscribe();
+    if (this.aiUnreadSubscription) this.aiUnreadSubscription.unsubscribe();
+    this.aiNotificationService.closeStream();
   }
 }
 

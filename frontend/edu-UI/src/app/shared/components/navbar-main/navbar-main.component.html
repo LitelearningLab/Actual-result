@@ -34,39 +34,45 @@
           (click)="toggleNotifications($event)"
           title="Notifications">
           <mat-icon fontSet="material-icons-outlined" class="navbar-icon">notifications</mat-icon>
-          <span class="badge-dot" *ngIf="hasUnreadNotification && creditAlertLevel !== 'none'" [ngClass]="creditAlertLevel"></span>
+          <span class="badge-count" *ngIf="unreadNotificationCount > 0" [ngClass]="highestAlertLevel">
+            {{ unreadNotificationCount > 99 ? '99+' : unreadNotificationCount }}
+          </span>
         </button>
 
         <!-- Notification Dropdown Flyout -->
         <div class="notifications-dropdown" *ngIf="isNotificationPanelOpen" (click)="$event.stopPropagation()">
           <div class="notif-header">
             <div class="notif-title-group">
-              <mat-icon class="notif-header-icon">notifications_active</mat-icon>
+              <mat-icon class="notif-header-icon">notifications</mat-icon>
               <span class="notif-header-title">Notifications</span>
+              <span class="notif-count-pill" *ngIf="unreadNotificationCount > 0">{{ unreadNotificationCount }} new</span>
             </div>
-            <button class="notif-dismiss-btn" *ngIf="hasUnreadNotification" (click)="markNotificationsAsRead()">Mark as read</button>
+            <button type="button" class="notif-dismiss-btn" *ngIf="unreadNotificationCount > 0" (click)="markAllNotificationsAsRead($event)" title="Mark all notifications as read">Mark all as read</button>
           </div>
 
           <div class="notif-body">
-            <div class="notif-card" *ngIf="creditAlert; else noAlertTpl" [ngClass]="creditAlert.tierClass">
-              <div class="notif-card-icon-wrap">
-                <mat-icon>{{ creditAlert.icon }}</mat-icon>
-              </div>
-              <div class="notif-card-content">
-                <div class="notif-card-title">{{ creditAlert.title }}</div>
-                <div class="notif-card-msg">{{ creditAlert.message }}</div>
-                <div class="notif-card-meta">
-                  <span class="notif-tokens-badge">{{ creditAlert.remainingText }}</span>
-                  <button class="notif-action-link" (click)="navigateToCredits()">View Credits &rarr;</button>
+            <ng-container *ngIf="creditNotifications.length > 0; else noAlertTpl">
+              <div class="notif-card" *ngFor="let notif of creditNotifications; trackBy: trackNotificationById" 
+                   [ngClass]="getCardTierClass(notif)" 
+                   (click)="onNotificationClick(notif)"
+                   title="Click to view AI Credits">
+                <div class="notif-card-icon-wrap">
+                  <mat-icon>{{ getNotificationIcon(notif) }}</mat-icon>
+                </div>
+                <div class="notif-card-content">
+                  <div class="notif-card-header-line">
+                    <div class="notif-card-title">{{ getNotificationTitle(notif) }}</div>
+                    <span class="notif-time">{{ formatRelativeTime(notif.created_date) }}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            </ng-container>
 
             <ng-template #noAlertTpl>
               <div class="notif-empty">
                 <mat-icon class="notif-empty-icon">check_circle</mat-icon>
                 <div class="notif-empty-title">All Caught Up!</div>
-                <div class="notif-empty-sub">Your AI credits are in healthy standing.</div>
+                <div class="notif-empty-sub">No new notifications.</div>
               </div>
             </ng-template>
           </div>
