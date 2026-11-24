@@ -75,18 +75,31 @@ def extract_text_from_image(request):
                     }
                 ]
 
-                target_inst_id = (
-                    request.form.get("institute_id")
-                    if hasattr(request, "form") else None
-                ) or (
-                    request.args.get("institute_id")
-                    if hasattr(request, "args") else None
-                ) or (
-                    (request.get_json(silent=True) or {}).get("institute_id")
-                    if hasattr(request, "get_json") else None
-                ) or (
-                    getattr(g, 'current_user', None) and getattr(g.current_user, 'institute_id', None)
-                )
+                # Obtain institute ID strictly from verified authenticated user
+                current_user = getattr(g, "current_user", None)
+                role = str(getattr(current_user, "user_role", "") or "").lower()
+                is_super = role in ("super_admin", "superadmin", "super-admin")
+
+                if is_super:
+                    # Super Admins may explicitly specify institute scope or use global institute filter
+                    target_inst_id = (
+                        getattr(g, "global_institute_id", None)
+                        or (request.form.get("institute_id") if hasattr(request, "form") else None)
+                        or (request.args.get("institute_id") if hasattr(request, "args") else None)
+                        or ((request.get_json(silent=True) or {}).get("institute_id") if hasattr(request, "get_json") else None)
+                        or getattr(current_user, "institute_id", None)
+                    )
+                else:
+                    # Non-superadmin users are strictly locked to their authenticated account's institute_id
+                    target_inst_id = getattr(current_user, "institute_id", None) if current_user else None
+
+                if not target_inst_id:
+                    return {
+                        "status": False,
+                        "statusMessage": "Institute authorization required for AI processing."
+                    }, 403
+
+                user_identifier = getattr(current_user, "user_name", None) or getattr(current_user, "user_id", None)
 
                 response = client.chat_completion(
                     system_message=system_prompt,
@@ -94,6 +107,7 @@ def extract_text_from_image(request):
                     aimodel=1,
                     max_tokens=2000,
                     temperature=0.1,
+                    user_name=user_identifier,
                     institute_id=target_inst_id,
                     feature_name="OCR Extraction",
                     endpoint="/ocr-extract"

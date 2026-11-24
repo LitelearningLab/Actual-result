@@ -99,7 +99,12 @@ class openai_client:
             if not has_access:
                 return _ErrorResponse(err_code, err_msg, code="AI_CREDIT_EXHAUSTED")
         except Exception as e:
-            print(f"[AICreditManager Gate] Access check warning: {e}")
+            print(f"[AICreditManager Gate] Access check error: {e}", flush=True)
+            return _ErrorResponse(
+                500,
+                f"Unable to verify AI credit access: {str(e)}",
+                code="AI_CREDIT_CHECK_FAILED",
+            )
 
         messages = []
         if system_message:
