@@ -341,7 +341,15 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     // 3. Close notification dropdown
     this.closeNotifications();
 
-    // 4. Redirect to AI credits page
+    // 4. If Super Admin clicked a notification for a specific organization/institute, switch active context
+    if (this.isSuperAdmin && notif.institute_id) {
+      this.globalInstituteContext.setContext({
+        institute_id: notif.institute_id,
+        institute_name: notif.institute_name || notif.institute_id
+      });
+    }
+
+    // 5. Redirect to AI credits page
     this.router.navigate(['/admin/ai-credits']).catch(() => {
       this.router.navigateByUrl('/admin/ai-credits');
     });
@@ -372,22 +380,26 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
 
   getNotificationTitle(notif: AiCreditNotificationItem): string {
     if (!notif) return 'Notification';
-    const rawTitle = notif.title || '';
-    // If title already has numbers and "credits" (e.g. "2,000 credits added by Super Admin")
-    if (/\d+/.test(rawTitle) && rawTitle.toLowerCase().includes('credit')) {
-      return rawTitle;
-    }
-    // If credits_amount is provided
+    let baseTitle = notif.title || '';
+    
+    // Format credit addition if credits_amount or message has numbers
     if (notif.credits_amount) {
       const amt = Math.abs(Number(notif.credits_amount)).toLocaleString();
-      return `${amt} credits added by ${notif.created_by || 'Super Admin'}`;
+      baseTitle = `${amt} credits added by ${notif.created_by || 'Super Admin'}`;
+    } else {
+      const match = (notif.message || '').match(/Added\s+([0-9,]+)\s+credits/i);
+      if (match && match[1]) {
+        baseTitle = `${match[1]} credits added by ${notif.created_by || 'Super Admin'}`;
+      }
     }
-    // If message contains "Added X credits"
-    const match = (notif.message || '').match(/Added\s+([0-9,]+)\s+credits/i);
-    if (match && match[1]) {
-      return `${match[1]} credits added by ${notif.created_by || 'Super Admin'}`;
+
+    // For Super Admin: prefix with organization / institute name for all industries
+    const orgName = notif.institute_name || '';
+    if (this.isSuperAdmin && orgName && !baseTitle.toLowerCase().includes(orgName.toLowerCase())) {
+      return `${orgName}: ${baseTitle}`;
     }
-    return rawTitle || 'Notification';
+
+    return baseTitle || 'Notification';
   }
 
   isCreditNotification(notif: any): boolean {

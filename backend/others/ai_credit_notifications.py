@@ -139,9 +139,19 @@ class AICreditNotificationManager:
             session.add(notif)
             session.commit()
 
+            inst_name = ""
+            try:
+                from sqlalchemy import cast, String
+                inst = session.query(Institute.name).filter(cast(Institute.institute_id, String) == clean_inst).first()
+                if inst and inst[0]:
+                    inst_name = str(inst[0]).strip()
+            except Exception:
+                inst_name = ""
+
             notif_dict = {
                 "notification_id": str(notif.notification_id),
                 "institute_id": notif.institute_id,
+                "institute_name": inst_name,
                 "event_type": notif.event_type,
                 "severity": notif.severity,
                 "title": notif.title,
@@ -315,11 +325,23 @@ class AICreditNotificationManager:
 
             records = q.order_by(desc(AICreditNotification.created_date)).offset((page - 1) * page_size).limit(page_size).all()
 
+            # Preload institute names for rich Super Admin / organization-level display
+            inst_ids = list({r.institute_id for r in records if r.institute_id})
+            inst_map = {}
+            if inst_ids:
+                try:
+                    inst_rows = session.query(Institute.institute_id, Institute.name).filter(Institute.institute_id.in_(inst_ids)).all()
+                    inst_map = {str(i.institute_id): str(i.name).strip() for i in inst_rows if i.name}
+                except Exception:
+                    pass
+
             results = []
             for r in records:
+                inst_name = inst_map.get(str(r.institute_id), "")
                 results.append({
                     "notification_id": str(r.notification_id),
                     "institute_id": r.institute_id,
+                    "institute_name": inst_name,
                     "event_type": r.event_type,
                     "severity": r.severity,
                     "title": r.title,

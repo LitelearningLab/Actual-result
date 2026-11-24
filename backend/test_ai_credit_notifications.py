@@ -24,6 +24,7 @@ class TestAICreditNotifications(unittest.TestCase):
     def setUpClass(cls):
         # Create an in-memory SQLite database for test isolation
         cls.engine = create_engine('sqlite:///:memory:', echo=False)
+        Institute.__table__.create(cls.engine)
         AICreditNotification.__table__.create(cls.engine)
         cls.Session = sessionmaker(bind=cls.engine)
         cls.manager = AICreditNotificationManager()

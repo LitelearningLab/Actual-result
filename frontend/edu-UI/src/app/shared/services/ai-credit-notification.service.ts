@@ -7,6 +7,7 @@ import { NotificationService } from 'src/app/shared/services/notification.servic
 export interface AiCreditNotificationItem {
   notification_id: string;
   institute_id: string;
+  institute_name?: string | null;
   event_type: 'LOW_BALANCE' | 'CRITICAL_BALANCE' | 'EXHAUSTED' | 'ALLOCATION' | 'RENEWAL' | 'ADJUSTMENT' | string;
   severity: 'INFO' | 'WARNING' | 'CRITICAL' | 'EXHAUSTED' | string;
   title: string;
