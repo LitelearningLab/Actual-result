@@ -1575,6 +1575,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Set loading state immediately so UI displays "Loading marks..." instead of 0 / 20
+    this.isLoadingEvaluation = true;
+
     // Fallback: If student.rawFile was detached or missing, recover from this.bulkFiles
     if (!student.rawFile) {
       const matchedBulk = this.bulkFiles.find(
@@ -1605,10 +1608,16 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.zoomLevel = 100;
     this.evaluationCategoryFilter = 'all';
 
-    // Pre-populate evaluationDetails from in-memory student data to avoid 0/0 flicker
-    const parsedMarks = parseFloat(String(student.marks || '').split('/')[0]) || 0;
-    const totalExamMarks = parseFloat(String(this.testDetails?.totalMarks || '').replace(/[^\d.]/g, '')) || 10;
-    const pct = totalExamMarks > 0 ? Math.round((parsedMarks / totalExamMarks) * 100) : 0;
+    // Only populate known marks if student already has a valid numeric evaluated score in memory
+    let knownMarks: number | null = null;
+    if (student.marks && student.marks !== 'Not marked' && student.marks !== '-') {
+      const parsed = parseFloat(String(student.marks).split('/')[0]);
+      if (!isNaN(parsed)) {
+        knownMarks = parsed;
+      }
+    }
+    const totalExamMarks = parseFloat(String(this.testDetails?.totalMarks || '').replace(/[^\d.]/g, '')) || 0;
+    const pct = (knownMarks !== null && totalExamMarks > 0) ? Math.round((knownMarks / totalExamMarks) * 100) : undefined;
 
     this.evaluationDetails = {
       status: true,
@@ -1616,7 +1625,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       roll_no: student.rollNo,
       summary: {
         total_marks: totalExamMarks,
-        marks_awarded: parsedMarks,
+        marks_awarded: knownMarks !== null ? knownMarks : undefined,
         percentage: pct,
         status: student.status || 'Not Evaluated',
         total_questions: parseInt(String(this.testDetails?.totalQuestions || '').replace(/[^\d.]/g, ''), 10) || 0
@@ -1713,6 +1722,44 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       }, 150);
       return;
     }
+
+    // Preserve the evaluated student's status, marks, and result in the students table
+    if (this.evaluatingStudent && this.evaluationDetails?.summary) {
+      const summary = this.evaluationDetails.summary;
+      if (summary.marks_awarded != null) {
+        this.evaluatingStudent.marks = `${summary.marks_awarded} / ${summary.total_marks || this.testDetails?.totalMarks || 0}`;
+      }
+      if (summary.status && summary.status !== 'Not Evaluated') {
+        const norm = summary.status === 'Completed' || summary.status === 'evaluated' ? 'AI Evaluated' : summary.status;
+        this.evaluatingStudent.status = norm as any;
+        this.evaluatingStudent.actionText = 'Review';
+      }
+      if (summary.result) {
+        this.evaluatingStudent.result = summary.result;
+      }
+      const pCount = (this.evaluationDetails.pages || []).length;
+      if (pCount > 0) {
+        this.evaluatingStudent.pagesInfo = `${pCount} of ${pCount} pages`;
+        this.evaluatingStudent.isUploaded = true;
+      }
+      // Sync to allPublishedExams in-memory cache so table filters preserve the new score
+      const currentExam = (this.allPublishedExams || []).find((e) => String(e.exam_id) === String(this.selectedExamId));
+      if (currentExam && Array.isArray(currentExam.assigned_users)) {
+        const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(this.evaluatingStudent?.user_id));
+        if (u) {
+          if (summary.marks_awarded != null) {
+            u.score = summary.marks_awarded;
+            u.marks_awarded = summary.marks_awarded;
+          }
+          if (summary.status && summary.status !== 'Not Evaluated') {
+            u.evaluation_status = this.evaluatingStudent.status;
+            u.status = this.evaluatingStudent.status;
+          }
+          if (pCount > 0) u.pages_count = pCount;
+        }
+      }
+    }
+
     sessionStorage.removeItem('test_eval_user_id');
     sessionStorage.removeItem('test_eval_student');
     sessionStorage.removeItem('test_eval_meta');
@@ -1727,6 +1774,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       } catch { }
       this.pdfRenderTask = null;
     }
+    this.recalculateKpiTotals();
+    this.filterStudents();
     this.refreshData();
   }
 
@@ -2102,7 +2151,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   get isStudentNotEvaluated(): boolean {
     const status = this.evaluationDetails?.summary?.status || this.evaluatingStudent?.status;
     const pagesCount = (this.evaluationDetails?.pages || []).length;
-    return status === 'Not Evaluated' || pagesCount === 0;
+    return status === 'Not Evaluated' || (!this.isLoadingEvaluation && pagesCount === 0);
   }
 
   get effectivePassMark(): number {
@@ -2117,7 +2166,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   get isStudentPassed(): boolean {
-    if (this.isStudentNotEvaluated) return false;
+    if (this.isLoadingEvaluation || this.isStudentNotEvaluated) return false;
     const pct = Number(this.evaluationDetails?.summary?.percentage || 0);
     return pct >= this.effectivePassMark;
   }

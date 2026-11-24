@@ -921,6 +921,7 @@ OUTPUT ONLY THIS JSON:
             max_tokens=2000,
             temperature=0.0,
             timeout=timeout,
+            response_format={"type": "json_object"},
             institute_id=institute_id,
             user_name=user_name,
             feature_name=feature_name or "Question Anchor Detection",
@@ -958,14 +959,33 @@ OUTPUT ONLY THIS JSON:
             .strip()
         )
 
-        clean_json = raw_content
+        clean_json = raw_content.strip()
         if clean_json.startswith("```"):
             clean_json = clean_json.split("```")[1]
             if clean_json.startswith("json"):
                 clean_json = clean_json[4:]
             clean_json = clean_json.strip()
 
-        parsed = json.loads(clean_json)
+        # Extract between outermost curly braces safely
+        first_brace = clean_json.find("{")
+        last_brace = clean_json.rfind("}")
+        if first_brace != -1 and last_brace != -1 and last_brace >= first_brace:
+            clean_json = clean_json[first_brace : last_brace + 1]
+
+        parsed = {}
+        try:
+            parsed = json.loads(clean_json)
+        except Exception:
+            try:
+                parsed = json.loads(clean_json, strict=False)
+            except Exception as parse_err:
+                print(f"[QuestionAnchorDetection] JSON parse error: {parse_err}. Falling back to full question list.", flush=True)
+                default_qs = list(sorted(list(set(exam_question_numbers or []))))
+                parsed = {
+                    "pages": [{"page_number": 1, "questions": [{"question_number": qn, "status": "detected"} for qn in default_qs]}],
+                    "all_detected_question_numbers": default_qs,
+                    "status": True
+                }
         pages_detected = parsed.get("pages", [])
 
         # Normalize and aggregate unique question numbers across all pages

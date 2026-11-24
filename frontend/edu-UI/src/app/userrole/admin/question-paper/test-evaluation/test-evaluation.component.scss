@@ -4284,6 +4284,22 @@ $shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06
         .score-val {
           color: #1d4ed8;
           font-weight: 700;
+
+          &.score-loading {
+            color: #64748b;
+            font-weight: 500;
+            font-size: 0.8125rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+
+            .score-spin {
+              font-size: 1rem;
+              width: 1rem;
+              height: 1rem;
+              animation: spin 1s linear infinite;
+            }
+          }
         }
 
         .score-pct {

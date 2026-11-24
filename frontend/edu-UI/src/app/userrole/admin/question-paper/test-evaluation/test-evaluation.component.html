@@ -1170,19 +1170,26 @@
             <!-- Score & Status Pill -->
             <div class="score-summary-badge">
               <span class="score-lbl">Total Score:</span>
-              <ng-container *ngIf="isStudentNotEvaluated">
-                <span class="score-val">— / {{ evaluationDetails?.summary?.total_marks || 0 }}</span>
-                <span class="score-pct">(Not marked)</span>
+              <ng-container *ngIf="isLoadingEvaluation">
+                <span class="score-val score-loading">
+                  <mat-icon class="score-spin">sync</mat-icon> Loading marks...
+                </span>
               </ng-container>
-              <ng-container *ngIf="!isStudentNotEvaluated">
-                <span class="score-val">{{ evaluationDetails?.summary?.marks_awarded || 0 }} / {{
-                  evaluationDetails?.summary?.total_marks || 0 }}</span>
-                <span class="score-pct">({{ evaluationDetails?.summary?.percentage || 0 }}%)</span>
+              <ng-container *ngIf="!isLoadingEvaluation">
+                <ng-container *ngIf="isStudentNotEvaluated">
+                  <span class="score-val">— / {{ evaluationDetails?.summary?.total_marks || 0 }}</span>
+                  <span class="score-pct">(Not marked)</span>
+                </ng-container>
+                <ng-container *ngIf="!isStudentNotEvaluated">
+                  <span class="score-val">{{ evaluationDetails?.summary?.marks_awarded != null ? evaluationDetails.summary.marks_awarded : '—' }} / {{
+                    evaluationDetails?.summary?.total_marks || 0 }}</span>
+                  <span class="score-pct" *ngIf="evaluationDetails?.summary?.percentage != null">({{ evaluationDetails.summary.percentage }}%)</span>
+                </ng-container>
               </ng-container>
             </div>
 
             <!-- Pass / Fail Badge -->
-            <span *ngIf="!isStudentNotEvaluated && evaluationDetails?.summary?.percentage !== undefined"
+            <span *ngIf="!isLoadingEvaluation && !isStudentNotEvaluated && evaluationDetails?.summary?.percentage !== undefined"
               class="result-badge-pill"
               [ngClass]="isStudentPassed ? 'result-badge-pill--pass' : 'result-badge-pill--fail'"
               [matTooltip]="'Required to pass: ≥ ' + effectivePassMark + '%'">

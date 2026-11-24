@@ -752,15 +752,29 @@ def get_paper_schedules(request, current_user=None):
                                 if r[0]:
                                     manual_attempts.add(str(r[0]))
 
-                            # 3. ExamReviewComments (rubric feedback edits/additions by teacher)
+                            # 3. ExamReviewComments (rubric feedback edits/additions by human teacher)
                             try:
+                                from db.models import ExamReviewCommentsHistory
                                 erc_attempts = (
                                     session.query(ExamReviewComments.attempt_id)
-                                    .filter(func.cast(ExamReviewComments.attempt_id, String).in_(all_attempt_ids))
+                                    .filter(
+                                        func.cast(ExamReviewComments.attempt_id, String).in_(all_attempt_ids),
+                                        ExamReviewComments.reviewer_id.isnot(None),
+                                    )
                                     .distinct()
                                     .all()
                                 )
                                 for r in erc_attempts:
+                                    if r[0]:
+                                        manual_attempts.add(str(r[0]))
+
+                                erch_attempts = (
+                                    session.query(ExamReviewCommentsHistory.attempt_id)
+                                    .filter(func.cast(ExamReviewCommentsHistory.attempt_id, String).in_(all_attempt_ids))
+                                    .distinct()
+                                    .all()
+                                )
+                                for r in erch_attempts:
                                     if r[0]:
                                         manual_attempts.add(str(r[0]))
                             except Exception:
