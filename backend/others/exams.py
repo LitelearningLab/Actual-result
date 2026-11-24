@@ -6481,6 +6481,45 @@ def identify_student_from_answer_sheet(request, current_user=None):
     students_json = request.form.get("students")
     students_roster = []
 
+    # Resolve target institute for credit verification
+    target_inst_id = (request.form.get("institute_id") or "").strip()
+    if not target_inst_id and exam_id:
+        try:
+            from others.ai_credits import AICreditManager
+            target_inst_id = AICreditManager.resolve_institute_id(
+                request_obj=request,
+                explicit_inst_id=None,
+                user_id=getattr(current_user, "user_id", None) if current_user else None,
+                exam_id=exam_id
+            )
+        except Exception:
+            pass
+    if not target_inst_id:
+        target_inst_id = getattr(current_user, "institute_id", None) if current_user else None
+
+    # Pre-flight AI Credit check: block paper inspection if quota is exhausted
+    if target_inst_id:
+        try:
+            from others.ai_credits import AICreditManager
+            has_access, err_msg, status_code, remaining = AICreditManager.check_and_reserve(
+                institute_id=target_inst_id,
+                user_id=getattr(current_user, "user_id", None) if current_user else None,
+                estimated_tokens=500,
+                feature_name="Paper Evaluation",
+                request_obj=request,
+                exam_id=exam_id
+            )
+            if not has_access:
+                return {
+                    "status": False,
+                    "statusMessage": err_msg or "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
+                    "credit_error": True,
+                    "error_code": "AI_CREDIT_EXHAUSTED",
+                    "available_credits": remaining or 0
+                }, 402
+        except Exception as _chk_err:
+            print(f"[identify_student] Credit check error: {_chk_err}", flush=True)
+
     if students_json:
         try:
             students_roster = json.loads(students_json)
@@ -6665,6 +6704,17 @@ def identify_student_from_answer_sheet(request, current_user=None):
                                 "confidence": parsed.get("confidence", 90),
                                 "detected_text": parsed.get("detected_text", ""),
                             }, 200
+                else:
+                    resp_code = getattr(response, "code", "")
+                    resp_txt = str(getattr(response, "text", "") or getattr(response, "message", "") or "").lower()
+                    if response.status_code in (402, 403) or resp_code == "AI_CREDIT_EXHAUSTED" or "credit" in resp_txt:
+                        return {
+                            "status": False,
+                            "statusMessage": getattr(response, "message", None) or "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
+                            "credit_error": True,
+                            "error_code": "AI_CREDIT_EXHAUSTED",
+                            "available_credits": 0
+                        }, 402
             except Exception as page_vision_err:
                 print(f"Vision inspection error on page {page_num}: {page_vision_err}")
                 continue

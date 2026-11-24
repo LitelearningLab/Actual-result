@@ -3361,71 +3361,69 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       }
     }
 
-    let fastMatchedCount = 0;
-    let pendingScanCount = 0;
+    // Pre-flight AI credit quota check before processing individual bulk answer sheets
+    const targetInstId = this.getTargetInstituteId();
+    this.http.post<any>(`${API_BASE}/test-evaluation/estimate-credits`, {
+      pages: files.length,
+      student_count: files.length,
+      institute_id: targetInstId,
+      exam_id: this.selectedExamId
+    }).subscribe({
+      next: (estRes) => {
+        if (estRes && estRes.status === false && (estRes.credit_error || estRes.error_code === 'EXHAUSTED')) {
+          this.aiCreditAlert.handleAiError(estRes, 'Student Paper Identification');
+          return;
+        }
+        if (estRes && estRes.has_allocation && estRes.available_credits <= 0) {
+          this.aiCreditAlert.handleAiError({
+            status: 402,
+            error: {
+              credit_error: true,
+              statusMessage: 'AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.'
+            }
+          }, 'Student Paper Identification');
+          return;
+        }
+        this.processIndividualBulkFiles(files);
+      },
+      error: (err) => {
+        if (err && (err.status === 402 || err.status === 403 || err?.error?.credit_error)) {
+          this.aiCreditAlert.handleAiError(err, 'Student Paper Identification');
+          return;
+        }
+        this.processIndividualBulkFiles(files);
+      }
+    });
+  }
 
+  processIndividualBulkFiles(files: FileList): void {
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
-      const baseName = f.name.replace(/\.[^/.]+$/, '').replace(/[_.-]/g, ' ').trim().toLowerCase();
 
-      // 1. Scenario 1: Fast match against assigned students via filename
-      const matchedStudent = this.students.find((s) => {
-        const sName = (s.name || '').toLowerCase();
-        const sRoll = (s.rollNo || '').toLowerCase();
-        return sName.includes(baseName) || baseName.includes(sName) || (sRoll && baseName.includes(sRoll));
-      });
-
-      const isMatched = !!matchedStudent;
-      if (isMatched) fastMatchedCount++;
-      else pendingScanCount++;
-
-      const isAlreadyEvaluated = matchedStudent?.status === 'AI Evaluated' || matchedStudent?.status === 'Manual Reviewed' || matchedStudent?.status === 'Need to Check';
-
+      // Pure AI Identification: no filename matching. Inspect physical paper pages directly via AI.
       const fileItem: BulkFileItem = {
         id: Date.now() + i,
         fileName: f.name,
-        studentName: matchedStudent ? matchedStudent.name : 'Identifying student...',
-        matchedBy: matchedStudent ? 'Matched by file name' : 'Scanning document pages...',
-        isMatched: isMatched,
-        isScanning: !isMatched,
+        studentName: 'Identifying student with AI...',
+        matchedBy: 'AI scanning paper pages...',
+        isMatched: false,
+        isScanning: true,
         pagesInfo: f.name.toLowerCase().endsWith('.pdf') ? '2 of 2 pages' : '1 of 1 pages',
         isPageWarning: false,
-        aiStatus: isMatched ? (isAlreadyEvaluated ? 'Completed' : 'Waiting') : 'Waiting',
-        evaluation: matchedStudent?.marks !== 'Not marked' ? matchedStudent?.marks || 'Ready for evaluation' : 'Ready for evaluation',
-        actionText: isMatched ? (isAlreadyEvaluated ? 'Review' : 'Evaluate') : 'Scanning...',
-        actionClass: isMatched ? 'btn-solid-blue' : 'btn-disabled',
-        selectedStudent: matchedStudent ? matchedStudent.name : undefined,
-        selectedUserId: matchedStudent ? matchedStudent.user_id : undefined,
+        aiStatus: 'Waiting',
+        evaluation: 'Ready for evaluation',
+        actionText: 'Scanning...',
+        actionClass: 'btn-disabled',
         file: f
       };
 
-      if (matchedStudent) {
-        matchedStudent.matchedFile = f.name;
-        matchedStudent.matchedBy = 'Matched by file name';
-        matchedStudent.isMatched = true;
-        matchedStudent.rawFile = f;
-        matchedStudent.isUploaded = false;
-        matchedStudent.pagesInfo = fileItem.pagesInfo;
-        matchedStudent.status = isAlreadyEvaluated ? matchedStudent.status : 'Not Evaluated';
-        matchedStudent.actionText = isAlreadyEvaluated ? 'Review' : 'Evaluate';
-        matchedStudent.actionClass = 'btn-solid-blue';
-      }
-
       this.bulkFiles.push(fileItem);
-
-      // 2. Scenario 2: Multi-Page Vision & OCR inspection if not matched by filename
-      if (!isMatched) {
-        this.identifyStudentFromFile(fileItem, f);
-      }
+      this.identifyStudentFromFile(fileItem, f);
     }
 
     this.recalculateKpiTotals();
     this.filterStudents();
-    if (pendingScanCount > 0) {
-      notify(`Added ${files.length} file(s). ${fastMatchedCount} matched by name, scanning ${pendingScanCount} document(s)...`, 'info');
-    } else {
-      notify(`Added ${files.length} file(s). ${this.matchedCount} student(s) matched.`, 'success');
-    }
+    notify(`Added ${files.length} file(s). AI is scanning answer sheets to identify students...`, 'info');
   }
 
   identifyStudentFromFile(fileItem: BulkFileItem, file: File): void {
@@ -3434,6 +3432,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (this.selectedExamId) {
       formData.append('exam_id', this.selectedExamId);
       formData.append('schedule_id', this.selectedExamId);
+    }
+    const targetInstId = this.getTargetInstituteId();
+    if (targetInstId) {
+      formData.append('institute_id', targetInstId);
     }
     const studentRoster = this.students.map((s) => ({
       user_id: s.user_id,
@@ -3445,6 +3447,19 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.http.post<any>(`${API_BASE}/test-evaluation/identify-student`, formData).subscribe({
       next: (res) => {
         fileItem.isScanning = false;
+        if (res?.credit_error || (res && res.status === false && (res?.error_code === 'AI_CREDIT_EXHAUSTED' || res?.credit_error))) {
+          this.aiCreditAlert.handleAiError(res, 'Student Paper Identification');
+          fileItem.isMatched = false;
+          fileItem.studentName = 'Student not identified';
+          fileItem.matchedBy = 'AI Credit Quota Exhausted';
+          fileItem.aiStatus = 'Waiting';
+          fileItem.actionText = 'Select student';
+          fileItem.actionClass = 'btn-disabled';
+          this.recalculateKpiTotals();
+          this.filterStudents();
+          return;
+        }
+
         if (res && res.status && res.matched && (res.user_id || res.student_name)) {
           const foundStudent = this.students.find(
             (s) => (res.user_id && String(s.user_id) === String(res.user_id)) ||
@@ -3497,6 +3512,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.recalculateKpiTotals();
         this.filterStudents();
         console.warn('Student identification failed for file:', fileItem.fileName, err);
+
+        // Raise AI Credit modal popup if credits are exhausted
+        if (!this.aiCreditAlert.handleAiError(err, 'Student Paper Identification')) {
+          notify(err?.error?.statusMessage || 'Error identifying student from answer sheet.', 'error');
+        }
       }
     });
   }
