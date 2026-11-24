@@ -1,4 +1,23 @@
 # Changelog
+## [2.6.1] - 2026-11-24
+
+### Features & Enhancements
+- **Tiered AI Credit Monitoring & Status Architecture**:
+  - Enhanced `backend/others/ai_credits.py` with multi-tier quota status tracking (`healthy`, `low_balance`, `critical`, `exhausted`) based on remaining credits (<= 40,000 for low balance, <= 5,000 for critical balance, <= 0 for exhausted).
+  - Added API response flags (`is_critical_credit`, `is_exhausted`, `credit_tier`, `status`) to `get_ai_credits_summary_api` and `get_all_institutes_overview_api`.
+- **Admin AI Credits Dashboard & Navigation Alerts**:
+  - Updated `ai-credits.component.ts/.html/.scss` with dynamic KPI cards, tier indicators (`tier-critical`, `tier-exhausted`, `tier-low_balance`), alert badges, and contextual quota guidance.
+  - Updated `navbar-main.component.ts/.html/.scss` to display tiered credit status warnings and balance indicators directly in the header navigation.
+  - Added high-visibility snackbar alert themes (`.snack-warning`, `.snack-critical`, `.snack-error`, `.snack-success`) in `src/styles.scss` and wired severity levels in `notification.service.ts`.
+- **Institute Test Mode Controls Migration**:
+  - Added database migration script `backend/db/migrations/20261123_add_institute_online_paper_test_toggles.sql` to support `allow_online_test` and `allow_paper_test` bit flags on `dbo.Institutes`.
+- **UI Assets & KaTeX Math Fonts**:
+  - Bundled complete KaTeX math font families and refreshed UI icon/image assets in distribution package.
+
+### Version Tracking
+- Bumped application patch version to `2.6.1` across `version.ts`, `package.json`, and changelog.
+
+---
 ## [2.6.0] - 2026-11-24
 
 ### Features & Enhancements
