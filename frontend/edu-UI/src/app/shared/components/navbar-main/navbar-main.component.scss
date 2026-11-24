@@ -252,13 +252,10 @@ $ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
     border-left: 4px solid #d97706;
     .toast-icon-wrap { background: #fef3c7; color: #d97706; }
   }
-  &.tier-critical {
+  &.tier-critical,
+  &.tier-exhausted {
     border-left: 4px solid #dc2626;
     .toast-icon-wrap { background: #fee2e2; color: #dc2626; }
-  }
-  &.tier-exhausted {
-    border-left: 4px solid #7c3aed;
-    .toast-icon-wrap { background: #ede9fe; color: #7c3aed; }
   }
 
   .toast-icon-wrap {
@@ -438,21 +435,43 @@ $ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
       }
     }
 
-    &.tier-critical {
+    &.tier-critical,
+    &.tier-exhausted {
       background: #fef2f2;
       border-color: #fecaca;
       .notif-card-icon-wrap {
         background: #fee2e2;
         color: #dc2626;
       }
+      .notif-card-title {
+        color: #991b1b;
+        font-weight: 500;
+      }
     }
 
-    &.tier-exhausted {
-      background: #faf5ff;
-      border-color: #f3e8ff;
-      .notif-card-icon-wrap {
-        background: #ede9fe;
-        color: #7c3aed;
+    .btn-notif-remove {
+      background: transparent;
+      border: none;
+      padding: 0.25rem;
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #94a3b8;
+      transition: all 0.15s ease-in-out;
+      margin-left: 0.35rem;
+      flex-shrink: 0;
+
+      &:hover {
+        background: rgba(220, 38, 38, 0.12);
+        color: #dc2626;
+      }
+
+      mat-icon {
+        font-size: 1.15rem;
+        width: 1.15rem;
+        height: 1.15rem;
       }
     }
 

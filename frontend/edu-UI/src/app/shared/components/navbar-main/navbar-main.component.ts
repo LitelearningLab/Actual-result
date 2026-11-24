@@ -346,18 +346,14 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
     // 3. Close notification dropdown
     this.closeNotifications();
 
-    // 4. If Super Admin clicked a notification for a specific organization/institute, switch active context
-    if (this.isSuperAdmin && notif.institute_id) {
-      this.globalInstituteContext.setContext({
-        institute_id: notif.institute_id,
-        institute_name: notif.institute_name || notif.institute_id
+    // 4. For regular school admins, navigate to their credits page.
+    // For Super Admin: Do NOT switch organization and do NOT hijack context.
+    // Super Admin stays on Profluent Lab Pvt. Ltd at all times.
+    if (!this.isSuperAdmin) {
+      this.router.navigate(['/admin/ai-credits']).catch(() => {
+        this.router.navigateByUrl('/admin/ai-credits');
       });
     }
-
-    // 5. Redirect to AI credits page
-    this.router.navigate(['/admin/ai-credits']).catch(() => {
-      this.router.navigateByUrl('/admin/ai-credits');
-    });
   }
 
   markNotificationsAsRead(): void {
@@ -441,22 +437,70 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
            String(notif?.title || '').toLowerCase().includes('credit');
   }
 
-  getNotificationIcon(notif: AiCreditNotificationItem): string {
-    switch (notif.severity) {
-      case 'EXHAUSTED': return 'error';
-      case 'CRITICAL': return 'warning';
-      case 'WARNING': return 'notifications_active';
-      default: return 'auto_awesome';
+  dismissNotification(notif: AiCreditNotificationItem, event: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
     }
+    if (!notif) return;
+
+    if (!notif.is_read) {
+      this.aiNotificationService.markAsRead(notif.notification_id).subscribe({
+        error: (err) => console.warn('[AiNotification] mark-read error:', err)
+      });
+    }
+
+    this.creditNotifications = this.creditNotifications.filter(n => n.notification_id !== notif.notification_id);
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
+    this.hasUnreadNotification = (this.unreadNotificationCount > 0);
+  }
+
+  getNotificationIcon(notif: AiCreditNotificationItem): string {
+    const sev = String(notif?.severity || '').toUpperCase();
+    const evt = String(notif?.event_type || '').toUpperCase();
+    const title = String(notif?.title || '').toLowerCase();
+    const msg = String(notif?.message || '').toLowerCase();
+
+    if (
+      sev === 'EXHAUSTED' ||
+      sev === 'CRITICAL' ||
+      evt === 'EXHAUSTED' ||
+      evt === 'CRITICAL_BALANCE' ||
+      title.includes('insufficient') ||
+      title.includes('exhausted') ||
+      msg.includes('insufficient') ||
+      msg.includes('exhausted')
+    ) {
+      return 'report_problem';
+    }
+    if (sev === 'WARNING' || evt === 'LOW_BALANCE' || title.includes('low') || msg.includes('low balance')) {
+      return 'warning_amber';
+    }
+    return 'auto_awesome';
   }
 
   getCardTierClass(notif: AiCreditNotificationItem): string {
-    switch (notif.severity) {
-      case 'EXHAUSTED': return 'tier-exhausted';
-      case 'CRITICAL': return 'tier-critical';
-      case 'WARNING': return 'tier-warning';
-      default: return 'tier-info';
+    const sev = String(notif?.severity || '').toUpperCase();
+    const evt = String(notif?.event_type || '').toUpperCase();
+    const title = String(notif?.title || '').toLowerCase();
+    const msg = String(notif?.message || '').toLowerCase();
+
+    if (
+      sev === 'EXHAUSTED' ||
+      sev === 'CRITICAL' ||
+      evt === 'EXHAUSTED' ||
+      evt === 'CRITICAL_BALANCE' ||
+      title.includes('insufficient') ||
+      title.includes('exhausted') ||
+      msg.includes('insufficient') ||
+      msg.includes('exhausted')
+    ) {
+      return 'tier-critical';
     }
+    if (sev === 'WARNING' || evt === 'LOW_BALANCE' || title.includes('low') || msg.includes('low balance')) {
+      return 'tier-warning';
+    }
+    return 'tier-info';
   }
 
   formatRelativeTime(dateStr?: string | null): string {

@@ -7105,6 +7105,19 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
             )
             if not has_access:
                 try:
+                    from others.ai_credit_notifications import AICreditNotificationManager
+                    AICreditNotificationManager().create_notification(
+                        institute_id=split_inst_id,
+                        event_type="EXHAUSTED",
+                        severity="critical",
+                        title="AI Evaluation - Insufficient Credits",
+                        message="Cannot scan multi-student PDF because AI credit quota has been exhausted. Please recharge credits to evaluate.",
+                        credits_amount=0,
+                        remaining_credits=remaining or 0
+                    )
+                except Exception:
+                    pass
+                try:
                     doc.close()
                 except Exception:
                     pass
@@ -7301,6 +7314,14 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                         }
             except Exception as vis_err:
                 print(f"[split_multi_student_pdf] Vision error on page {p_num}: {vis_err}", flush=True)
+                err_str = str(vis_err).lower()
+                if "credit" in err_str or "quota" in err_str or "402" in err_str:
+                    return {
+                        "page_num": p_num,
+                        "credit_exhausted": True,
+                        "error_message": "AI Credit Quota Exhausted. Please recharge your AI credits.",
+                        "matched": False
+                    }
 
         return {
             "page_num": p_num,
@@ -7344,18 +7365,21 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
 
         # Check if credit exhaustion was detected during page inspection
         exhausted_insp = next((insp for insp in inspections_by_pnum.values() if insp.get("credit_exhausted")), None)
-        if exhausted_insp:
+        any_credit_exhausted = bool(exhausted_insp)
+        if any_credit_exhausted and split_inst_id:
             try:
-                doc.close()
-            except Exception:
-                pass
-            return {
-                "status": False,
-                "statusMessage": exhausted_insp.get("error_message") or "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
-                "credit_error": True,
-                "error_code": "AI_CREDIT_EXHAUSTED",
-                "available_credits": 0
-            }, 402
+                from others.ai_credit_notifications import AICreditNotificationManager
+                AICreditNotificationManager().create_notification(
+                    institute_id=split_inst_id,
+                    event_type="EXHAUSTED",
+                    severity="critical",
+                    title="AI Evaluation - Insufficient Credits",
+                    message="AI credits ran out while scanning multi-student PDF. Matched student papers were preserved; remaining sheets are marked as Unmatched.",
+                    credits_amount=0,
+                    remaining_credits=0
+                )
+            except Exception as _notif_err:
+                print(f"[split_multi_student_pdf] Bell notification error: {_notif_err}", flush=True)
 
         for s_idx, (start_idx, end_idx) in enumerate(chunks):
             start_pnum = start_idx + 1
@@ -7366,8 +7390,8 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
             is_m = bool(insp.get("matched"))
             conf = insp.get("confidence", 85 if is_m else 0)
 
-            # Fallback to roster sequence if unassigned and matching index exists
-            if not is_m and s_idx < len(students_roster):
+            # Only fallback to roster sequence if credits are healthy AND user hasn't exhausted
+            if not is_m and not any_credit_exhausted and s_idx < len(students_roster):
                 fallback_st = students_roster[s_idx]
                 u_id = fallback_st.get("user_id")
                 s_name = fallback_st.get("name")
@@ -7375,6 +7399,13 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                 is_m = True
                 conf = 75
                 insp["matched_by"] = f"Assigned by sequence (Page {start_pnum})"
+            elif not is_m:
+                u_id = None
+                s_name = f"Student not identified (Pages {start_idx + 1}–{end_idx + 1})"
+                r_no = ""
+                is_m = False
+                conf = 0
+                insp["matched_by"] = "Unmatched – AI credits exhausted" if any_credit_exhausted else "Unmatched"
 
             chunk_pages = list(range(start_idx + 1, end_idx + 2))
             segments.append({
@@ -7405,18 +7436,37 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
 
         # Check if credit exhaustion was detected during page inspection
         exhausted_insp = next((insp for insp in inspections_by_pnum.values() if insp.get("credit_exhausted")), None)
-        if exhausted_insp:
+        any_credit_exhausted = bool(exhausted_insp)
+        if any_credit_exhausted and split_inst_id:
             try:
-                doc.close()
-            except Exception:
-                pass
-            return {
-                "status": False,
-                "statusMessage": exhausted_insp.get("error_message") or "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
-                "credit_error": True,
-                "error_code": "AI_CREDIT_EXHAUSTED",
-                "available_credits": 0
-            }, 402
+                from others.ai_credit_notifications import AICreditNotificationManager
+                AICreditNotificationManager().create_notification(
+                    institute_id=split_inst_id,
+                    event_type="EXHAUSTED",
+                    severity="critical",
+                    title="AI Evaluation - Insufficient Credits",
+                    message="AI credits ran out while scanning multi-student PDF. Matched student papers were preserved; remaining sheets are marked as Unmatched.",
+                    credits_amount=0,
+                    remaining_credits=0
+                )
+            except Exception as _notif_err:
+                print(f"[split_multi_student_pdf] Bell notification error: {_notif_err}", flush=True)
+
+        # Detect typical pages per student from identified start pages
+        start_page_indices = [
+            p_idx for p_idx in range(total_pages)
+            if inspections_by_pnum.get(p_idx + 1, {}).get("is_start") and (
+                inspections_by_pnum.get(p_idx + 1, {}).get("user_id") or
+                inspections_by_pnum.get(p_idx + 1, {}).get("student_name")
+            )
+        ]
+        typical_pages = 4
+        if len(start_page_indices) >= 2:
+            diffs = [start_page_indices[i] - start_page_indices[i-1] for i in range(1, len(start_page_indices)) if start_page_indices[i] > start_page_indices[i-1]]
+            if diffs:
+                typical_pages = max(1, min(diffs))
+        elif fixed_pages:
+            typical_pages = fixed_pages
 
         # Group all pages across the PDF by student (Merges multi-page papers for each student)
         student_page_groups = {}  # key -> dict with student info and list of page indices
@@ -7430,11 +7480,12 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
             roll = str(insp.get("roll_no") or "").strip().lower()
             name = str(insp.get("student_name") or "").strip()
             is_m = bool(insp.get("matched"))
+            is_start = bool(insp.get("is_start"))
 
             # Unique key per student: user_id > roll_no > name
             st_key = str(uid) if uid else (roll if roll else (name.lower() if name else None))
 
-            if st_key:
+            if st_key and (is_start or st_key not in student_page_groups):
                 last_known_key = st_key
                 if st_key not in student_page_groups:
                     student_page_groups[st_key] = {
@@ -7447,27 +7498,29 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
                         "pages": [p_idx],
                     }
                 else:
-                    # Append this page to this student's list of pages (e.g. Ben's page 2)
                     student_page_groups[st_key]["pages"].append(p_idx)
+            elif last_known_key and last_known_key in student_page_groups and len(student_page_groups[last_known_key]["pages"]) < typical_pages:
+                # Only attach if student hasn't reached the typical page count (prevents dumping remaining pages onto one student)
+                student_page_groups[last_known_key]["pages"].append(p_idx)
             else:
-                # If page has no header, attach it to the preceding student's paper
-                if last_known_key and last_known_key in student_page_groups:
-                    student_page_groups[last_known_key]["pages"].append(p_idx)
-                else:
-                    unmatched_pages.append(p_idx)
+                last_known_key = None
+                unmatched_pages.append(p_idx)
 
-        # Handle any completely unmatched pages
-        for u_idx, u_pidx in enumerate(unmatched_pages):
-            u_pnum = u_pidx + 1
-            u_key = f"unmatched_{u_pnum}"
+        # Keep all unmatched pages together as ONE single unbroken block
+        # (Does not guess page counts; preserves the true student papers without cutting them in half)
+        if unmatched_pages:
+            first_up = unmatched_pages[0] + 1
+            last_up = unmatched_pages[-1] + 1
+            p_label = f"Pages {first_up}–{last_up}" if first_up != last_up else f"Page {first_up}"
+            u_key = f"unmatched_remaining_{first_up}_{last_up}"
             student_page_groups[u_key] = {
                 "user_id": None,
-                "student_name": f"Student (Page {u_pnum})",
+                "student_name": f"Student not identified ({p_label})",
                 "roll_no": "",
                 "is_matched": False,
                 "confidence": 0,
-                "matched_by": "Unmatched",
-                "pages": [u_pidx],
+                "matched_by": "Unmatched – AI credits exhausted" if any_credit_exhausted else "Unmatched",
+                "pages": unmatched_pages,
             }
 
         # 5. Extract and save sub-PDFs for each unique student combining ALL their pages
@@ -7538,15 +7591,8 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
     except Exception as ce_err:
         print(f"[split_multi_student_pdf] Credit capacity calc error: {ce_err}")
 
-    if credit_estimation and credit_estimation.get("has_allocation") and (credit_estimation.get("available_credits", 0) <= 0):
-        return {
-            "status": False,
-            "statusMessage": "AI Credit Quota Exhausted. 0 credits remaining. Please recharge your AI credits.",
-            "credit_error": True,
-            "error_code": "AI_CREDIT_EXHAUSTED",
-            "available_credits": 0,
-            "credit_estimation": credit_estimation
-        }, 402
+    is_capacity_exhausted = bool(credit_estimation and credit_estimation.get("has_allocation") and (credit_estimation.get("available_credits", 0) <= 0))
+    is_credit_exhausted_overall = any_credit_exhausted or is_capacity_exhausted
 
     return {
         "status": True,
@@ -7555,6 +7601,8 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
         "total_students": len(segments),
         "identified_count": matched_count,
         "unmatched_count": unmatched_count,
+        "credit_exhausted_midway": is_credit_exhausted_overall,
+        "credit_message": "AI credits were exhausted during scanning. Matched sheets were preserved; remaining sheets are marked as Unmatched." if is_credit_exhausted_overall else None,
         "segments": segments,
         "credit_estimation": credit_estimation
     }, 200

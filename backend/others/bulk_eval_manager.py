@@ -244,6 +244,20 @@ class BulkEvaluationManager:
             enforce_reserve=True
         )
         if not has_access:
+            if target_inst_id:
+                try:
+                    from others.ai_credit_notifications import AICreditNotificationManager
+                    AICreditNotificationManager().create_notification(
+                        institute_id=target_inst_id,
+                        event_type="EXHAUSTED",
+                        severity="critical",
+                        title="AI Evaluation - Insufficient Credits",
+                        message=f"Evaluation paused at student {student_name}. Remaining students are waiting for AI credits.",
+                        credits_amount=0,
+                        remaining_credits=0
+                    )
+                except Exception as _b_notif_err:
+                    logger.warning(f"[BulkEvalManager] Notification error: {_b_notif_err}")
             with self.lock:
                 job["status"] = "paused_insufficient_credits"
                 st_record["status"] = "paused"
@@ -587,6 +601,24 @@ class BulkEvaluationManager:
             if is_all_done:
                 job["status"] = "completed"
             self._persist_job(job_id)
+
+        # Persist failure status to DB so it survives browser refresh / SSE reconnect.
+        # Uses schedule_id + user_id to target only this student's attempt — never touches other students.
+        try:
+            from others.exams import SQLiteDB, Exam_Attempt
+            db_fail = SQLiteDB()
+            sess_fail = db_fail.connect()
+            if sess_fail:
+                eval_sched_id = str(job.get("schedule_id") or job.get("exam_id"))
+                sess_fail.query(Exam_Attempt).filter(
+                    Exam_Attempt.user_id == str(user_id),
+                    Exam_Attempt.schedule_id == eval_sched_id,
+                    Exam_Attempt.status == "in_progress"  # only update this student's in-progress attempt
+                ).update({"status": "failed"}, synchronize_session=False)
+                sess_fail.commit()
+                sess_fail.close()
+        except Exception as _db_fail_err:
+            logger.warning(f"[BulkEvalManager] Could not persist failure status to DB for {user_id}: {_db_fail_err}")
 
         self._emit_event(job_id, "sheet_failed", {
             "job_id": job_id,

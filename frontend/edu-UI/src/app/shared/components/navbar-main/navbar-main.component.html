@@ -78,6 +78,9 @@
                     <span class="notif-time">{{ formatRelativeTime(notif.created_date) }}</span>
                   </div>
                 </div>
+                <button type="button" class="btn-notif-remove" (click)="dismissNotification(notif, $event)" title="Dismiss notification" aria-label="Dismiss">
+                  <mat-icon>close</mat-icon>
+                </button>
               </div>
             </ng-container>
 

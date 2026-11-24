@@ -63,6 +63,11 @@ export interface StudentEvaluation {
   splitSegment?: MultiStudentSplitSegment;
   splitBatchId?: string;
   isRemoving?: boolean;
+  isQueued?: boolean;
+  isEvaluating?: boolean;
+  completedQuestions?: number;
+  totalQuestions?: number;
+  failureReason?: string;
 }
 
 export interface MultiStudentSplitSegment {
@@ -340,6 +345,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   // ─── Multi-Student Single PDF Bulk Upload State ───
   bulkUploadMode: 'individual' | 'combined_pdf' = 'combined_pdf';
   isSplittingPdf = false;
+  splitPdfSubscription: Subscription | null = null;
   splitBatchData: MultiStudentSplitBatch | null = null;
   combinedPdfFileName = '';
 
@@ -1298,7 +1304,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         }
       }
 
-      const isDbEvaluated = (scoreVal !== null && scoreVal !== undefined) ||
+      // isDbEvaluated: true only when DB status is genuinely evaluated/reviewed.
+      // 'Evaluating...' and 'Failed' from backend mean evaluation is NOT complete.
+      const isDbEvaluated =
         rawStatus === 'AI Evaluated' || rawStatus === 'evaluated' || rawStatus === 'Completed' ||
         rawStatus === 'Manual Reviewed' || rawStatus === 'Need to Check';
 
@@ -1308,6 +1316,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         status = 'Manual Reviewed';
       } else if (normStatus === 'need to check' || normStatus === 'need_to_check') {
         status = 'Need to Check';
+      } else if (normStatus === 'evaluating...' || normStatus === 'evaluating') {
+        // Backend says evaluation is running (in_progress) — show animation, never marks
+        status = 'Evaluating...';
+      } else if (normStatus === 'failed') {
+        // Backend says evaluation failed — show Failed badge, no marks
+        status = 'Failed';
       } else if (isDbEvaluated) {
         status = 'AI Evaluated';
       } else {
@@ -1335,6 +1349,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
 
       const isEvaluated = isDbEvaluated;
+      // Derive flags from status resolved above — drives shimmer animation on page load
+      const isEvaluatingOnLoad = (status === 'Evaluating...');
+      // When evaluating, suppress provisional score/result so template shows animation
+      const displayMarks = isEvaluatingOnLoad ? 'Not marked' : marksDisplay;
+      const displayResult = isEvaluatingOnLoad ? null : resultVal;
 
       return {
         sno: idx + 1,
@@ -1343,15 +1362,20 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         rollNo: user.roll_no || user.user_name || `Roll No. ${idx + 1}`,
         pagesInfo: pagesInfo,
         status: status,
-        marks: marksDisplay,
-        result: resultVal,
+        marks: displayMarks,
+        result: displayResult,
         actionText: isEvaluated ? 'Review' : 'Evaluate',
         actionClass: 'btn-solid-blue',
         rawFile: rawFile,
         isUploaded: isUploaded,
         matchedFile: matchedFile,
         matchedBy: matchedBy,
-        isMatched: isMatched
+        isMatched: isMatched,
+        isEvaluating: isEvaluatingOnLoad,
+        isQueued: false,
+        failureReason: status === 'Failed'
+          ? this.formatFailureReason(user.error || user.failure_reason || prevStudent?.failureReason)
+          : undefined
       };
     });
 
@@ -1566,6 +1590,39 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }
 
     this.filteredStudents = list;
+  }
+
+  getFailureTooltip(student: StudentEvaluation): string {
+    if (student.failureReason) {
+      return student.failureReason;
+    }
+    return 'AI evaluation could not be completed for this answer sheet. Click Retry to evaluate again.';
+  }
+
+  private formatFailureReason(rawError?: string): string {
+    const msg = String(rawError || '').trim();
+    const lower = msg.toLowerCase();
+
+    if (!msg) {
+      return 'AI evaluation could not be completed due to a temporary error. Click Retry to evaluate again.';
+    }
+    if (lower.includes('unable to download') || lower.includes('timed out') || lower.includes('timeout')) {
+      return 'The AI service timed out while downloading the answer sheet images from storage. Click Retry to evaluate again.';
+    }
+    if (lower.includes('credit') || lower.includes('quota') || lower.includes('exhausted') || lower.includes('reserve')) {
+      return 'AI credits were insufficient or reached the reserve limit. Top up AI credits, then click Retry.';
+    }
+    if (lower.includes('gcs') || lower.includes('signed url') || lower.includes('storage')) {
+      return 'Could not access the answer sheet pages in cloud storage. Click Retry or re-attach the sheet.';
+    }
+    if (lower.includes('502') || lower.includes('503') || lower.includes('504') || lower.includes('connection') || lower.includes('network')) {
+      return 'Temporary connection issue with the AI evaluation service. Click Retry to try again.';
+    }
+    if (lower.includes('no graded answers')) {
+      return 'The AI could not extract graded answers from these pages. Click Retry or check that the uploaded pages are clear.';
+    }
+    const cleanMsg = msg.replace(/^Failed evaluating [^:]+:\s*/i, '').replace(/\s*Please retry\.?$/i, '').trim();
+    return `${cleanMsg}. Click Retry to evaluate again.`;
   }
 
   // ─── Split-View Evaluation Handlers ───
@@ -2874,6 +2931,16 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.evalProgressCompleted = 0;
     this.evalProgressPercent = 0;
 
+    if (targetStudent) {
+      targetStudent.isEvaluating = true;
+      targetStudent.isQueued = false;
+      targetStudent.status = 'Evaluating...';
+      targetStudent.actionText = 'Evaluating...';
+      targetStudent.actionClass = 'btn-evaluating-pulse';
+      targetStudent.completedQuestions = 0;
+      targetStudent.totalQuestions = totalQ;
+    }
+
     this.evalQuestionList = Array.from({ length: totalQ }, (_, i) => ({
       number: i + 1,
       status: (i === 0 ? 'Evaluating' : 'Waiting') as 'Evaluated' | 'Evaluating' | 'Waiting' | 'Failed'
@@ -2899,6 +2966,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.evalQuestionList[currentActiveIdx].status = 'Evaluating';
         this.evalProgressCompleted = currentActiveIdx;
         this.evalProgressPercent = Math.min(95, Math.round((this.evalProgressCompleted / totalQ) * 100));
+        if (targetStudent) {
+          targetStudent.completedQuestions = this.evalProgressCompleted;
+          targetStudent.totalQuestions = totalQ;
+        }
         this.cdr.detectChanges();
       }
     }, 2800);
@@ -2938,9 +3009,18 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
               const pagesCount = res.data?.total_pages || res.data?.pages?.length || 1;
               targetStudent.pagesInfo = `${pagesCount} of ${pagesCount} pages`;
               targetStudent.missingPagesWarning = undefined;
+              targetStudent.isEvaluating = false;
+              targetStudent.isQueued = false;
               targetStudent.status = 'AI Evaluated';
               if (res.data?.marks) {
                 targetStudent.marks = res.data.marks;
+              }
+              const totalMarksVal = parseFloat(String(this.testDetails?.totalMarks || '').replace(/[^\d.]/g, '')) || 0;
+              const passMarkVal = this.effectivePassMark;
+              const scoreVal = parseFloat(String(targetStudent.marks).split('/')[0]);
+              if (!isNaN(scoreVal) && totalMarksVal > 0) {
+                const studentPct = (scoreVal / totalMarksVal) * 100;
+                targetStudent.result = studentPct >= passMarkVal ? 'Pass' : 'Fail';
               }
               targetStudent.matchedFile = undefined;
               targetStudent.isUploaded = true;
@@ -2974,6 +3054,14 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           }, 600);
         } else {
           this.isUploading = false;
+          if (targetStudent) {
+            targetStudent.isEvaluating = false;
+            targetStudent.isQueued = false;
+            targetStudent.status = 'Failed';
+            targetStudent.actionText = 'Retry';
+            targetStudent.actionClass = 'btn-retry-danger';
+            targetStudent.failureReason = this.formatFailureReason(res?.statusMessage);
+          }
           // Flag current evaluating question as Failed
           const activeQ = this.evalQuestionList.find(q => q.status === 'Evaluating');
           if (activeQ) activeQ.status = 'Failed';
@@ -2987,6 +3075,16 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           this.evalProgressInterval = null;
         }
         this.isUploading = false;
+        if (targetStudent) {
+          targetStudent.isEvaluating = false;
+          targetStudent.isQueued = false;
+          targetStudent.status = 'Failed';
+          targetStudent.actionText = 'Retry';
+          targetStudent.actionClass = 'btn-retry-danger';
+          targetStudent.failureReason = this.formatFailureReason(
+            err?.error?.statusMessage || err?.error?.message || err?.error?.error
+          );
+        }
         const activeQ = this.evalQuestionList.find(q => q.status === 'Evaluating');
         if (activeQ) activeQ.status = 'Failed';
         this.cdr.detectChanges();
@@ -3676,8 +3774,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }));
     formData.append('students', JSON.stringify(studentRoster));
 
-    this.http.post<any>(`${API_BASE}/test-evaluation/split-multi-student-pdf`, formData).subscribe({
+    this.splitPdfSubscription = this.http.post<any>(`${API_BASE}/test-evaluation/split-multi-student-pdf`, formData).subscribe({
       next: (res) => {
+        this.splitPdfSubscription = null;
         this.isSplittingPdf = false;
         // Remove the temporary scanning placeholder
         const scanIdx = this.bulkFiles.findIndex((b) => b.id === tempScanId);
@@ -3685,11 +3784,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           this.bulkFiles.splice(scanIdx, 1);
         }
 
-        // Intercept credit error in payload if present
-        if (res?.credit_error || (res?.credit_estimation?.has_allocation && res?.credit_estimation?.available_credits <= 0)) {
+        // Intercept credit error in payload if present ONLY if no segments were returned at all
+        if ((!res?.segments || res?.segments.length === 0) && (res?.credit_error || (res?.credit_estimation?.has_allocation && res?.credit_estimation?.available_credits <= 0))) {
           this.recalculateKpiTotals();
           this.filterStudents();
-          this.aiCreditAlert.handleAiError(res, 'Student Paper Identification');
+          notify(res?.statusMessage || 'AI Credit limit reached. Please recharge your AI credits.', 'info');
           return;
         }
 
@@ -3787,19 +3886,25 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
           this.recalculateKpiTotals();
           this.filterStudents();
-          notify(
-            `Detected ${res.segments.length} student answer sheets (${matchedCount} identified automatically).`,
-            'success'
-          );
+          if (res?.credit_exhausted_midway) {
+            notify(
+              `Scanned ${res.segments.length} student sheets (${matchedCount} matched). Remaining sheets marked as Unmatched due to AI credits.`,
+              'info'
+            );
+          } else {
+            notify(
+              `Detected ${res.segments.length} student answer sheets (${matchedCount} identified automatically).`,
+              'success'
+            );
+          }
         } else {
           this.recalculateKpiTotals();
           this.filterStudents();
-          if (res?.credit_error || !this.aiCreditAlert.handleAiError(res, 'Student Paper Identification')) {
-            notify(res?.statusMessage || 'Failed to split and identify multi-student PDF.', 'error');
-          }
+          notify(res?.statusMessage || 'Failed to split and identify multi-student PDF.', 'error');
         }
       },
       error: (err) => {
+        this.splitPdfSubscription = null;
         this.isSplittingPdf = false;
         const scanIdx = this.bulkFiles.findIndex((b) => b.id === tempScanId);
         if (scanIdx !== -1) {
@@ -3808,11 +3913,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.recalculateKpiTotals();
         this.filterStudents();
         console.error('Error splitting multi-student PDF:', err);
-
-        // Raise AI Credit modal popup if credits are exhausted
-        if (!this.aiCreditAlert.handleAiError(err, 'Student Paper Identification')) {
-          notify(err?.error?.statusMessage || 'Error analyzing and splitting multi-student PDF.', 'error');
-        }
+        notify(err?.error?.statusMessage || 'Error analyzing and splitting multi-student PDF.', 'error');
       }
     });
   }
@@ -3836,45 +3937,63 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   confirmSplitAndEvaluate(): void {
     if (!this.splitBatchData || !this.selectedExamId) return;
 
+    // Filter ONLY segments that are actually matched to a student in the table
     const validSegments = this.splitBatchData.segments.filter((s) => s.user_id && s.is_matched);
     if (validSegments.length === 0) {
       notify('Please ensure at least one student is matched or assigned before starting evaluation.', 'info');
       return;
     }
 
-    const est = this.splitBatchData.credit_estimation;
-    // Case 2: Insufficient credits - show estimation dialog
-    if (est && !est.has_sufficient) {
-      this.aiCreditAlert.confirmEvaluationEstimate({
-        title: 'Insufficient Credits for Full Evaluation',
-        totalStudents: est.total_students,
-        totalPages: est.total_pages,
-        estimatedTokens: est.estimated_tokens,
-        availableCredits: est.available_credits,
-        usableCredits: est.usable_credits,
-        minimumReserve: est.minimum_reserve || 1000,
-        feasibleCount: est.feasible_count,
-        pendingCount: est.pending_count,
-        feasibleUserIds: est.feasible_user_ids,
-        pendingUserIds: est.pending_user_ids,
-      }).subscribe((result) => {
-        if (result && result.action === 'continue' && (result.allowedCount || 0) > 0) {
-          const allowedSet = new Set(
-            result.allowedUserIds && result.allowedUserIds.length
-              ? result.allowedUserIds
-              : validSegments.slice(0, result.allowedCount).map((s) => String(s.user_id))
-          );
-          const partialSegments = validSegments.filter((s) => allowedSet.has(String(s.user_id)));
-          this.executeConfirmedSplitEvaluation(partialSegments, Array.from(allowedSet));
-        } else {
-          notify('Evaluation cancelled. No credits consumed.', 'info');
-        }
-      });
-      return;
-    }
+    // Accurately estimate credits ONLY for the students with attached papers (e.g. Prakash only)
+    const segmentsEstimateList = validSegments.map((s) => ({
+      user_id: s.user_id,
+      student_name: s.student_name,
+      pages: s.total_pages || 1
+    }));
 
-    // Case 1: Sufficient credits - start immediately
-    this.executeConfirmedSplitEvaluation(validSegments);
+    this.http.post<any>(`${API_BASE}/test-evaluation/estimate-credits`, {
+      exam_id: this.selectedExamId,
+      institute_id: this.getTargetInstituteId(),
+      students: segmentsEstimateList
+    }).subscribe({
+      next: (est) => {
+        if (est && est.status && !est.has_sufficient) {
+          this.aiCreditAlert.confirmEvaluationEstimate({
+            title: 'Insufficient Credits for Full Evaluation',
+            totalStudents: est.total_students,
+            totalPages: est.total_pages,
+            estimatedTokens: est.estimated_tokens,
+            availableCredits: est.available_credits,
+            usableCredits: est.usable_credits,
+            minimumReserve: est.minimum_reserve || 1000,
+            feasibleCount: est.feasible_count,
+            pendingCount: est.pending_count,
+            feasibleUserIds: est.feasible_user_ids,
+            pendingUserIds: est.pending_user_ids,
+          }).subscribe((result) => {
+            if (result && result.action === 'continue' && (result.allowedCount || 0) > 0) {
+              const allowedSet = new Set(
+                result.allowedUserIds && result.allowedUserIds.length
+                  ? result.allowedUserIds
+                  : validSegments.slice(0, result.allowedCount).map((s) => String(s.user_id))
+              );
+              const partialSegments = validSegments.filter((s) => allowedSet.has(String(s.user_id)));
+              this.executeConfirmedSplitEvaluation(partialSegments, Array.from(allowedSet));
+            } else {
+              notify('Evaluation cancelled. No credits consumed.', 'info');
+            }
+          });
+          return;
+        }
+
+        // Sufficient credits - start evaluation immediately
+        this.executeConfirmedSplitEvaluation(validSegments);
+      },
+      error: (err) => {
+        console.warn('Error estimating credits for split segments, starting evaluation directly:', err);
+        this.executeConfirmedSplitEvaluation(validSegments);
+      }
+    });
   }
 
   private executeConfirmedSplitEvaluation(segmentsToQueue: MultiStudentSplitSegment[], allowedUids?: string[]): void {
@@ -3896,11 +4015,15 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const queuedSet = new Set(segmentsToQueue.map((s) => String(s.user_id)));
     for (const s of this.students) {
       if (s.user_id && queuedSet.has(String(s.user_id))) {
+        s.isQueued = true;
+        s.isEvaluating = false;
         s.status = 'Evaluating...';
         s.actionText = 'Queued...';
         s.actionClass = 'btn-evaluating-pulse';
       } else if (s.splitSegment) {
         // Mark remaining unqueued students as Paused / Pending for credits
+        s.isQueued = false;
+        s.isEvaluating = false;
         s.status = 'Not Evaluated';
         s.actionText = 'Pending Credits';
         s.actionClass = 'btn-paused';
@@ -3961,6 +4084,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           targetStudent.matchedBy = bf.matchedBy;
           targetStudent.isMatched = true;
           targetStudent.pagesInfo = bf.pagesInfo;
+          if (bf.segmentData) {
+            targetStudent.splitSegment = bf.segmentData;
+          }
+          if (bf.splitBatchId) {
+            targetStudent.splitBatchId = bf.splitBatchId;
+          }
         }
       }
     }
@@ -4015,14 +4144,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         }
       });
       this.confirmSplitAndEvaluate();
-      // If no other pending raw individual files, evaluation queue has started
-      const pendingRaw = this.students.filter((s) => s.rawFile && !s.isUploaded && s.user_id && !s.splitSegment);
-      if (pendingRaw.length === 0) {
-        return;
-      }
+      return;
     }
 
-    const pendingUploads = this.students.filter((s) => s.rawFile && !s.isUploaded && s.user_id && !s.splitSegment);
+    const pendingUploads = this.students.filter(
+      (s) => (s.matchedFile || s.rawFile) && !s.isUploaded && s.user_id && !s.splitSegment && s.pagesInfo && s.pagesInfo !== '0 of 0 pages'
+    );
 
     if (pendingUploads.length > 0) {
       const studentEstimates = pendingUploads.map((s) => ({
@@ -4106,6 +4233,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const queuedSet = new Set(uploads.map((s) => String(s.user_id)));
     for (const s of this.students) {
       if (s.user_id && queuedSet.has(String(s.user_id))) {
+        s.isQueued = true;
+        s.isEvaluating = false;
         s.status = 'Evaluating...';
         s.actionText = 'Queued...';
         s.actionClass = 'btn-evaluating-pulse';
@@ -4252,9 +4381,21 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             if (student) {
               if (stData.status === 'evaluating') {
                 student.status = 'Evaluating...';
+                student.isEvaluating = true;
+                student.isQueued = false;
+                student.completedQuestions = stData.completed_questions || 0;
+                student.totalQuestions = stData.total_questions || (stData.questions ? stData.questions.length : undefined);
                 student.actionText = 'Evaluating...';
                 student.actionClass = 'btn-evaluating-pulse';
+              } else if (stData.status === 'queued') {
+                student.status = 'Evaluating...';
+                student.isQueued = true;
+                student.isEvaluating = false;
+                student.actionText = 'Queued...';
+                student.actionClass = 'btn-evaluating-pulse';
               } else if (stData.status === 'completed') {
+                student.isEvaluating = false;
+                student.isQueued = false;
                 student.status = 'AI Evaluated';
                 student.matchedFile = undefined;
                 student.marks = stData.marks || student.marks;
@@ -4262,9 +4403,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
                 student.actionText = 'Review';
                 student.actionClass = 'btn-solid-blue';
               } else if (stData.status === 'failed') {
+                student.isEvaluating = false;
+                student.isQueued = false;
                 student.status = 'Failed';
                 student.actionText = 'Retry';
                 student.actionClass = 'btn-retry-danger';
+                student.failureReason = this.formatFailureReason(stData.error);
               }
             }
           });
@@ -4285,6 +4429,11 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
         if (student) {
           student.status = 'Evaluating...';
+          student.isEvaluating = true;
+          student.isQueued = false;
+          student.failureReason = undefined;
+          student.completedQuestions = data.completed_questions || 0;
+          student.totalQuestions = data.total_questions || (data.questions ? data.questions.length : undefined);
           student.actionText = 'Evaluating...';
           student.actionClass = 'btn-evaluating-pulse';
         }
@@ -4315,6 +4464,18 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       try {
         const data = JSON.parse(e.data);
         const liveTarget = this.studentLiveList.find((s) => String(s.userId) === String(data.user_id));
+        const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
+        if (student) {
+          student.status = 'Evaluating...';
+          student.isEvaluating = true;
+          student.isQueued = false;
+          if (data.completed_questions !== undefined) {
+            student.completedQuestions = data.completed_questions;
+          }
+          if (data.total_questions !== undefined) {
+            student.totalQuestions = data.total_questions;
+          }
+        }
         if (liveTarget) {
           // Match by question_id if available and matched, else match by question number
           let targetQ: any = undefined;
@@ -4407,11 +4568,23 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         }
         const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
         if (student) {
+          student.isEvaluating = false;
+          student.isQueued = false;
           student.status = 'AI Evaluated';
           student.matchedFile = undefined;
           student.splitSegment = undefined;
           student.rawFile = undefined;
           student.marks = data.marks || student.marks;
+
+          // Recompute pass / fail
+          const totalMarksVal = parseFloat(String(this.testDetails?.totalMarks || '').replace(/[^\d.]/g, '')) || 0;
+          const passMarkVal = this.effectivePassMark;
+          const scoreVal = parseFloat(String(student.marks).split('/')[0]);
+          if (!isNaN(scoreVal) && totalMarksVal > 0) {
+            const studentPct = (scoreVal / totalMarksVal) * 100;
+            student.result = studentPct >= passMarkVal ? 'Pass' : 'Fail';
+          }
+
           student.isUploaded = true;
           student.pagesInfo = `${data.total_pages || 1} of ${data.total_pages || 1} pages`;
           student.actionText = 'Review';
@@ -4457,9 +4630,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         const data = JSON.parse(e.data);
         const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
         if (student) {
+          student.isEvaluating = false;
+          student.isQueued = false;
           student.status = 'Failed';
           student.actionText = 'Retry';
           student.actionClass = 'btn-retry-danger';
+          student.failureReason = this.formatFailureReason(data.error || data.message);
         }
         const liveTarget = this.studentLiveList.find((s) => String(s.userId) === String(data.user_id));
         if (liveTarget) {
@@ -4512,6 +4688,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
         // 2. Clear attached file chips and segments from all student rows
         this.students.forEach((s) => {
+          s.isEvaluating = false;
+          s.isQueued = false;
           s.matchedFile = undefined;
           s.rawFile = undefined;
           s.splitSegment = undefined;
@@ -4534,6 +4712,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         const data = JSON.parse(e.data);
         const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
         if (student) {
+          student.isEvaluating = false;
+          student.isQueued = false;
           student.status = 'Not Evaluated';
           student.marks = 'Not marked';
           student.pagesInfo = '0 of 0 pages';
@@ -4575,18 +4755,16 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           }
         });
         this.students.forEach((s) => {
-          if (s.status === 'Evaluating...') {
+          if (s.status === 'Evaluating...' || s.isEvaluating || s.isQueued) {
+            s.isEvaluating = false;
+            s.isQueued = false;
             s.status = 'Not Evaluated';
             s.actionText = 'Pending Credits';
             s.actionClass = 'btn-paused';
           }
         });
         this.cdr.detectChanges();
-        this.aiCreditAlert.show({
-          title: 'Evaluation Safely Paused',
-          message: data.message || 'Credits reached the mandatory 1,000 token reserve. Completed student marks are saved. Resume anytime after recharge.',
-          confirmText: 'Understood'
-        });
+        notify(data.message || 'Evaluation safely paused (1,000 credit reserve preserved). Completed marks are saved.', 'info');
       } catch (err) {
         console.warn('Error parsing job_paused_credits:', err);
       }
@@ -4617,7 +4795,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           this.bulkEvalEventSource = undefined;
         }
         for (const s of this.students) {
-          if (s.status === 'Evaluating...' || s.actionText === 'Evaluating...' || s.actionText === 'Queued...') {
+          if (s.status === 'Evaluating...' || s.actionText === 'Evaluating...' || s.actionText === 'Queued...' || s.isEvaluating || s.isQueued) {
+            s.isEvaluating = false;
+            s.isQueued = false;
             s.status = 'Not Evaluated';
             s.marks = 'Not marked';
             s.pagesInfo = '0 of 0 pages';
@@ -4674,6 +4854,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     if (student.user_id) {
       this.stoppedStudentIds.add(String(student.user_id));
     }
+    student.isEvaluating = false;
+    student.isQueued = false;
     student.status = 'Not Evaluated';
     student.marks = 'Not marked';
     student.pagesInfo = '0 of 0 pages';
@@ -4872,9 +5054,31 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     this.filterStudents();
   }
 
+  stopSplittingPdf(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+    if (this.splitPdfSubscription) {
+      this.splitPdfSubscription.unsubscribe();
+      this.splitPdfSubscription = null;
+    }
+    this.isSplittingPdf = false;
+    this.bulkFiles = this.bulkFiles.filter((b) => !b.isScanning);
+    const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
+    fileInputs.forEach((input) => (input.value = ''));
+    this.recalculateKpiTotals();
+    this.filterStudents();
+    notify('PDF scanning stopped.', 'info');
+  }
+
   removeBulkFile(fileItem: BulkFileItem, event?: Event): void {
     if (event) {
       event.stopPropagation();
+    }
+    if (fileItem.isScanning || this.isSplittingPdf) {
+      this.stopSplittingPdf(event);
+      return;
     }
     if (this.previewAnswerSheet && this.previewAnswerSheet.fileName === fileItem.fileName) {
       this.closeAnswerSheetPreview();
@@ -4900,6 +5104,9 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
   }
 
   clearAllBulkFiles(): void {
+    if (this.isSplittingPdf) {
+      this.stopSplittingPdf();
+    }
     this.hasStartedEvaluation = false;
     if (!this.bulkFiles || this.bulkFiles.length === 0) return;
 

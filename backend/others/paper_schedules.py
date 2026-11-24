@@ -838,14 +838,25 @@ def get_paper_schedules(request, current_user=None):
                                 u_status = "Need to Check"
                             elif att_status == "evaluated":
                                 u_status = "AI Evaluated"
-                            elif u_pages_count > 0 or att_status in ("in_progress", "submitted"):
-                                u_status = "AI Evaluated" if u_score is not None else "Need to Check"
+                            elif att_status == "failed":
+                                # Evaluation failed — do not expose provisional score
+                                u_status = "Failed"
+                                u_score = None
+                                u_pct = None
+                            elif att_status in ("in_progress", "submitted"):
+                                # AI evaluation is running — never show provisional 0.0 as real marks
+                                u_status = "Evaluating..."
+                                u_score = None
+                                u_pct = None
+                            elif u_pages_count > 0:
+                                u_status = "Need to Check"
                             else:
                                 u_status = "Not Evaluated"
 
-                            tot_marks = s.total_marks or (master.total_marks if master else 0)
-                            if u_score is not None and tot_marks and float(tot_marks) > 0:
-                                u_pct = round((u_score / float(tot_marks)) * 100, 1)
+                            if u_score is not None:
+                                tot_marks = s.total_marks or (master.total_marks if master else 0)
+                                if tot_marks and float(tot_marks) > 0:
+                                    u_pct = round((u_score / float(tot_marks)) * 100, 1)
 
                         assigned_users.append({
                             "user_id": u_uid_str,
