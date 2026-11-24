@@ -6161,9 +6161,13 @@ def process_single_student_answer_sheet(
                             manual_review = 1 if (is_uncertain or int(ev.get("manual_review_required", 0)) == 1) else 0
                             is_val = 1
 
-                            # 2. Map AI-selected letter directly to option ID (Zero Python matching fallback)
-                            selected_letter = str(ev.get("selected_option_letter") or "").strip().lower()
-                            matched_opt_id = opt_id_by_letter_by_qid.get(qid_str, {}).get(selected_letter)
+                            # 2. Only select the option if both option and answer were verified correct (is_corr == 1)
+                            # If the value was different / contradictory (is_corr == 0), do NOT select any option
+                            if is_corr == 1:
+                                selected_letter = str(ev.get("selected_option_letter") or "").strip().lower()
+                                matched_opt_id = opt_id_by_letter_by_qid.get(qid_str, {}).get(selected_letter)
+                            else:
+                                matched_opt_id = None
                         else:
                             awarded = 0.0
                             is_corr = 0

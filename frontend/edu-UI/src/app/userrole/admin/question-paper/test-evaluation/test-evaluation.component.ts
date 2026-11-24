@@ -2193,10 +2193,26 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     // 1. Direct selected_option_id check (authoritative if present)
     if (q.selected_option_id) {
-      return (
-        !!opt.id &&
-        String(q.selected_option_id).trim().toLowerCase() === String(opt.id).trim().toLowerCase()
-      );
+      const isMatchId = !!opt.id && String(q.selected_option_id).trim().toLowerCase() === String(opt.id).trim().toLowerCase();
+      if (!isMatchId) return false;
+
+      // If marks are 0 and this option is the correct option, do NOT mark as "Your Choice" (contradictory / wrong value)
+      if (this.isOptionCorrect(opt) && (Number(q.marks_awarded ?? 1) === 0 || Number(q.ai_marks ?? 1) === 0)) {
+        return false;
+      }
+
+      // If student written answer has accompanying text that contradicts this option's text, do not select it
+      const sAns = (q.student_answer || '').trim();
+      if (sAns && opt.text) {
+        const optTxt = opt.text.trim().toLowerCase();
+        const letterPats = [letterLower, `${letterLower})`, `(${letterLower})`, `${letterLower}.`];
+        const hasLetter = letterPats.some(p => sAns.toLowerCase().startsWith(p));
+        const cleanAfter = sAns.replace(/^([a-z]\)|[a-z]\.|\([a-z]\)|[a-z])\s*/i, '').trim().toLowerCase();
+        if (hasLetter && cleanAfter.length > 2 && !cleanAfter.includes(optTxt) && !optTxt.includes(cleanAfter)) {
+          return false;
+        }
+      }
+      return true;
     }
 
     // 2. Check selected_option field (array or single value)
@@ -2252,7 +2268,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       // Check if student wrote letter pattern followed by text e.g. "B) Under" or "(B) Under"
       for (const pat of letterPatterns) {
         if (cleanAnsUpper.startsWith(`${pat} `) || cleanAnsUpper.startsWith(`${pat}\t`)) {
-          return true;
+          const optText = (opt.text || '').trim().toLowerCase();
+          const writtenAfterLetter = cleanAns.substring(pat.length).trim().toLowerCase();
+          if (optText && (writtenAfterLetter.includes(optText) || optText.includes(writtenAfterLetter))) {
+            return true;
+          }
+          return false;
         }
       }
 
