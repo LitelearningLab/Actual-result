@@ -6875,7 +6875,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.totalMarksOverride !== undefined &&
       Number(this.totalMarksOverride) > 0
         ? Number(this.totalMarksOverride)
-        : 50;
+        : 0;
 
     if (this.totalPaperMarks !== targetMarks) {
       return false;
@@ -6899,7 +6899,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.totalMarksOverride !== undefined &&
       Number(this.totalMarksOverride) > 0
         ? Number(this.totalMarksOverride)
-        : 50;
+        : 0;
 
     if (this.totalPaperMarks !== targetMarks) {
       return `Section marks (${this.totalPaperMarks}) do not tally with Total Marks (${targetMarks})`;
@@ -6936,7 +6936,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.totalMarksOverride !== undefined &&
       Number(this.totalMarksOverride) > 0
         ? Number(this.totalMarksOverride)
-        : 50;
+        : 0;
 
     // Validate if marks tally exactly
     if (this.totalPaperMarks !== targetMarks) {
@@ -6974,7 +6974,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       this.totalMarksOverride !== undefined &&
       Number(this.totalMarksOverride) > 0
         ? Number(this.totalMarksOverride)
-        : 50;
+        : 0;
 
     if (this.totalPaperMarks !== targetMarks) {
       return `Section marks (${this.totalPaperMarks}) do not tally with Total Marks (${targetMarks})`;

@@ -191,11 +191,11 @@
                     <div class="fields-row fields-row--3" style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px;">
                         <div class="field-group">
                             <label class="field-label">Test Name <span class="req">*</span></label>
-                            <input class="qp-input" type="text" [(ngModel)]="title" [disabled]="readOnly" (ngModelChange)="markDirty()" placeholder="Physics – Unit Test 1" />
+                            <input class="qp-input" type="text" [(ngModel)]="title" [disabled]="readOnly" (ngModelChange)="markDirty()" placeholder="Enter a name for your test" />
                         </div>
                         <div class="field-group">
                             <label class="field-label">Total Marks</label>
-                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" [disabled]="readOnly" (ngModelChange)="markDirty()" placeholder="50" min="0" />
+                            <input class="qp-input" type="number" [(ngModel)]="totalMarksOverride" [disabled]="readOnly" (ngModelChange)="markDirty()" placeholder="0" min="0" />
                         </div>
                         <div class="field-group">
                             <label class="field-label">Pass Percentage (%)</label>
@@ -781,12 +781,12 @@
                 <div class="summary-marks-block">
                     <div class="summary-marks-big">
                         <span class="marks-current">{{ totalPaperMarks }}</span>
-                        <span class="marks-of">of {{ totalMarksOverride || 50 }} marks added</span>
+                        <span class="marks-of">of {{ totalMarksOverride || 0 }} marks added</span>
                     </div>
                     <div class="summary-marks-bar">
                         <div class="summary-marks-fill"
                             [style.width]="getMarksProgressPct() + '%'"
-                            [class.over]="totalPaperMarks > (totalMarksOverride || 50)">
+                            [class.over]="totalPaperMarks > (totalMarksOverride || 0)">
                         </div>
                     </div>
                 </div>
