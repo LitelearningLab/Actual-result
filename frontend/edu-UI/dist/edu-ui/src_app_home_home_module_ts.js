@@ -27286,10 +27286,10 @@ function CreateQuestionPaperComponent_div_70_Template(rf, ctx) {
 }
 function CreateQuestionPaperComponent_div_71_div_16_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 454)(1, "div", 455)(2, "span", 456);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 452)(1, "div", 453)(2, "span", 454);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "Target Subject:");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "span", 457);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "span", 455);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()();
   }
@@ -27299,22 +27299,22 @@ function CreateQuestionPaperComponent_div_71_div_16_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtextInterpolate"](ctx_r452.subject_name);
   }
 }
-function CreateQuestionPaperComponent_div_71_div_41_Template(rf, ctx) {
+function CreateQuestionPaperComponent_div_71_div_20_Template(rf, ctx) {
   if (rf & 1) {
     const _r459 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 458);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_71_div_41_Template_div_click_0_listener() {
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 456);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_71_div_20_Template_div_click_0_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r459);
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
-      const _r453 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵreference"](40);
+      const _r453 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵreference"](19);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](_r453.click());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 459)(2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 457)(2, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "cloud_upload");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "h4");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5, "Drop question paper here, or ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 460);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 458);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](7, "browse");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "p");
@@ -27322,20 +27322,20 @@ function CreateQuestionPaperComponent_div_71_div_41_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
   }
 }
-function CreateQuestionPaperComponent_div_71_div_42_Template(rf, ctx) {
+function CreateQuestionPaperComponent_div_71_div_21_Template(rf, ctx) {
   if (rf & 1) {
     const _r461 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 461)(1, "div", 462)(2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 459)(1, "div", 460)(2, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "div", 463)(5, "div", 464);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "div", 461)(5, "div", 462);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](7, "div", 465);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](7, "div", 463);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](8);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "button", 466);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_71_div_42_Template_button_click_9_listener($event) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "button", 464);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_71_div_21_Template_button_click_9_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r461);
       const ctx_r460 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
       ctx_r460.removeSelectedPaperFile();
@@ -27355,30 +27355,30 @@ function CreateQuestionPaperComponent_div_71_div_42_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtextInterpolate"](ctx_r455.uploadPaperFileSize);
   }
 }
-function CreateQuestionPaperComponent_div_71_div_43_Template(rf, ctx) {
+function CreateQuestionPaperComponent_div_71_div_22_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 467)(1, "div", 468)(2, "mat-icon", 469);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 465)(1, "div", 466)(2, "mat-icon", 467);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "auto_awesome");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "h4");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5, "AI is analyzing question paper...");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "p", 470);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "p", 468);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](7);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "div", 471)(9, "div", 472)(10, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "div", 469)(9, "div", 470)(10, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](11, "sync");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](12, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](13, "Scanning pages & recognizing document questions");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](14, "div", 472)(15, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](14, "div", 470)(15, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](16, "sync");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](17, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](18, "Detecting question numbers, sub-questions & mark allocations");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](19, "div", 472)(20, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](19, "div", 470)(20, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](21, "sync");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](22, "span");
@@ -27391,9 +27391,9 @@ function CreateQuestionPaperComponent_div_71_div_43_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtextInterpolate"](ctx_r456.uploadPaperProgressStep);
   }
 }
-function CreateQuestionPaperComponent_div_71_div_44_Template(rf, ctx) {
+function CreateQuestionPaperComponent_div_71_div_23_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 473)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 471)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](2, "error_outline");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "span");
@@ -27426,7 +27426,7 @@ function CreateQuestionPaperComponent_div_71_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](9, "Upload Existing Question Paper");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](10, "p", 440);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](11, "AI automatically extracts questions, sub-questions, identifies 1-mark, 2-mark, 5-mark and descriptive questions, and creates a template.");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](11, "AI automatically analyzes your document, identifies key information, sections, and relevant details, and generates a structured template.");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](12, "button", 441);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_71_Template_button_click_12_listener() {
@@ -27439,76 +27439,52 @@ function CreateQuestionPaperComponent_div_71_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](15, "div", 332);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](16, CreateQuestionPaperComponent_div_71_div_16_Template, 6, 1, "div", 442);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](17, "div", 443)(18, "div", 444)(19, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](20, "check_circle");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](21, "span");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](22, "1-Mark Questions");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](23, "div", 444)(24, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](25, "check_circle");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](26, "span");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](27, "2-Mark Questions");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](28, "div", 444)(29, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](30, "check_circle");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](31, "span");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](32, "5-Mark Questions");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](33, "div", 444)(34, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](35, "check_circle");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](36, "span");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](37, "Descriptive & Sub-questions");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](38, "div", 445);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("dragover", function CreateQuestionPaperComponent_div_71_Template_div_dragover_38_listener($event) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](17, "div", 443);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("dragover", function CreateQuestionPaperComponent_div_71_Template_div_dragover_17_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r463);
       const ctx_r466 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r466.onPaperFileDragOver($event));
-    })("dragleave", function CreateQuestionPaperComponent_div_71_Template_div_dragleave_38_listener($event) {
+    })("dragleave", function CreateQuestionPaperComponent_div_71_Template_div_dragleave_17_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r463);
       const ctx_r467 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r467.onPaperFileDragLeave($event));
-    })("drop", function CreateQuestionPaperComponent_div_71_Template_div_drop_38_listener($event) {
+    })("drop", function CreateQuestionPaperComponent_div_71_Template_div_drop_17_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r463);
       const ctx_r468 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r468.onPaperFileDrop($event));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](39, "input", 446, 447);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("change", function CreateQuestionPaperComponent_div_71_Template_input_change_39_listener($event) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](18, "input", 444, 445);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("change", function CreateQuestionPaperComponent_div_71_Template_input_change_18_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r463);
       const ctx_r469 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r469.onPaperFileSelected($event));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](41, CreateQuestionPaperComponent_div_71_div_41_Template, 10, 0, "div", 448);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](42, CreateQuestionPaperComponent_div_71_div_42_Template, 12, 3, "div", 449);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](43, CreateQuestionPaperComponent_div_71_div_43_Template, 24, 1, "div", 450);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](20, CreateQuestionPaperComponent_div_71_div_20_Template, 10, 0, "div", 446);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](21, CreateQuestionPaperComponent_div_71_div_21_Template, 12, 3, "div", 447);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](22, CreateQuestionPaperComponent_div_71_div_22_Template, 24, 1, "div", 448);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](44, CreateQuestionPaperComponent_div_71_div_44_Template, 5, 1, "div", 451);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](23, CreateQuestionPaperComponent_div_71_div_23_Template, 5, 1, "div", 449);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](45, "div", 339)(46, "button", 452);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_71_Template_button_click_46_listener() {
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](24, "div", 339)(25, "button", 450);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_71_Template_button_click_25_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r463);
       const ctx_r470 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r470.closeUploadPaperModal());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](47, " Cancel ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](26, " Cancel ");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](48, "button", 453);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_71_Template_button_click_48_listener() {
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](27, "button", 451);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_71_Template_button_click_27_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r463);
       const ctx_r471 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r471.startAIPaperExtraction());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](49, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](50, "auto_awesome");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](28, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](29, "auto_awesome");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](51, "span");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](52);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](30, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](31);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()()()();
   }
   if (rf & 2) {
@@ -27517,7 +27493,7 @@ function CreateQuestionPaperComponent_div_71_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵproperty"]("disabled", ctx_r23.uploadPaperLoading);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵproperty"]("ngIf", ctx_r23.subject_name);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵadvance"](22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵclassProp"]("dragging", ctx_r23.uploadPaperDragging)("has-file", ctx_r23.uploadPaperFile)("loading", ctx_r23.uploadPaperLoading);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵproperty"]("ngIf", !ctx_r23.uploadPaperFile && !ctx_r23.uploadPaperLoading);
@@ -27537,16 +27513,16 @@ function CreateQuestionPaperComponent_div_71_Template(rf, ctx) {
 }
 function CreateQuestionPaperComponent_div_72_div_16_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 454)(1, "div", 455)(2, "span", 456);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 452)(1, "div", 453)(2, "span", 454);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "Target Subject:");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "span", 457);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "span", 455);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "div", 455)(7, "span", 456);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "div", 453)(7, "span", 454);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](8, "Total Questions:");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "span", 457);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "span", 455);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](10);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()();
   }
@@ -27561,22 +27537,22 @@ function CreateQuestionPaperComponent_div_72_div_16_Template(rf, ctx) {
 function CreateQuestionPaperComponent_div_72_div_17_div_31_Template(rf, ctx) {
   if (rf & 1) {
     const _r482 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 480);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 478);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_17_div_31_Template_div_click_0_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r482);
       const ctx_r481 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r481.openReviewExistingAnswers());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 487)(2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 485)(2, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "edit_note");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "div", 482)(5, "h4");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "div", 480)(5, "h4");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](6, "Edit Existing Answers");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](7, "p");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](8, "Review, modify, or update the current answers and model solutions for this question paper.");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "div", 483)(10, "button", 484)(11, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "div", 481)(10, "button", 482)(11, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](12, "Edit");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](13, "mat-icon");
@@ -27587,49 +27563,49 @@ function CreateQuestionPaperComponent_div_72_div_17_div_31_Template(rf, ctx) {
 function CreateQuestionPaperComponent_div_72_div_17_Template(rf, ctx) {
   if (rf & 1) {
     const _r484 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 479)(1, "div", 480);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 477)(1, "div", 478);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_17_Template_div_click_1_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r484);
       const ctx_r483 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r483.setAnswerKeyStep("upload"));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](2, "div", 481)(3, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](2, "div", 479)(3, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](4, "cloud_upload");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](5, "div", 482)(6, "h4");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](5, "div", 480)(6, "h4");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](7, "Upload Answer Key");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "p");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](9, "Upload your own answer key document (PDF or image). AI accurately extracts and maps answers to each question.");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](10, "div", 483)(11, "button", 484)(12, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](10, "div", 481)(11, "button", 482)(12, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](13, "Upload");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](14, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](15, "arrow_forward");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](16, "div", 480);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](16, "div", 478);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_17_Template_div_click_16_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r484);
       const ctx_r485 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r485.setAnswerKeyStep("generate"));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](17, "div", 485)(18, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](17, "div", 483)(18, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](19, "auto_awesome");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](20, "div", 482)(21, "h4");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](20, "div", 480)(21, "h4");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](22, "Generate Answers");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](23, "p");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](24, "Automatically generate solutions, correct options, and model answers for all questions in the question paper.");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](25, "div", 483)(26, "button", 484)(27, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](25, "div", 481)(26, "button", 482)(27, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](28, "Generate");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](29, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](30, "arrow_forward");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](31, CreateQuestionPaperComponent_div_72_div_17_div_31_Template, 15, 0, "div", 486);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](31, CreateQuestionPaperComponent_div_72_div_17_div_31_Template, 15, 0, "div", 484);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
@@ -27641,19 +27617,19 @@ function CreateQuestionPaperComponent_div_72_div_17_Template(rf, ctx) {
 function CreateQuestionPaperComponent_div_72_div_18_div_11_Template(rf, ctx) {
   if (rf & 1) {
     const _r492 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 458);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 456);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_18_div_11_Template_div_click_0_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r492);
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
       const _r486 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵreference"](10);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](_r486.click());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 493)(2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 491)(2, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "cloud_upload");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "h4");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5, "Drop answer key here, or ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 460);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 458);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](7, "browse");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "p");
@@ -27664,16 +27640,16 @@ function CreateQuestionPaperComponent_div_72_div_18_div_11_Template(rf, ctx) {
 function CreateQuestionPaperComponent_div_72_div_18_div_12_Template(rf, ctx) {
   if (rf & 1) {
     const _r494 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 461)(1, "div", 462)(2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 459)(1, "div", 460)(2, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "div", 463)(5, "div", 464);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "div", 461)(5, "div", 462);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](7, "div", 465);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](7, "div", 463);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](8);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "button", 466);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "button", 464);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_18_div_12_Template_button_click_9_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r494);
       const ctx_r493 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
@@ -27696,22 +27672,22 @@ function CreateQuestionPaperComponent_div_72_div_18_div_12_Template(rf, ctx) {
 }
 function CreateQuestionPaperComponent_div_72_div_18_div_13_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 467)(1, "div", 468)(2, "mat-icon", 469);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 465)(1, "div", 466)(2, "mat-icon", 467);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "auto_awesome");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "h4");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5, "AI is analyzing answer key...");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "p", 470);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "p", 468);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](7);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "div", 471)(9, "div", 472)(10, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "div", 469)(9, "div", 470)(10, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](11, "sync");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](12, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](13, "Scanning pages & recognizing answer key content");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](14, "div", 472)(15, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](14, "div", 470)(15, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](16, "sync");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](17, "span");
@@ -27726,7 +27702,7 @@ function CreateQuestionPaperComponent_div_72_div_18_div_13_Template(rf, ctx) {
 }
 function CreateQuestionPaperComponent_div_72_div_18_div_14_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 473)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 471)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](2, "error_outline");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "span");
@@ -27742,7 +27718,7 @@ function CreateQuestionPaperComponent_div_72_div_18_div_14_Template(rf, ctx) {
 function CreateQuestionPaperComponent_div_72_div_18_Template(rf, ctx) {
   if (rf & 1) {
     const _r496 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 488)(1, "div", 489)(2, "button", 490);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 486)(1, "div", 487)(2, "button", 488);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_18_Template_button_click_2_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r496);
       const ctx_r495 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
@@ -27753,10 +27729,10 @@ function CreateQuestionPaperComponent_div_72_div_18_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5, " Back to options ");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 491);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 489);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](7, "Upload Answer Key Document");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "div", 445);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "div", 443);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("dragover", function CreateQuestionPaperComponent_div_72_div_18_Template_div_dragover_8_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r496);
       const ctx_r497 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
@@ -27770,18 +27746,18 @@ function CreateQuestionPaperComponent_div_72_div_18_Template(rf, ctx) {
       const ctx_r499 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r499.onAnswerKeyDrop($event));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "input", 446, 492);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "input", 444, 490);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("change", function CreateQuestionPaperComponent_div_72_div_18_Template_input_change_9_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r496);
       const ctx_r500 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r500.onAnswerKeyFileSelected($event));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](11, CreateQuestionPaperComponent_div_72_div_18_div_11_Template, 10, 0, "div", 448);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](12, CreateQuestionPaperComponent_div_72_div_18_div_12_Template, 12, 3, "div", 449);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](13, CreateQuestionPaperComponent_div_72_div_18_div_13_Template, 19, 1, "div", 450);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](11, CreateQuestionPaperComponent_div_72_div_18_div_11_Template, 10, 0, "div", 446);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](12, CreateQuestionPaperComponent_div_72_div_18_div_12_Template, 12, 3, "div", 447);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](13, CreateQuestionPaperComponent_div_72_div_18_div_13_Template, 19, 1, "div", 448);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](14, CreateQuestionPaperComponent_div_72_div_18_div_14_Template, 5, 1, "div", 451);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](14, CreateQuestionPaperComponent_div_72_div_18_div_14_Template, 5, 1, "div", 449);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
@@ -27802,10 +27778,10 @@ function CreateQuestionPaperComponent_div_72_div_18_Template(rf, ctx) {
 }
 function CreateQuestionPaperComponent_div_72_div_19_div_8_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 497)(1, "div", 498)(2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 495)(1, "div", 496)(2, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "auto_awesome");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "div", 499)(5, "h4");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "div", 497)(5, "h4");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](6, "Automatic Answer Generation");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](7, "p");
@@ -27843,7 +27819,7 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_mat_option_29_Template
 }
 function CreateQuestionPaperComponent_div_72_div_19_div_9_span_44_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "span", 521);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "span", 519);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
   }
@@ -27856,13 +27832,13 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_span_44_Template(rf, c
 function CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_div_10_div_1_Template(rf, ctx) {
   if (rf & 1) {
     const _r516 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 528)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 526)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](2, "insert_drive_file");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "span", 529);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "span", 527);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](5, "button", 530);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](5, "button", 528);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_div_10_div_1_Template_button_click_5_listener() {
       const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r516);
       const idx_r514 = restoredCtx.index;
@@ -27881,8 +27857,8 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_div_10_div_1_Te
 }
 function CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_div_10_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 526);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](1, CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_div_10_div_1_Template, 8, 1, "div", 527);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 524);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](1, CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_div_10_div_1_Template, 8, 1, "div", 525);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
@@ -27894,7 +27870,7 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_div_10_Template
 function CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_Template(rf, ctx) {
   if (rf & 1) {
     const _r518 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div")(1, "div", 522);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div")(1, "div", 520);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_Template_div_click_1_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r518);
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
@@ -27913,17 +27889,17 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_Template(rf, ct
       const ctx_r521 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](4);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r521.onGenerateAnsDrop($event));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](2, "button", 523)(3, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](2, "button", 521)(3, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](4, "add");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5, " Upload Files ");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 524);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 522);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](7, "or drag & drop here \u00A0\u00B7\u00A0 Supported formats: ");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "strong");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](9, "PDF, DOCX");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](10, CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_div_10_Template, 2, 1, "div", 525);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](10, CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_div_10_Template, 2, 1, "div", 523);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
@@ -27937,10 +27913,10 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_div_52_Template(rf, ct
 function CreateQuestionPaperComponent_div_72_div_19_div_9_div_53_Template(rf, ctx) {
   if (rf & 1) {
     const _r523 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div")(1, "mat-form-field", 504)(2, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div")(1, "mat-form-field", 502)(2, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "Paste reference text or notes");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "textarea", 531);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "textarea", 529);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("ngModelChange", function CreateQuestionPaperComponent_div_72_div_19_div_9_div_53_Template_textarea_ngModelChange_4_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r523);
       const ctx_r522 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](4);
@@ -27957,56 +27933,56 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_div_53_Template(rf, ct
 function CreateQuestionPaperComponent_div_72_div_19_div_9_Template(rf, ctx) {
   if (rf & 1) {
     const _r525 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 500)(1, "div", 501)(2, "span", 502);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 498)(1, "div", 499)(2, "span", 500);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "Optional Answer Generation Context");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "span", 503);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "span", 501);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5, "Guide answer depth, audience, or attach reference material");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "mat-form-field", 504)(7, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "mat-form-field", 502)(7, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](8, "Subject or Chapter title");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "input", 505);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "input", 503);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("ngModelChange", function CreateQuestionPaperComponent_div_72_div_19_div_9_Template_input_ngModelChange_9_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r525);
       const ctx_r524 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r524.generateAnsTopic = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](10, "div", 506)(11, "mat-form-field", 507)(12, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](10, "div", 504)(11, "mat-form-field", 505)(12, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](13, "Industry");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](14, "input", 508);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](14, "input", 506);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("ngModelChange", function CreateQuestionPaperComponent_div_72_div_19_div_9_Template_input_ngModelChange_14_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r525);
       const ctx_r526 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r526.generateAnsIndustry = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](15, "mat-form-field", 507)(16, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](15, "mat-form-field", 505)(16, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](17, "Target Users");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](18, "input", 509);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](18, "input", 507);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("ngModelChange", function CreateQuestionPaperComponent_div_72_div_19_div_9_Template_input_ngModelChange_18_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r525);
       const ctx_r527 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r527.generateAnsTargetUsers = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](19, "mat-form-field", 507)(20, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](19, "mat-form-field", 505)(20, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](21, "User Role");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](22, "input", 510);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](22, "input", 508);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("ngModelChange", function CreateQuestionPaperComponent_div_72_div_19_div_9_Template_input_ngModelChange_22_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r525);
       const ctx_r528 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r528.generateAnsUserRole = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](23, "mat-form-field", 507)(24, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](23, "mat-form-field", 505)(24, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](25, "Complexity");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](26, "mat-select", 511);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](26, "mat-select", 509);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("ngModelChange", function CreateQuestionPaperComponent_div_72_div_19_div_9_Template_mat_select_ngModelChange_26_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r525);
       const ctx_r529 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
@@ -28017,20 +27993,20 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](29, CreateQuestionPaperComponent_div_72_div_19_div_9_mat_option_29_Template, 2, 2, "mat-option", 72);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](30, "mat-form-field", 504)(31, "mat-label");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](30, "mat-form-field", 502)(31, "mat-label");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](32, "Additional Context");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](33, "textarea", 512);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](33, "textarea", 510);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("ngModelChange", function CreateQuestionPaperComponent_div_72_div_19_div_9_Template_textarea_ngModelChange_33_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r525);
       const ctx_r530 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r530.generateAnsAdditionalContext = $event);
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](34, "div", 513)(35, "div", 514)(36, "span", 515);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](34, "div", 511)(35, "div", 512)(36, "span", 513);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](37, "Source Material");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](38, "div", 516)(39, "button", 517);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](38, "div", 514)(39, "button", 515);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_19_div_9_Template_button_click_39_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r525);
       const ctx_r531 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
@@ -28042,9 +28018,9 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](42, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](43, "Upload Files");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](44, CreateQuestionPaperComponent_div_72_div_19_div_9_span_44_Template, 2, 1, "span", 518);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](44, CreateQuestionPaperComponent_div_72_div_19_div_9_span_44_Template, 2, 1, "span", 516);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](45, "button", 517);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](45, "button", 515);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_19_div_9_Template_button_click_45_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r525);
       const ctx_r532 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
@@ -28056,7 +28032,7 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](48, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](49, "Paste Text");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](50, "input", 519, 520);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](50, "input", 517, 518);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("change", function CreateQuestionPaperComponent_div_72_div_19_div_9_Template_input_change_50_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r525);
       const ctx_r533 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
@@ -28097,36 +28073,36 @@ function CreateQuestionPaperComponent_div_72_div_19_div_9_Template(rf, ctx) {
 }
 function CreateQuestionPaperComponent_div_72_div_19_div_10_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 532)(1, "div", 533);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](2, "div", 534)(3, "div", 535);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "div", 536)(5, "mat-icon", 537);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 530)(1, "div", 531);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](2, "div", 532)(3, "div", 533);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "div", 534)(5, "mat-icon", 535);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](6, "auto_awesome");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](7, "h4", 538);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](7, "h4", 536);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](8, "AI is generating answers...");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "p", 539);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](9, "p", 537);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](10);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](11, "div", 540);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](12, "div", 541);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](11, "div", 538);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](12, "div", 539);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](13, "div", 542)(14, "div", 543)(15, "div", 544)(16, "mat-icon", 545);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](13, "div", 540)(14, "div", 541)(15, "div", 542)(16, "mat-icon", 543);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](17, "sync");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](18, "div", 546)(19, "span", 547);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](18, "div", 544)(19, "span", 545);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](20, "Evaluating Questions");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](21, "span", 548);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](21, "span", 546);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](22, "Analyzing multiple-choice and descriptive questions");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](23, "div", 543)(24, "div", 544)(25, "mat-icon", 545);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](23, "div", 541)(24, "div", 542)(25, "mat-icon", 543);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](26, "sync");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](27, "div", 546)(28, "span", 547);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](27, "div", 544)(28, "span", 545);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](29, "Formulating Solutions");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](30, "span", 548);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](30, "span", 546);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](31, "Drafting model answers and solutions");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()()()();
   }
@@ -28138,7 +28114,7 @@ function CreateQuestionPaperComponent_div_72_div_19_div_10_Template(rf, ctx) {
 }
 function CreateQuestionPaperComponent_div_72_div_19_div_11_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 473)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 471)(1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](2, "error_outline");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "span");
@@ -28154,7 +28130,7 @@ function CreateQuestionPaperComponent_div_72_div_19_div_11_Template(rf, ctx) {
 function CreateQuestionPaperComponent_div_72_div_19_Template(rf, ctx) {
   if (rf & 1) {
     const _r535 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 488)(1, "div", 489)(2, "button", 490);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 486)(1, "div", 487)(2, "button", 488);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_19_Template_button_click_2_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r535);
       const ctx_r534 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
@@ -28165,13 +28141,13 @@ function CreateQuestionPaperComponent_div_72_div_19_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5, " Back to options ");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 491);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 489);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](7, "Generate Answers with AI");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](8, CreateQuestionPaperComponent_div_72_div_19_div_8_Template, 15, 2, "div", 494);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](9, CreateQuestionPaperComponent_div_72_div_19_div_9_Template, 54, 14, "div", 495);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](10, CreateQuestionPaperComponent_div_72_div_19_div_10_Template, 32, 1, "div", 496);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](11, CreateQuestionPaperComponent_div_72_div_19_div_11_Template, 5, 1, "div", 451);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](8, CreateQuestionPaperComponent_div_72_div_19_div_8_Template, 15, 2, "div", 492);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](9, CreateQuestionPaperComponent_div_72_div_19_div_9_Template, 54, 14, "div", 493);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](10, CreateQuestionPaperComponent_div_72_div_19_div_10_Template, 32, 1, "div", 494);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](11, CreateQuestionPaperComponent_div_72_div_19_div_11_Template, 5, 1, "div", 449);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
@@ -28190,7 +28166,7 @@ function CreateQuestionPaperComponent_div_72_div_19_Template(rf, ctx) {
 }
 function CreateQuestionPaperComponent_div_72_div_20_span_9_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "span", 556);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "span", 554);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
   }
@@ -28202,7 +28178,7 @@ function CreateQuestionPaperComponent_div_72_div_20_span_9_Template(rf, ctx) {
 }
 function CreateQuestionPaperComponent_div_72_div_20_div_16_div_10_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 567);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 565);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](1, "img", 362);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
   }
@@ -28214,13 +28190,13 @@ function CreateQuestionPaperComponent_div_72_div_20_div_16_div_10_Template(rf, c
 }
 function CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_div_4_div_2_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](0, "div", 577);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](0, "div", 575);
   }
 }
 function CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_div_4_Template(rf, ctx) {
   if (rf & 1) {
     const _r551 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 572);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 570);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_div_4_Template_div_click_0_listener() {
       const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r551);
       const optIdx_r547 = restoredCtx.index;
@@ -28228,13 +28204,13 @@ function CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_div_4_Template
       const ctx_r549 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](3);
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r549.onReviewOptionSelected(item_r538, optIdx_r547));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 573);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](2, CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_div_4_div_2_Template, 1, 0, "div", 574);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 571);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](2, CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_div_4_div_2_Template, 1, 0, "div", 572);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "span", 575);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "span", 573);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](5, "span", 576);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](5, "span", 574);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
   }
@@ -28254,11 +28230,11 @@ function CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_div_4_Template
 }
 function CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 568)(1, "span", 569);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 566)(1, "span", 567);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](2, "Select Correct Option:");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "div", 570);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](4, CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_div_4_Template, 7, 5, "div", 571);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "div", 568);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](4, CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_div_4_Template, 7, 5, "div", 569);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
@@ -28270,10 +28246,10 @@ function CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_Template(rf, c
 function CreateQuestionPaperComponent_div_72_div_20_div_16_div_12_Template(rf, ctx) {
   if (rf & 1) {
     const _r556 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 578)(1, "span", 569);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 576)(1, "span", 567);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](2, "Model Answer / Solution:");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "textarea", 579);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](3, "textarea", 577);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("ngModelChange", function CreateQuestionPaperComponent_div_72_div_20_div_16_div_12_Template_textarea_ngModelChange_3_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r556);
       const item_r538 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]().$implicit;
@@ -28290,13 +28266,13 @@ function CreateQuestionPaperComponent_div_72_div_20_div_16_div_12_Template(rf, c
 function CreateQuestionPaperComponent_div_72_div_20_div_16_div_13_Template(rf, ctx) {
   if (rf & 1) {
     const _r560 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 580)(1, "div", 581)(2, "mat-icon", 582);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 578)(1, "div", 579)(2, "mat-icon", 580);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3, "auto_awesome");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "span", 583);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "span", 581);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5, "AI Fine-Tuning");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "div", 584)(7, "input", 585);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "div", 582)(7, "input", 583);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("ngModelChange", function CreateQuestionPaperComponent_div_72_div_20_div_16_div_13_Template_input_ngModelChange_7_listener($event) {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r560);
       const item_r538 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]().$implicit;
@@ -28308,7 +28284,7 @@ function CreateQuestionPaperComponent_div_72_div_20_div_16_div_13_Template(rf, c
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"](ctx_r561.fineTuneAnswer(item_r538));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "button", 586);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "button", 584);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_20_div_16_div_13_Template_button_click_8_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r560);
       const item_r538 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]().$implicit;
@@ -28338,22 +28314,22 @@ function CreateQuestionPaperComponent_div_72_div_20_div_16_div_13_Template(rf, c
 }
 function CreateQuestionPaperComponent_div_72_div_20_div_16_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 557)(1, "div", 558)(2, "span", 559);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 555)(1, "div", 556)(2, "span", 557);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "span", 560);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](4, "span", 558);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 561);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "span", 559);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](7);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "div", 562);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](8, "div", 560);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](9, "app-math-render", 227);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](10, CreateQuestionPaperComponent_div_72_div_20_div_16_div_10_Template, 2, 1, "div", 563);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](11, CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_Template, 5, 1, "div", 564);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](12, CreateQuestionPaperComponent_div_72_div_20_div_16_div_12_Template, 4, 1, "div", 565);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](13, CreateQuestionPaperComponent_div_72_div_20_div_16_div_13_Template, 13, 8, "div", 566);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](10, CreateQuestionPaperComponent_div_72_div_20_div_16_div_10_Template, 2, 1, "div", 561);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](11, CreateQuestionPaperComponent_div_72_div_20_div_16_div_11_Template, 5, 1, "div", 562);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](12, CreateQuestionPaperComponent_div_72_div_20_div_16_div_12_Template, 4, 1, "div", 563);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](13, CreateQuestionPaperComponent_div_72_div_20_div_16_div_13_Template, 13, 8, "div", 564);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
@@ -28379,7 +28355,7 @@ function CreateQuestionPaperComponent_div_72_div_20_div_16_Template(rf, ctx) {
 function CreateQuestionPaperComponent_div_72_div_20_Template(rf, ctx) {
   if (rf & 1) {
     const _r567 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 549)(1, "div", 489)(2, "button", 550);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 547)(1, "div", 487)(2, "button", 548);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_div_20_Template_button_click_2_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r567);
       const ctx_r566 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
@@ -28390,19 +28366,19 @@ function CreateQuestionPaperComponent_div_72_div_20_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](5, " Back ");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "div", 551)(7, "span", 491);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](6, "div", 549)(7, "span", 489);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](8, "Review & Edit Answers");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](9, CreateQuestionPaperComponent_div_72_div_20_span_9_Template, 2, 1, "span", 552);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](9, CreateQuestionPaperComponent_div_72_div_20_span_9_Template, 2, 1, "span", 550);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](10, "div", 553)(11, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](10, "div", 551)(11, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](12, "info");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](13, "span");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](14, "Review the answers formulated by AI below. For multiple-choice questions, select the correct option. For descriptive questions, edit the model answer text directly.");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](15, "div", 554);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](16, CreateQuestionPaperComponent_div_72_div_20_div_16_Template, 14, 9, "div", 555);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](15, "div", 552);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](16, CreateQuestionPaperComponent_div_72_div_20_div_16_Template, 14, 9, "div", 553);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
@@ -28417,7 +28393,7 @@ function CreateQuestionPaperComponent_div_72_ng_container_24_Template(rf, ctx) {
   if (rf & 1) {
     const _r569 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementContainerStart"](0);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "button", 453);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "button", 451);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_ng_container_24_Template_button_click_1_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r569);
       const ctx_r568 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
@@ -28443,7 +28419,7 @@ function CreateQuestionPaperComponent_div_72_ng_container_25_Template(rf, ctx) {
   if (rf & 1) {
     const _r571 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementContainerStart"](0);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "button", 587);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "button", 585);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_ng_container_25_Template_button_click_1_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r571);
       const ctx_r570 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
@@ -28469,7 +28445,7 @@ function CreateQuestionPaperComponent_div_72_ng_container_26_Template(rf, ctx) {
   if (rf & 1) {
     const _r573 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementContainerStart"](0);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "button", 588);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "button", 586);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_ng_container_26_Template_button_click_1_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r573);
       const ctx_r572 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"](2);
@@ -28498,11 +28474,11 @@ function CreateQuestionPaperComponent_div_72_Template(rf, ctx) {
       const ctx_r574 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
       return _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresetView"]($event.target === $event.currentTarget ? ctx_r574.closeAnswerKeyModal() : null);
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 474);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 472);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_Template_div_click_1_listener($event) {
       return $event.stopPropagation();
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](2, "div", 330)(3, "div", 438)(4, "div", 475)(5, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](2, "div", 330)(3, "div", 438)(4, "div", 473)(5, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtext"](6, "vpn_key");
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](7, "div")(8, "h3");
@@ -28522,12 +28498,12 @@ function CreateQuestionPaperComponent_div_72_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]()()();
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](15, "div", 332);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](16, CreateQuestionPaperComponent_div_72_div_16_Template, 11, 2, "div", 442);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](17, CreateQuestionPaperComponent_div_72_div_17_Template, 32, 1, "div", 476);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](18, CreateQuestionPaperComponent_div_72_div_18_Template, 15, 11, "div", 477);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](19, CreateQuestionPaperComponent_div_72_div_19_Template, 12, 5, "div", 477);
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](20, CreateQuestionPaperComponent_div_72_div_20_Template, 17, 2, "div", 478);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](17, CreateQuestionPaperComponent_div_72_div_17_Template, 32, 1, "div", 474);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](18, CreateQuestionPaperComponent_div_72_div_18_Template, 15, 11, "div", 475);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](19, CreateQuestionPaperComponent_div_72_div_19_Template, 12, 5, "div", 475);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](20, CreateQuestionPaperComponent_div_72_div_20_Template, 17, 2, "div", 476);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](21, "div", 339)(22, "button", 452);
+    _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](21, "div", 339)(22, "button", 450);
     _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("click", function CreateQuestionPaperComponent_div_72_Template_button_click_22_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵrestoreView"](_r575);
       const ctx_r578 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵnextContext"]();
@@ -34635,7 +34611,7 @@ class CreateQuestionPaperComponent {
       features: [_angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵStandaloneFeature"]],
       decls: 73,
       vars: 35,
-      consts: [[1, "qp-builder-page"], [1, "qp-nav-bar"], ["type", "button", 1, "btn-back-papers", 3, "click"], [1, "qp-body"], [1, "qp-main"], ["id", "test-details-card", 1, "qp-card"], [1, "qp-card-header", 2, "display", "flex", "justify-content", "space-between", "align-items", "center"], [1, "qp-card-title"], ["class", "btn-primary-blue", "type", "button", "aria-haspopup", "true", "style", "display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer;", 3, "click", 4, "ngIf"], ["class", "draft-badge", 3, "published-badge", "finalized-badge", 4, "ngIf"], ["class", "qp-card-body", 4, "ngIf"], ["class", "qp-card", "id", "paper-assignment-card", 4, "ngIf"], ["class", "qp-card", "id", "paper-review-access-card", 4, "ngIf"], ["class", "qp-card", "id", "sections-card", 4, "ngIf"], [1, "qp-sidebar"], [1, "sidebar-card"], [1, "sidebar-title"], [1, "summary-marks-block"], [1, "summary-marks-big"], [1, "marks-current"], [1, "marks-of"], [1, "summary-marks-bar"], [1, "summary-marks-fill"], [1, "summary-stats-grid"], [1, "stat-card"], [1, "stat-card-label"], [1, "stat-card-val"], ["class", "section-prog-list", 4, "ngIf"], ["class", "summary-alert alert-danger", 4, "ngIf"], [1, "sidebar-action-group"], ["type", "button", 1, "btn-sidebar-preview-paper", 3, "click"], ["class", "btn-sidebar-preview-guide", "type", "button", 3, "click", 4, "ngIf"], ["class", "btn-sidebar-answer-key", "type", "button", "title", "Manage Answer Key: Upload or generate answers with AI", 3, "click", 4, "ngIf"], ["class", "btn-sidebar-publish", "type", "button", 3, "disabled", "matTooltip", "click", 4, "ngIf"], ["class", "btn-sidebar-upload", "type", "button", "title", "Upload an existing question paper to detect questions and create a template automatically with AI", 3, "click", 4, "ngIf"], ["class", "btn-sidebar-save", "type", "button", 3, "click", 4, "ngIf"], [1, "sidebar-download-wrap"], [1, "sidebar-download-label"], ["type", "button", 1, "btn-sidebar-download", 3, "click"], ["class", "btn-sidebar-download", "type", "button", 3, "click", 4, "ngIf"], ["class", "preview-overlay", 4, "ngIf"], ["class", "modal-backdrop", 3, "mousedown", 4, "ngIf"], ["class", "confirm-backdrop", "role", "dialog", "aria-modal", "true", 3, "click", 4, "ngIf"], ["class", "post-save-modal-backdrop", "role", "dialog", "aria-modal", "true", "aria-labelledby", "post-save-modal-title", 3, "click", 4, "ngIf"], ["type", "button", "aria-haspopup", "true", 1, "btn-primary-blue", 2, "display", "inline-flex", "align-items", "center", "gap", "6px", "padding", "8px 16px", "border-radius", "6px", "font-weight", "500", "cursor", "pointer", 3, "click"], ["filterPaperBtn", ""], [1, "draft-badge"], [1, "qp-card-body"], ["class", "applied-filters", "style", "display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;", 4, "ngIf"], [1, "fields-row", 3, "ngClass"], ["class", "field-group", 4, "ngIf"], [1, "field-group"], [1, "field-label"], [1, "req"], ["type", "text", "placeholder", "Choose a paper in Filter Paper", "readonly", "", 1, "qp-input", 3, "value", "click"], [1, "field-hint", 2, "font-size", "11px", "color", "#64748b", "margin-top", "4px", "display", "block"], [1, "fields-row", "fields-row--3", 2, "display", "grid", "grid-template-columns", "2fr 1fr 1fr", "gap", "16px", "margin-top", "16px"], ["type", "text", "placeholder", "E.g. Physics \u2013 Unit Test 1 04/11/2026 13:15", 1, "qp-input", 3, "ngModel", "disabled", "ngModelChange", "input"], ["type", "number", "min", "1", "placeholder", "e.g. 60", 1, "qp-input", 3, "ngModel", "disabled", "ngModelChange"], [1, "opt"], [1, "date-input-wrap"], ["type", "date", "placeholder", "dd-mm-yyyy", 1, "qp-input", "date-input", 3, "ngModel", "disabled", "ngModelChange"], [1, "applied-filters", 2, "display", "flex", "flex-wrap", "wrap", "gap", "8px", "margin-bottom", "16px"], [2, "font-size", "12px", "font-weight", "600", "color", "#64748b", "align-self", "center"], ["type", "button", "class", "applied-filter-chip", "style", "display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #e2e8f0; border: none; border-radius: 16px; font-size: 12px; cursor: pointer;", 3, "click", 4, "ngFor", "ngForOf"], ["type", "button", 2, "background", "none", "border", "none", "color", "#2563eb", "font-size", "12px", "font-weight", "600", "cursor", "pointer", 3, "click"], ["type", "button", 1, "applied-filter-chip", 2, "display", "inline-flex", "align-items", "center", "gap", "4px", "padding", "4px 10px", "background", "#e2e8f0", "border", "none", "border-radius", "16px", "font-size", "12px", "cursor", "pointer", 3, "click"], [2, "font-size", "14px", "width", "14px", "height", "14px"], ["type", "text", "placeholder", "Choose institute in Filter Paper", "readonly", "", 1, "qp-input", 2, "background", "#f8fafc", "cursor", "pointer", 3, "value", "click"], ["class", "fields-row", "style", "grid-template-columns: 1fr;", 4, "ngIf"], [1, "fields-row", "fields-row--2"], ["panelClass", "qp-select-dropdown-panel", "disableOptionCentering", "", 1, "qp-select", 3, "ngModel", "disabled", "placeholder", "ngModelChange", "selectionChange"], [3, "value", 4, "ngFor", "ngForOf"], ["panelClass", "qp-select-dropdown-panel", "disableOptionCentering", "", "placeholder", "Select subject", 1, "qp-select", 3, "ngModel", "disabled", "ngModelChange", "selectionChange"], ["panelClass", "qp-select-dropdown-panel", "disableOptionCentering", "", "placeholder", "Select type", 1, "qp-select", 3, "ngModel", "disabled", "ngModelChange"], ["value", "Unit Test"], ["value", "Mid Term"], ["value", "Final Exam"], ["value", "Practice"], [1, "fields-row", "fields-row--3", 2, "display", "grid", "grid-template-columns", "2fr 1fr 1fr", "gap", "16px"], ["type", "text", "placeholder", "Physics \u2013 Unit Test 1", 1, "qp-input", 3, "ngModel", "disabled", "ngModelChange"], ["type", "number", "placeholder", "50", "min", "0", 1, "qp-input", 3, "ngModel", "disabled", "ngModelChange"], ["type", "number", "placeholder", "50", "min", "0", "max", "100", 1, "qp-input", 3, "ngModel", "disabled", "ngModelChange", "input"], [1, "fields-row", 2, "grid-template-columns", "1fr"], ["panelClass", "qp-select-dropdown-panel", "disableOptionCentering", "", "placeholder", "Select institute", 1, "qp-select", 3, "ngModel", "disabled", "ngModelChange", "selectionChange"], [3, "value"], ["id", "paper-assignment-card", 1, "qp-card"], ["class", "running-test-banner", "style", "margin-bottom: 1rem; border-radius: 0.5rem; border: 1px solid #fca5a5; background: #fff1f2; color: #991b1b; padding: 12px 16px; display: flex; align-items: center; gap: 8px;", "role", "status", 4, "ngIf"], [1, "qp-card-header", "assignment-card-header"], [1, "assignment-heading-wrap"], [1, "assignment-heading-icon"], ["type", "button", "aria-haspopup", "true", 1, "btn-assignment-filter", 3, "disabled", "click"], ["userFiltersBtn", ""], ["class", "applied-user-filters", 4, "ngIf"], ["filtersPanelUserAnchor", ""], ["filterPaperOverlayTpl", ""], [1, "assignment-user-list"], ["class", "assignment-empty assignment-filter-placeholder", 4, "ngIf"], [4, "ngIf"], ["class", "assignment-empty", 4, "ngIf"], ["class", "assignment-warning", 4, "ngIf"], ["role", "status", 1, "running-test-banner", 2, "margin-bottom", "1rem", "border-radius", "0.5rem", "border", "1px solid #fca5a5", "background", "#fff1f2", "color", "#991b1b", "padding", "12px 16px", "display", "flex", "align-items", "center", "gap", "8px"], [2, "color", "#dc2626"], [1, "applied-user-filters"], [1, "applied-user-filters-title"], ["type", "button", "class", "applied-user-filter-chip", 3, "click", 4, "ngFor", "ngForOf"], ["type", "button", 1, "applied-user-filter-clear", 3, "click"], ["type", "button", 1, "applied-user-filter-chip", 3, "click"], ["class", "user-filters-panel", 4, "ngIf"], [1, "user-filters-panel"], [1, "user-filter-grid"], ["appearance", "outline", 1, "user-filter-item"], ["matPrefix", ""], ["multiple", "", "placeholder", "Select Country", 3, "ngModel", "ngModelChange", "selectionChange"], [1, "select-search-option", 3, "click"], ["matInput", "", "placeholder", "Search country", 1, "select-search-input", 3, "ngModel", "ngModelOptions", "ngModelChange", "click", "keydown", "keyup"], ["class", "select-all-option", 3, "click", 4, "ngIf"], ["multiple", "", "placeholder", "Select City", 3, "ngModel", "disabled", "ngModelChange", "selectionChange"], ["matInput", "", "placeholder", "Search city", 1, "select-search-input", 3, "ngModel", "ngModelOptions", "ngModelChange", "click", "keydown", "keyup"], ["disabled", "", 4, "ngIf"], ["multiple", "", 3, "ngModel", "placeholder", "ngModelChange", "selectionChange"], ["matInput", "", 1, "select-search-input", 3, "placeholder", "ngModel", "ngModelOptions", "ngModelChange", "click", "keydown", "keyup"], ["multiple", "", "placeholder", "Select campus", 3, "ngModel", "ngModelChange", "selectionChange"], ["matInput", "", "placeholder", "Search campus", 1, "select-search-input", 3, "ngModel", "ngModelOptions", "ngModelChange", "click", "keydown", "keyup"], ["appearance", "outline", 1, "user-filter-item", "user-date-filter", 3, "click"], ["matInput", "", "readonly", "", "placeholder", "Select date range", 3, "value"], ["matSuffix", ""], [1, "user-filter-actions"], ["type", "button", 1, "user-filter-reset", 3, "click"], ["type", "button", 1, "user-filter-apply", 3, "disabled", "click"], [1, "select-all-option", 3, "click"], ["disabled", ""], [1, "filters-panel", "qp-filter-paper-panel", 2, "background", "#ffffff", "border-radius", "10px", "box-shadow", "0 12px 32px rgba(0,0,0,0.2)", "width", "380px", "padding", "18px", "border", "1px solid #e2e8f0", 3, "click"], [2, "display", "flex", "justify-content", "space-between", "align-items", "center", "margin-bottom", "14px", "border-bottom", "1px solid #e2e8f0", "padding-bottom", "8px"], [2, "margin", "0", "font-size", "15px", "font-weight", "600", "color", "#0f172a", "display", "flex", "align-items", "center", "gap", "6px"], [2, "color", "#2563eb"], ["style", "font-size: 11px; background: #eff6ff; color: #2563eb; font-weight: 600; padding: 2px 6px; border-radius: 4px;", 4, "ngIf"], [1, "filter-body", 2, "display", "flex", "flex-direction", "column", "gap", "12px", "max-height", "480px", "overflow-y", "auto", "padding", "12px 4px 4px 4px"], ["appearance", "outline", "floatLabel", "always", 1, "filter-item", 2, "width", "100%", "margin-top", "4px"], ["placeholder", "Select Question Paper", 3, "ngModel", "disabled", "ngModelChange"], ["matInput", "", "placeholder", "Search question paper...", 1, "select-search-input", 3, "ngModel", "ngModelOptions", "ngModelChange", "click"], [2, "display", "grid", "grid-template-columns", "1fr 1fr", "gap", "8px"], ["appearance", "outline", "floatLabel", "always", 1, "filter-item"], ["placeholder", "Any Department", 3, "ngModel", "ngModelChange"], ["value", ""], ["placeholder", "Any Subject", 3, "ngModel", "ngModelChange"], ["appearance", "outline", "floatLabel", "always", 1, "filter-item", "user-date-filter", 2, "width", "100%", "cursor", "pointer", 3, "click"], ["matInput", "", "readonly", "", "placeholder", "Select date range", 2, "cursor", "pointer", 3, "value"], ["matSuffix", "", "mat-icon-button", "", "type", "button", "aria-label", "Clear date", 3, "click", 4, "ngIf"], ["matSuffix", "", "style", "color: #64748b; font-size: 18px; width: 18px; height: 18px; cursor: pointer;", 4, "ngIf"], [2, "padding", "2px 2px 4px"], ["aria-label", "Show only question papers created by me", 3, "ngModel", "ngModelChange", "change"], [2, "display", "flex", "justify-content", "space-between", "align-items", "center", "margin-top", "14px", "border-top", "1px solid #e2e8f0", "padding-top", "10px"], ["mat-stroked-button", "", "type", "button", 2, "font-weight", "500", 3, "click"], ["mat-flat-button", "", "color", "primary", "type", "button", 2, "font-weight", "500", 3, "disabled", "click"], [2, "font-size", "11px", "background", "#eff6ff", "color", "#2563eb", "font-weight", "600", "padding", "2px 6px", "border-radius", "4px"], ["placeholder", "Country", 3, "ngModel", "ngModelChange", "selectionChange"], ["placeholder", "City", 3, "ngModel", "disabled", "ngModelChange", "selectionChange"], ["placeholder", "Industry", 3, "ngModel", "ngModelChange", "selectionChange"], ["placeholder", "Sector", 3, "ngModel", "disabled", "ngModelChange", "selectionChange"], ["appearance", "outline", "floatLabel", "always", 1, "filter-item", 2, "width", "100%"], ["placeholder", "Select Institute", 3, "ngModel", "ngModelChange", "selectionChange"], ["matSuffix", "", "mat-icon-button", "", "type", "button", "aria-label", "Clear date", 3, "click"], [2, "font-size", "16px", "width", "16px", "height", "16px"], ["matSuffix", "", 2, "color", "#64748b", "font-size", "18px", "width", "18px", "height", "18px", "cursor", "pointer"], [1, "assignment-empty", "assignment-filter-placeholder"], ["type", "button", 1, "btn-assignment-filter", 3, "click"], [1, "assignment-user-list-header"], [3, "checked", "indeterminate", "disabled", "change"], [1, "assignment-list-actions"], [1, "assignment-search-wrap"], ["type", "text", "placeholder", "Search users", 1, "assignment-search-input", 3, "ngModel", "ngModelChange"], ["type", "button", 1, "assignment-refresh", 3, "disabled", "click"], ["class", "assignment-empty assignment-load-error", 4, "ngIf"], ["class", "paper-user-selection-list", 4, "ngIf"], [1, "assignment-empty"], [1, "assignment-empty", "assignment-load-error"], ["type", "button", 1, "assignment-refresh", 3, "click"], [1, "paper-user-selection-list"], [4, "ngFor", "ngForOf", "ngForTrackBy"], [3, "checked", "disabled", "change"], ["class", "assignment-user-email", 4, "ngIf"], ["class", "assignment-user-meta", 4, "ngIf"], [1, "assignment-user-email"], [1, "assignment-user-meta"], [1, "assignment-warning"], ["id", "paper-review-access-card", 1, "qp-card"], [1, "qp-card-header"], [3, "settings", "disabled", "settingsChange"], ["id", "sections-card", 1, "qp-card"], ["class", "btn-outline-add-sec", "type", "button", 3, "disabled", "click", 4, "ngIf"], ["class", "no-subject-warn", 4, "ngIf"], ["class", "sections-empty", 4, "ngIf"], ["class", "sections-list", 4, "ngIf"], ["type", "button", 1, "btn-outline-add-sec", 3, "disabled", "click"], [1, "no-subject-warn"], [1, "sections-empty"], ["style", "display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;", 4, "ngIf"], [2, "display", "flex", "gap", "12px", "justify-content", "center", "flex-wrap", "wrap"], ["type", "button", 1, "btn-outline-add-sec", 3, "click"], ["type", "button", 1, "btn-outline-upload-sec", 3, "click"], [1, "sections-list"], ["class", "section-block-card", 4, "ngFor", "ngForOf"], [1, "section-block-card"], [1, "sec-head"], ["class", "sec-drag-handle", 4, "ngIf"], [1, "sec-head-info"], [1, "sec-name"], ["class", "sec-subheading", 4, "ngIf"], [1, "sec-meta"], [1, "sec-meta-item"], ["class", "sec-head-actions", 4, "ngIf"], [1, "sec-progress-bar"], [1, "sec-progress-fill"], ["class", "sec-questions", 4, "ngIf"], ["class", "sec-add-question-wrap", 4, "ngIf"], [1, "sec-drag-handle"], [1, "sec-subheading"], [1, "sec-head-actions"], ["type", "button", "title", "Edit section", 1, "btn-icon-action", 3, "click"], ["type", "button", "title", "Delete section", 1, "btn-icon-action", "btn-del", 3, "click"], [1, "sec-questions"], ["class", "sec-q-row", 4, "ngFor", "ngForOf"], [1, "sec-q-row"], [1, "q-num"], [1, "q-content-wrap", 2, "flex", "1", "min-width", "0"], ["matTooltipPosition", "above", "matTooltipClass", "question-full-tooltip", 1, "q-text", 2, "display", "block", 3, "matTooltip", "matTooltipShowDelay"], [3, "text"], ["class", "q-media-preview", "style", "margin-top: 6px; margin-bottom: 6px;", 4, "ngIf"], ["class", "q-inline-options", "style", "display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;", 4, "ngIf"], ["class", "q-inline-answer", "style", "margin-top: 6px; display: inline-flex; align-items: flex-start; gap: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 3px 8px; font-size: 12px; color: #166534;", 4, "ngIf"], [1, "q-marks-wrap"], ["type", "number", "min", "0", 1, "q-marks-input", 3, "ngModel", "ngModelOptions", "disabled", "ngModelChange"], [1, "q-marks-label"], ["class", "q-btn-edit", "type", "button", "title", "Edit Question", 3, "click", 4, "ngIf"], ["class", "q-btn-del", "type", "button", "title", "Remove", 3, "click", 4, "ngIf"], [1, "q-media-preview", 2, "margin-top", "6px", "margin-bottom", "6px"], ["alt", "Question Diagram", 2, "max-width", "240px", "max-height", "160px", "border-radius", "6px", "border", "1px solid #cbd5e1", "object-fit", "contain", "display", "block", "background", "#fff", 3, "src"], [1, "q-inline-options", 2, "display", "flex", "flex-wrap", "wrap", "gap", "6px", "margin-top", "4px"], ["class", "q-opt-pill", "style", "font-size: 11.5px; background: #f8fafc; color: #334155; padding: 2px 8px; border-radius: 4px; border: 1px solid #e2e8f0;", 4, "ngFor", "ngForOf"], [1, "q-opt-pill", 2, "font-size", "11.5px", "background", "#f8fafc", "color", "#334155", "padding", "2px 8px", "border-radius", "4px", "border", "1px solid #e2e8f0"], [1, "q-inline-answer", 2, "margin-top", "6px", "display", "inline-flex", "align-items", "flex-start", "gap", "6px", "background", "#f0fdf4", "border", "1px solid #bbf7d0", "border-radius", "6px", "padding", "3px 8px", "font-size", "12px", "color", "#166534"], [2, "color", "#15803d", "font-size", "11.5px", "text-transform", "uppercase"], [2, "font-weight", "500", "line-height", "1.35"], ["type", "button", "title", "Edit Question", 1, "q-btn-edit", 3, "click"], ["type", "button", "title", "Remove", 1, "q-btn-del", 3, "click"], [1, "sec-add-question-wrap"], ["type", "button", 1, "btn-sec-add-q", 3, "click"], [1, "section-prog-list"], ["class", "section-prog-row", 4, "ngFor", "ngForOf"], [1, "section-prog-row"], [1, "sec-prog-name"], [1, "sec-prog-track"], [1, "sec-prog-bar"], [1, "sec-prog-val"], [1, "summary-alert", "alert-danger"], [1, "alert-icon"], [1, "alert-text"], ["type", "button", 1, "btn-sidebar-preview-guide", 3, "click"], ["type", "button", "title", "Manage Answer Key: Upload or generate answers with AI", 1, "btn-sidebar-answer-key", 3, "click"], ["type", "button", 1, "btn-sidebar-publish", 3, "disabled", "matTooltip", "click"], ["type", "button", "title", "Upload an existing question paper to detect questions and create a template automatically with AI", 1, "btn-sidebar-upload", 3, "click"], ["type", "button", 1, "btn-sidebar-save", 3, "click"], [1, "preview-overlay"], [1, "preview-topbar"], ["type", "button", 1, "btn-back-editing", 3, "click"], [1, "preview-tabs"], ["type", "button", 1, "preview-tab", "active"], ["class", "preview-tab", "type", "button", 3, "click", 4, "ngIf"], [1, "preview-top-actions"], ["class", "preview-page-count-badge", 4, "ngIf"], ["type", "button", 1, "btn-download-top", 3, "click"], ["class", "preview-warning", 4, "ngIf"], [1, "preview-paper-page"], [1, "document-pages-wrapper"], ["class", "word-page", 4, "ngFor", "ngForOf"], ["type", "button", 1, "preview-tab", 3, "click"], [1, "preview-page-count-badge"], [1, "preview-warning"], [1, "word-page"], [1, "word-page-inner"], ["class", "page-main-header", 4, "ngIf"], ["class", "page-running-header", 4, "ngIf"], [1, "page-content-flow"], [4, "ngFor", "ngForOf"], ["class", "paper-no-questions", 4, "ngIf"], [1, "word-page-footer"], [1, "page-footer-left"], [1, "page-footer-right"], [1, "page-main-header"], [1, "paper-school-name"], ["class", "paper-meta-line", 4, "ngIf"], [1, "paper-test-type"], ["class", "paper-header-row", "style", "margin-bottom: 2px;", 4, "ngIf"], [1, "paper-header-row"], [1, "paper-divider"], [1, "paper-meta-line"], [1, "paper-header-row", 2, "margin-bottom", "2px"], [1, "page-running-header"], [1, "running-header-left"], [1, "running-header-right"], ["class", "paper-section-heading-wrap", 4, "ngIf"], ["class", "paper-section-instructions", 4, "ngIf"], ["class", "paper-question-item", 4, "ngIf"], [1, "paper-section-heading-wrap"], [1, "paper-section-spacer"], [1, "paper-section-heading"], [1, "paper-section-marks-calc"], [1, "paper-section-instructions"], [1, "paper-question-item"], [1, "paper-q-header"], [1, "paper-q-num"], [1, "paper-q-text"], [1, "paper-q-marks"], ["class", "paper-q-media", 4, "ngIf"], ["class", "paper-q-options-grid", 4, "ngIf"], [1, "paper-q-media"], ["alt", "Question Image", 1, "paper-question-image", 3, "src"], [1, "paper-q-options-grid"], ["class", "paper-q-option", 4, "ngFor", "ngForOf"], [1, "paper-q-option"], [1, "paper-no-questions"], [1, "paper-q-answer"], [1, "ans-badge"], ["class", "ans-value", 4, "ngIf"], ["class", "no-answer", 4, "ngIf"], [1, "ans-value"], [1, "no-answer"], [1, "modal-backdrop", 3, "mousedown"], [1, "modal-dialog", "section-dialog", 3, "click"], [1, "modal-header"], ["mat-icon-button", "", "type", "button", 3, "click"], [1, "modal-body"], [1, "form-group"], ["placeholder", "e.g. Section A", 1, "qp-input", 3, "ngModel", "ngModelChange"], ["placeholder", "e.g. Answer all questions.", 1, "qp-input", 3, "ngModel", "ngModelChange"], ["type", "number", "min", "1", "placeholder", "e.g. 10", 1, "qp-input", 3, "ngModel", "ngModelChange"], ["type", "number", "min", "0", "step", "0.5", "placeholder", "e.g. 1", 1, "qp-input", 3, "ngModel", "ngModelChange"], ["class", "form-group", 4, "ngIf"], [1, "modal-footer"], ["type", "button", 1, "btn-modal-cancel", 3, "click"], ["type", "button", 1, "btn-modal-confirm", 3, "click"], [1, "type-cards"], [1, "type-card", 3, "click"], [1, "type-radio"], [1, "type-card-info"], [1, "modal-dialog", "edit-question-dialog", 3, "click"], ["rows", "4", "placeholder", "Enter question statement, table markdown, or formula...", 1, "qp-textarea", 3, "ngModel", "ngModelChange"], [1, "form-row-2"], ["type", "number", "min", "0", "step", "0.5", 1, "qp-input", 3, "ngModel", "ngModelChange"], [1, "qp-select", 3, "ngModel", "ngModelChange"], ["value", "descriptive"], ["value", "choose"], ["type", "file", "accept", "image/*", 2, "display", "none", 3, "change"], ["editImgFileInput", ""], ["class", "edit-q-image-wrap", 4, "ngIf"], ["class", "edit-q-image-empty", 4, "ngIf"], [1, "form-group", 2, "margin-top", "14px"], [2, "font-size", "16px", "width", "16px", "height", "16px", "vertical-align", "middle", "margin-right", "4px", "color", "#16a34a"], ["rows", "3", "placeholder", "Enter the correct answer, selected option text, or model solution...", 1, "qp-textarea", 3, "ngModel", "ngModelChange"], ["class", "upload-hint", 4, "ngIf"], [1, "edit-q-image-wrap"], ["alt", "Question Diagram", 3, "src"], [1, "edit-q-image-actions"], ["type", "button", 1, "btn-change-image", 3, "disabled", "click"], ["type", "button", 1, "btn-remove-image", 3, "disabled", "click"], [1, "edit-q-image-empty"], ["type", "button", 1, "btn-upload-q-image", 3, "disabled", "click"], [1, "upload-hint"], [1, "options-header-row"], ["type", "button", 1, "btn-add-opt", 3, "click"], [1, "edit-options-list"], ["class", "edit-opt-row", 4, "ngFor", "ngForOf", "ngForTrackBy"], [1, "edit-opt-row"], [1, "opt-letter"], ["type", "text", 1, "qp-input", "opt-input", 3, "ngModel", "placeholder", "ngModelChange"], ["type", "button", "title", "Delete option", 1, "btn-opt-del", 3, "click"], [1, "modal-dialog", "questions-dialog", 3, "click"], [1, "modal-context-header"], [1, "context-row"], [1, "context-chips"], [1, "context-chip", "subject"], [1, "context-chip", "section"], [1, "dot"], ["panelClass", "qp-select-dropdown-panel", "disableOptionCentering", "", "placeholder", "Select Question Bank", 1, "qp-select", 3, "ngModel", "ngModelChange", "selectionChange", "openedChange"], ["placeholder", "Search question bank...", 1, "select-search-input", 3, "ngModel", "ngModelOptions", "ngModelChange", "click", "keydown", "keyup", "input"], ["class", "q-filter-row", 4, "ngIf"], ["class", "modal-questions-list", 4, "ngIf"], ["class", "modal-no-bank", 4, "ngIf"], ["class", "selected-count", 4, "ngIf"], [1, "footer-btns"], ["type", "button", 1, "btn-modal-confirm", 3, "disabled", "click"], [1, "q-filter-row"], [1, "q-search-wrap"], ["type", "text", "placeholder", "Search questions...", 3, "ngModel", "ngModelChange"], ["type", "button", "class", "q-clear-btn", 3, "click", 4, "ngIf"], ["class", "q-select-all", 4, "ngIf"], ["type", "button", 1, "q-clear-btn", 3, "click"], [1, "q-select-all"], [3, "checked", "indeterminate", "change"], [1, "modal-questions-list"], ["class", "modal-loading", 4, "ngIf"], ["class", "modal-empty", 4, "ngIf"], ["class", "modal-q-row", 3, "disabled", "selected", 4, "ngFor", "ngForOf"], [1, "modal-loading"], [1, "spin"], [1, "modal-empty"], [1, "modal-q-row"], [1, "modal-q-label"], [1, "modal-q-text"], [1, "modal-q-meta"], [1, "modal-q-marks"], ["class", "modal-q-used", 4, "ngIf"], [1, "modal-q-used"], [1, "modal-no-bank"], [1, "selected-count"], ["role", "dialog", "aria-modal", "true", 1, "confirm-backdrop", 3, "click"], [1, "confirm-dialog-card", 3, "click"], [1, "dialog-icon", "warning-icon"], ["viewBox", "0 0 24 24", "fill", "none", "xmlns", "http://www.w3.org/2000/svg"], ["cx", "12", "cy", "12", "r", "10", "stroke", "currentColor", "stroke-width", "2"], ["d", "M12 8v4M12 16h.01", "stroke", "currentColor", "stroke-width", "2", "stroke-linecap", "round"], [1, "dialog-title"], [1, "dialog-message"], [1, "dialog-actions"], ["type", "button", 1, "cancel-btn", 3, "click"], ["type", "button", 1, "confirm-btn", "leave-btn", 3, "click"], ["role", "dialog", "aria-modal", "true", "aria-labelledby", "post-save-modal-title", 1, "post-save-modal-backdrop", 3, "click"], [1, "post-save-modal-card", 3, "click"], [1, "post-save-header"], [1, "post-save-icon-circle"], ["id", "post-save-modal-title", 1, "post-save-title"], [1, "post-save-subtitle"], [1, "post-save-actions"], ["type", "button", "mat-flat-button", "", "color", "primary", 1, "post-save-btn", "btn-create-test", 3, "click"], ["type", "button", "mat-stroked-button", "", 1, "post-save-btn", "btn-preview", 3, "click"], ["type", "button", "mat-button", "", 1, "post-save-btn", "btn-close", 3, "click"], [1, "modal-dialog", "upload-paper-dialog", 3, "click"], [1, "modal-header-title-wrap"], [1, "header-icon-wrap"], [1, "modal-subtitle"], ["mat-icon-button", "", "type", "button", 3, "disabled", "click"], ["class", "paper-upload-context-bar", 4, "ngIf"], [1, "upload-feature-chips"], [1, "feature-chip"], [1, "upload-dropzone", 3, "dragover", "dragleave", "drop"], ["type", "file", "accept", ".pdf,.png,.jpg,.jpeg,.webp", 2, "display", "none", 3, "change"], ["paperFileInput", ""], ["class", "dropzone-content", 3, "click", 4, "ngIf"], ["class", "selected-file-preview", 4, "ngIf"], ["class", "upload-loading-view", 4, "ngIf"], ["class", "upload-error-banner", 4, "ngIf"], ["type", "button", 1, "btn-modal-cancel", 3, "disabled", "click"], ["type", "button", 1, "btn-modal-confirm", "btn-upload-confirm", 3, "disabled", "click"], [1, "paper-upload-context-bar"], [1, "context-item"], [1, "context-label"], [1, "context-val"], [1, "dropzone-content", 3, "click"], [1, "dropzone-icon-circle"], [1, "browse-link"], [1, "selected-file-preview"], [1, "file-icon-box"], [1, "file-details"], [1, "file-name"], [1, "file-size"], ["type", "button", "title", "Remove file", 1, "btn-remove-file", 3, "click"], [1, "upload-loading-view"], [1, "ai-processing-spinner"], [1, "spin-icon"], [1, "loading-step-msg"], [1, "progress-steps-list"], [1, "step-line", "active"], [1, "upload-error-banner"], [1, "modal-dialog", "answer-key-dialog", 3, "click"], [1, "header-icon-wrap", "answer-key-icon-wrap"], ["class", "ak-options-grid", 4, "ngIf"], ["class", "ak-step-container", 4, "ngIf"], ["class", "ak-step-container ak-review-step", 4, "ngIf"], [1, "ak-options-grid"], [1, "ak-option-card", 3, "click"], [1, "ak-option-icon", "upload-icon"], [1, "ak-option-content"], [1, "ak-option-action"], ["type", "button", 1, "btn-ak-select"], [1, "ak-option-icon", "generate-icon"], ["class", "ak-option-card", 3, "click", 4, "ngIf"], [1, "ak-option-icon", 2, "background", "#eef2ff", "color", "#4f46e5"], [1, "ak-step-container"], [1, "ak-step-header"], ["type", "button", 1, "btn-ak-back", 3, "disabled", "click"], [1, "ak-step-title"], ["answerKeyFileInput", ""], [1, "dropzone-icon-circle", "answer-key-drop-circle"], ["class", "generate-info-box", 4, "ngIf"], ["class", "generate-params-card", 4, "ngIf"], ["class", "ai-generate-loading-card", 4, "ngIf"], [1, "generate-info-box"], [1, "info-icon"], [1, "info-text"], [1, "generate-params-card"], [1, "ak-params-header"], [1, "ak-params-title"], [1, "ak-params-hint"], ["appearance", "outline", 1, "ak-field-full"], ["matInput", "", "type", "text", "placeholder", "e.g. Data Structures - Trees & Graphs", 3, "ngModel", "ngModelChange"], [1, "ak-context-grid"], ["appearance", "outline"], ["matInput", "", "type", "text", "placeholder", "e.g. Education, IT", 3, "ngModel", "ngModelChange"], ["matInput", "", "type", "text", "placeholder", "e.g. Students, Employees", 3, "ngModel", "ngModelChange"], ["matInput", "", "type", "text", "placeholder", "e.g. Undergrad, Trainee", 3, "ngModel", "ngModelChange"], [3, "ngModel", "ngModelChange"], ["matInput", "", "rows", "2", "placeholder", "Any specific rubric, marking style, or instructions the AI should follow?", 3, "ngModel", "ngModelChange"], [1, "ak-source-section"], [1, "ak-source-header"], [1, "ak-source-label"], [1, "ak-source-switch"], ["type", "button", 1, "ak-switch-btn", 3, "click"], ["class", "ak-file-count", 4, "ngIf"], ["type", "file", "accept", ".pdf,.docx", "multiple", "", 2, "display", "none", 3, "change"], ["genAnsSourceFileInput", ""], [1, "ak-file-count"], [1, "ak-slim-upload-bar", 3, "click", "dragover", "dragleave", "drop"], ["type", "button", 1, "ak-upload-pill-btn"], [1, "ak-upload-hint"], ["class", "ak-file-list", 4, "ngIf"], [1, "ak-file-list"], ["class", "ak-file-chip", 4, "ngFor", "ngForOf"], [1, "ak-file-chip"], [1, "ak-file-name"], ["type", "button", "title", "Remove file", 1, "ak-file-remove", 3, "click"], ["matInput", "", "rows", "3", "placeholder", "Paste chapter notes, textbook excerpts, or reference solutions...", 3, "ngModel", "ngModelChange"], [1, "ai-generate-loading-card"], [1, "ai-pulse-spinner-wrap"], [1, "pulse-ring", "ring-1"], [1, "pulse-ring", "ring-2"], [1, "spinner-core"], [1, "core-icon"], [1, "loading-title"], [1, "loading-subtitle"], [1, "loading-progress-track"], [1, "loading-progress-bar"], [1, "generation-steps-box"], [1, "gen-step-item", "in-progress"], [1, "step-icon-badge"], [1, "rotating-icon"], [1, "step-text-wrap"], [1, "step-primary"], [1, "step-secondary"], [1, "ak-step-container", "ak-review-step"], ["type", "button", 1, "btn-ak-back", 3, "click"], [1, "ak-review-title-wrap"], ["class", "ak-review-count-badge", 4, "ngIf"], [1, "ak-review-hint-box"], [1, "ak-review-list-container"], ["class", "ak-review-q-card", 4, "ngFor", "ngForOf"], [1, "ak-review-count-badge"], [1, "ak-review-q-card"], [1, "ak-review-q-meta"], [1, "ak-q-number"], [1, "ak-q-type-chip"], [1, "ak-q-marks-chip"], [1, "ak-review-q-statement"], ["class", "ak-review-q-img", 4, "ngIf"], ["class", "ak-review-options-section", 4, "ngIf"], ["class", "ak-review-answer-section", 4, "ngIf"], ["class", "ak-fine-tune-box", 4, "ngIf"], [1, "ak-review-q-img"], [1, "ak-review-options-section"], [1, "ak-field-tag"], [1, "ak-options-select-grid"], ["class", "ak-opt-choice-box", 3, "is-correct", "click", 4, "ngFor", "ngForOf"], [1, "ak-opt-choice-box", 3, "click"], [1, "ak-radio-indicator"], ["class", "ak-radio-dot", 4, "ngIf"], [1, "ak-opt-letter"], [1, "ak-opt-label"], [1, "ak-radio-dot"], [1, "ak-review-answer-section"], ["rows", "3", "placeholder", "Enter or refine the model solution...", 1, "qp-textarea", "ak-ans-textarea", 3, "ngModel", "ngModelChange"], [1, "ak-fine-tune-box"], [1, "fine-tune-header"], [1, "ft-sparkle-icon"], [1, "ft-title"], [1, "fine-tune-input-row"], ["type", "text", 1, "qp-input", "fine-tune-input", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter"], ["type", "button", 1, "btn-fine-tune-action", 3, "disabled", "click"], ["type", "button", 1, "btn-modal-confirm", "btn-generate-confirm", 3, "disabled", "click"], ["type", "button", 1, "btn-modal-confirm", "btn-apply-answers-confirm", 3, "click"]],
+      consts: [[1, "qp-builder-page"], [1, "qp-nav-bar"], ["type", "button", 1, "btn-back-papers", 3, "click"], [1, "qp-body"], [1, "qp-main"], ["id", "test-details-card", 1, "qp-card"], [1, "qp-card-header", 2, "display", "flex", "justify-content", "space-between", "align-items", "center"], [1, "qp-card-title"], ["class", "btn-primary-blue", "type", "button", "aria-haspopup", "true", "style", "display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer;", 3, "click", 4, "ngIf"], ["class", "draft-badge", 3, "published-badge", "finalized-badge", 4, "ngIf"], ["class", "qp-card-body", 4, "ngIf"], ["class", "qp-card", "id", "paper-assignment-card", 4, "ngIf"], ["class", "qp-card", "id", "paper-review-access-card", 4, "ngIf"], ["class", "qp-card", "id", "sections-card", 4, "ngIf"], [1, "qp-sidebar"], [1, "sidebar-card"], [1, "sidebar-title"], [1, "summary-marks-block"], [1, "summary-marks-big"], [1, "marks-current"], [1, "marks-of"], [1, "summary-marks-bar"], [1, "summary-marks-fill"], [1, "summary-stats-grid"], [1, "stat-card"], [1, "stat-card-label"], [1, "stat-card-val"], ["class", "section-prog-list", 4, "ngIf"], ["class", "summary-alert alert-danger", 4, "ngIf"], [1, "sidebar-action-group"], ["type", "button", 1, "btn-sidebar-preview-paper", 3, "click"], ["class", "btn-sidebar-preview-guide", "type", "button", 3, "click", 4, "ngIf"], ["class", "btn-sidebar-answer-key", "type", "button", "title", "Manage Answer Key: Upload or generate answers with AI", 3, "click", 4, "ngIf"], ["class", "btn-sidebar-publish", "type", "button", 3, "disabled", "matTooltip", "click", 4, "ngIf"], ["class", "btn-sidebar-upload", "type", "button", "title", "Upload an existing question paper to detect questions and create a template automatically with AI", 3, "click", 4, "ngIf"], ["class", "btn-sidebar-save", "type", "button", 3, "click", 4, "ngIf"], [1, "sidebar-download-wrap"], [1, "sidebar-download-label"], ["type", "button", 1, "btn-sidebar-download", 3, "click"], ["class", "btn-sidebar-download", "type", "button", 3, "click", 4, "ngIf"], ["class", "preview-overlay", 4, "ngIf"], ["class", "modal-backdrop", 3, "mousedown", 4, "ngIf"], ["class", "confirm-backdrop", "role", "dialog", "aria-modal", "true", 3, "click", 4, "ngIf"], ["class", "post-save-modal-backdrop", "role", "dialog", "aria-modal", "true", "aria-labelledby", "post-save-modal-title", 3, "click", 4, "ngIf"], ["type", "button", "aria-haspopup", "true", 1, "btn-primary-blue", 2, "display", "inline-flex", "align-items", "center", "gap", "6px", "padding", "8px 16px", "border-radius", "6px", "font-weight", "500", "cursor", "pointer", 3, "click"], ["filterPaperBtn", ""], [1, "draft-badge"], [1, "qp-card-body"], ["class", "applied-filters", "style", "display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;", 4, "ngIf"], [1, "fields-row", 3, "ngClass"], ["class", "field-group", 4, "ngIf"], [1, "field-group"], [1, "field-label"], [1, "req"], ["type", "text", "placeholder", "Choose a paper in Filter Paper", "readonly", "", 1, "qp-input", 3, "value", "click"], [1, "field-hint", 2, "font-size", "11px", "color", "#64748b", "margin-top", "4px", "display", "block"], [1, "fields-row", "fields-row--3", 2, "display", "grid", "grid-template-columns", "2fr 1fr 1fr", "gap", "16px", "margin-top", "16px"], ["type", "text", "placeholder", "E.g. Physics \u2013 Unit Test 1 04/11/2026 13:15", 1, "qp-input", 3, "ngModel", "disabled", "ngModelChange", "input"], ["type", "number", "min", "1", "placeholder", "e.g. 60", 1, "qp-input", 3, "ngModel", "disabled", "ngModelChange"], [1, "opt"], [1, "date-input-wrap"], ["type", "date", "placeholder", "dd-mm-yyyy", 1, "qp-input", "date-input", 3, "ngModel", "disabled", "ngModelChange"], [1, "applied-filters", 2, "display", "flex", "flex-wrap", "wrap", "gap", "8px", "margin-bottom", "16px"], [2, "font-size", "12px", "font-weight", "600", "color", "#64748b", "align-self", "center"], ["type", "button", "class", "applied-filter-chip", "style", "display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: #e2e8f0; border: none; border-radius: 16px; font-size: 12px; cursor: pointer;", 3, "click", 4, "ngFor", "ngForOf"], ["type", "button", 2, "background", "none", "border", "none", "color", "#2563eb", "font-size", "12px", "font-weight", "600", "cursor", "pointer", 3, "click"], ["type", "button", 1, "applied-filter-chip", 2, "display", "inline-flex", "align-items", "center", "gap", "4px", "padding", "4px 10px", "background", "#e2e8f0", "border", "none", "border-radius", "16px", "font-size", "12px", "cursor", "pointer", 3, "click"], [2, "font-size", "14px", "width", "14px", "height", "14px"], ["type", "text", "placeholder", "Choose institute in Filter Paper", "readonly", "", 1, "qp-input", 2, "background", "#f8fafc", "cursor", "pointer", 3, "value", "click"], ["class", "fields-row", "style", "grid-template-columns: 1fr;", 4, "ngIf"], [1, "fields-row", "fields-row--2"], ["panelClass", "qp-select-dropdown-panel", "disableOptionCentering", "", 1, "qp-select", 3, "ngModel", "disabled", "placeholder", "ngModelChange", "selectionChange"], [3, "value", 4, "ngFor", "ngForOf"], ["panelClass", "qp-select-dropdown-panel", "disableOptionCentering", "", "placeholder", "Select subject", 1, "qp-select", 3, "ngModel", "disabled", "ngModelChange", "selectionChange"], ["panelClass", "qp-select-dropdown-panel", "disableOptionCentering", "", "placeholder", "Select type", 1, "qp-select", 3, "ngModel", "disabled", "ngModelChange"], ["value", "Unit Test"], ["value", "Mid Term"], ["value", "Final Exam"], ["value", "Practice"], [1, "fields-row", "fields-row--3", 2, "display", "grid", "grid-template-columns", "2fr 1fr 1fr", "gap", "16px"], ["type", "text", "placeholder", "Physics \u2013 Unit Test 1", 1, "qp-input", 3, "ngModel", "disabled", "ngModelChange"], ["type", "number", "placeholder", "50", "min", "0", 1, "qp-input", 3, "ngModel", "disabled", "ngModelChange"], ["type", "number", "placeholder", "50", "min", "0", "max", "100", 1, "qp-input", 3, "ngModel", "disabled", "ngModelChange", "input"], [1, "fields-row", 2, "grid-template-columns", "1fr"], ["panelClass", "qp-select-dropdown-panel", "disableOptionCentering", "", "placeholder", "Select institute", 1, "qp-select", 3, "ngModel", "disabled", "ngModelChange", "selectionChange"], [3, "value"], ["id", "paper-assignment-card", 1, "qp-card"], ["class", "running-test-banner", "style", "margin-bottom: 1rem; border-radius: 0.5rem; border: 1px solid #fca5a5; background: #fff1f2; color: #991b1b; padding: 12px 16px; display: flex; align-items: center; gap: 8px;", "role", "status", 4, "ngIf"], [1, "qp-card-header", "assignment-card-header"], [1, "assignment-heading-wrap"], [1, "assignment-heading-icon"], ["type", "button", "aria-haspopup", "true", 1, "btn-assignment-filter", 3, "disabled", "click"], ["userFiltersBtn", ""], ["class", "applied-user-filters", 4, "ngIf"], ["filtersPanelUserAnchor", ""], ["filterPaperOverlayTpl", ""], [1, "assignment-user-list"], ["class", "assignment-empty assignment-filter-placeholder", 4, "ngIf"], [4, "ngIf"], ["class", "assignment-empty", 4, "ngIf"], ["class", "assignment-warning", 4, "ngIf"], ["role", "status", 1, "running-test-banner", 2, "margin-bottom", "1rem", "border-radius", "0.5rem", "border", "1px solid #fca5a5", "background", "#fff1f2", "color", "#991b1b", "padding", "12px 16px", "display", "flex", "align-items", "center", "gap", "8px"], [2, "color", "#dc2626"], [1, "applied-user-filters"], [1, "applied-user-filters-title"], ["type", "button", "class", "applied-user-filter-chip", 3, "click", 4, "ngFor", "ngForOf"], ["type", "button", 1, "applied-user-filter-clear", 3, "click"], ["type", "button", 1, "applied-user-filter-chip", 3, "click"], ["class", "user-filters-panel", 4, "ngIf"], [1, "user-filters-panel"], [1, "user-filter-grid"], ["appearance", "outline", 1, "user-filter-item"], ["matPrefix", ""], ["multiple", "", "placeholder", "Select Country", 3, "ngModel", "ngModelChange", "selectionChange"], [1, "select-search-option", 3, "click"], ["matInput", "", "placeholder", "Search country", 1, "select-search-input", 3, "ngModel", "ngModelOptions", "ngModelChange", "click", "keydown", "keyup"], ["class", "select-all-option", 3, "click", 4, "ngIf"], ["multiple", "", "placeholder", "Select City", 3, "ngModel", "disabled", "ngModelChange", "selectionChange"], ["matInput", "", "placeholder", "Search city", 1, "select-search-input", 3, "ngModel", "ngModelOptions", "ngModelChange", "click", "keydown", "keyup"], ["disabled", "", 4, "ngIf"], ["multiple", "", 3, "ngModel", "placeholder", "ngModelChange", "selectionChange"], ["matInput", "", 1, "select-search-input", 3, "placeholder", "ngModel", "ngModelOptions", "ngModelChange", "click", "keydown", "keyup"], ["multiple", "", "placeholder", "Select campus", 3, "ngModel", "ngModelChange", "selectionChange"], ["matInput", "", "placeholder", "Search campus", 1, "select-search-input", 3, "ngModel", "ngModelOptions", "ngModelChange", "click", "keydown", "keyup"], ["appearance", "outline", 1, "user-filter-item", "user-date-filter", 3, "click"], ["matInput", "", "readonly", "", "placeholder", "Select date range", 3, "value"], ["matSuffix", ""], [1, "user-filter-actions"], ["type", "button", 1, "user-filter-reset", 3, "click"], ["type", "button", 1, "user-filter-apply", 3, "disabled", "click"], [1, "select-all-option", 3, "click"], ["disabled", ""], [1, "filters-panel", "qp-filter-paper-panel", 2, "background", "#ffffff", "border-radius", "10px", "box-shadow", "0 12px 32px rgba(0,0,0,0.2)", "width", "380px", "padding", "18px", "border", "1px solid #e2e8f0", 3, "click"], [2, "display", "flex", "justify-content", "space-between", "align-items", "center", "margin-bottom", "14px", "border-bottom", "1px solid #e2e8f0", "padding-bottom", "8px"], [2, "margin", "0", "font-size", "15px", "font-weight", "600", "color", "#0f172a", "display", "flex", "align-items", "center", "gap", "6px"], [2, "color", "#2563eb"], ["style", "font-size: 11px; background: #eff6ff; color: #2563eb; font-weight: 600; padding: 2px 6px; border-radius: 4px;", 4, "ngIf"], [1, "filter-body", 2, "display", "flex", "flex-direction", "column", "gap", "12px", "max-height", "480px", "overflow-y", "auto", "padding", "12px 4px 4px 4px"], ["appearance", "outline", "floatLabel", "always", 1, "filter-item", 2, "width", "100%", "margin-top", "4px"], ["placeholder", "Select Question Paper", 3, "ngModel", "disabled", "ngModelChange"], ["matInput", "", "placeholder", "Search question paper...", 1, "select-search-input", 3, "ngModel", "ngModelOptions", "ngModelChange", "click"], [2, "display", "grid", "grid-template-columns", "1fr 1fr", "gap", "8px"], ["appearance", "outline", "floatLabel", "always", 1, "filter-item"], ["placeholder", "Any Department", 3, "ngModel", "ngModelChange"], ["value", ""], ["placeholder", "Any Subject", 3, "ngModel", "ngModelChange"], ["appearance", "outline", "floatLabel", "always", 1, "filter-item", "user-date-filter", 2, "width", "100%", "cursor", "pointer", 3, "click"], ["matInput", "", "readonly", "", "placeholder", "Select date range", 2, "cursor", "pointer", 3, "value"], ["matSuffix", "", "mat-icon-button", "", "type", "button", "aria-label", "Clear date", 3, "click", 4, "ngIf"], ["matSuffix", "", "style", "color: #64748b; font-size: 18px; width: 18px; height: 18px; cursor: pointer;", 4, "ngIf"], [2, "padding", "2px 2px 4px"], ["aria-label", "Show only question papers created by me", 3, "ngModel", "ngModelChange", "change"], [2, "display", "flex", "justify-content", "space-between", "align-items", "center", "margin-top", "14px", "border-top", "1px solid #e2e8f0", "padding-top", "10px"], ["mat-stroked-button", "", "type", "button", 2, "font-weight", "500", 3, "click"], ["mat-flat-button", "", "color", "primary", "type", "button", 2, "font-weight", "500", 3, "disabled", "click"], [2, "font-size", "11px", "background", "#eff6ff", "color", "#2563eb", "font-weight", "600", "padding", "2px 6px", "border-radius", "4px"], ["placeholder", "Country", 3, "ngModel", "ngModelChange", "selectionChange"], ["placeholder", "City", 3, "ngModel", "disabled", "ngModelChange", "selectionChange"], ["placeholder", "Industry", 3, "ngModel", "ngModelChange", "selectionChange"], ["placeholder", "Sector", 3, "ngModel", "disabled", "ngModelChange", "selectionChange"], ["appearance", "outline", "floatLabel", "always", 1, "filter-item", 2, "width", "100%"], ["placeholder", "Select Institute", 3, "ngModel", "ngModelChange", "selectionChange"], ["matSuffix", "", "mat-icon-button", "", "type", "button", "aria-label", "Clear date", 3, "click"], [2, "font-size", "16px", "width", "16px", "height", "16px"], ["matSuffix", "", 2, "color", "#64748b", "font-size", "18px", "width", "18px", "height", "18px", "cursor", "pointer"], [1, "assignment-empty", "assignment-filter-placeholder"], ["type", "button", 1, "btn-assignment-filter", 3, "click"], [1, "assignment-user-list-header"], [3, "checked", "indeterminate", "disabled", "change"], [1, "assignment-list-actions"], [1, "assignment-search-wrap"], ["type", "text", "placeholder", "Search users", 1, "assignment-search-input", 3, "ngModel", "ngModelChange"], ["type", "button", 1, "assignment-refresh", 3, "disabled", "click"], ["class", "assignment-empty assignment-load-error", 4, "ngIf"], ["class", "paper-user-selection-list", 4, "ngIf"], [1, "assignment-empty"], [1, "assignment-empty", "assignment-load-error"], ["type", "button", 1, "assignment-refresh", 3, "click"], [1, "paper-user-selection-list"], [4, "ngFor", "ngForOf", "ngForTrackBy"], [3, "checked", "disabled", "change"], ["class", "assignment-user-email", 4, "ngIf"], ["class", "assignment-user-meta", 4, "ngIf"], [1, "assignment-user-email"], [1, "assignment-user-meta"], [1, "assignment-warning"], ["id", "paper-review-access-card", 1, "qp-card"], [1, "qp-card-header"], [3, "settings", "disabled", "settingsChange"], ["id", "sections-card", 1, "qp-card"], ["class", "btn-outline-add-sec", "type", "button", 3, "disabled", "click", 4, "ngIf"], ["class", "no-subject-warn", 4, "ngIf"], ["class", "sections-empty", 4, "ngIf"], ["class", "sections-list", 4, "ngIf"], ["type", "button", 1, "btn-outline-add-sec", 3, "disabled", "click"], [1, "no-subject-warn"], [1, "sections-empty"], ["style", "display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;", 4, "ngIf"], [2, "display", "flex", "gap", "12px", "justify-content", "center", "flex-wrap", "wrap"], ["type", "button", 1, "btn-outline-add-sec", 3, "click"], ["type", "button", 1, "btn-outline-upload-sec", 3, "click"], [1, "sections-list"], ["class", "section-block-card", 4, "ngFor", "ngForOf"], [1, "section-block-card"], [1, "sec-head"], ["class", "sec-drag-handle", 4, "ngIf"], [1, "sec-head-info"], [1, "sec-name"], ["class", "sec-subheading", 4, "ngIf"], [1, "sec-meta"], [1, "sec-meta-item"], ["class", "sec-head-actions", 4, "ngIf"], [1, "sec-progress-bar"], [1, "sec-progress-fill"], ["class", "sec-questions", 4, "ngIf"], ["class", "sec-add-question-wrap", 4, "ngIf"], [1, "sec-drag-handle"], [1, "sec-subheading"], [1, "sec-head-actions"], ["type", "button", "title", "Edit section", 1, "btn-icon-action", 3, "click"], ["type", "button", "title", "Delete section", 1, "btn-icon-action", "btn-del", 3, "click"], [1, "sec-questions"], ["class", "sec-q-row", 4, "ngFor", "ngForOf"], [1, "sec-q-row"], [1, "q-num"], [1, "q-content-wrap", 2, "flex", "1", "min-width", "0"], ["matTooltipPosition", "above", "matTooltipClass", "question-full-tooltip", 1, "q-text", 2, "display", "block", 3, "matTooltip", "matTooltipShowDelay"], [3, "text"], ["class", "q-media-preview", "style", "margin-top: 6px; margin-bottom: 6px;", 4, "ngIf"], ["class", "q-inline-options", "style", "display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;", 4, "ngIf"], ["class", "q-inline-answer", "style", "margin-top: 6px; display: inline-flex; align-items: flex-start; gap: 6px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 3px 8px; font-size: 12px; color: #166534;", 4, "ngIf"], [1, "q-marks-wrap"], ["type", "number", "min", "0", 1, "q-marks-input", 3, "ngModel", "ngModelOptions", "disabled", "ngModelChange"], [1, "q-marks-label"], ["class", "q-btn-edit", "type", "button", "title", "Edit Question", 3, "click", 4, "ngIf"], ["class", "q-btn-del", "type", "button", "title", "Remove", 3, "click", 4, "ngIf"], [1, "q-media-preview", 2, "margin-top", "6px", "margin-bottom", "6px"], ["alt", "Question Diagram", 2, "max-width", "240px", "max-height", "160px", "border-radius", "6px", "border", "1px solid #cbd5e1", "object-fit", "contain", "display", "block", "background", "#fff", 3, "src"], [1, "q-inline-options", 2, "display", "flex", "flex-wrap", "wrap", "gap", "6px", "margin-top", "4px"], ["class", "q-opt-pill", "style", "font-size: 11.5px; background: #f8fafc; color: #334155; padding: 2px 8px; border-radius: 4px; border: 1px solid #e2e8f0;", 4, "ngFor", "ngForOf"], [1, "q-opt-pill", 2, "font-size", "11.5px", "background", "#f8fafc", "color", "#334155", "padding", "2px 8px", "border-radius", "4px", "border", "1px solid #e2e8f0"], [1, "q-inline-answer", 2, "margin-top", "6px", "display", "inline-flex", "align-items", "flex-start", "gap", "6px", "background", "#f0fdf4", "border", "1px solid #bbf7d0", "border-radius", "6px", "padding", "3px 8px", "font-size", "12px", "color", "#166534"], [2, "color", "#15803d", "font-size", "11.5px", "text-transform", "uppercase"], [2, "font-weight", "500", "line-height", "1.35"], ["type", "button", "title", "Edit Question", 1, "q-btn-edit", 3, "click"], ["type", "button", "title", "Remove", 1, "q-btn-del", 3, "click"], [1, "sec-add-question-wrap"], ["type", "button", 1, "btn-sec-add-q", 3, "click"], [1, "section-prog-list"], ["class", "section-prog-row", 4, "ngFor", "ngForOf"], [1, "section-prog-row"], [1, "sec-prog-name"], [1, "sec-prog-track"], [1, "sec-prog-bar"], [1, "sec-prog-val"], [1, "summary-alert", "alert-danger"], [1, "alert-icon"], [1, "alert-text"], ["type", "button", 1, "btn-sidebar-preview-guide", 3, "click"], ["type", "button", "title", "Manage Answer Key: Upload or generate answers with AI", 1, "btn-sidebar-answer-key", 3, "click"], ["type", "button", 1, "btn-sidebar-publish", 3, "disabled", "matTooltip", "click"], ["type", "button", "title", "Upload an existing question paper to detect questions and create a template automatically with AI", 1, "btn-sidebar-upload", 3, "click"], ["type", "button", 1, "btn-sidebar-save", 3, "click"], [1, "preview-overlay"], [1, "preview-topbar"], ["type", "button", 1, "btn-back-editing", 3, "click"], [1, "preview-tabs"], ["type", "button", 1, "preview-tab", "active"], ["class", "preview-tab", "type", "button", 3, "click", 4, "ngIf"], [1, "preview-top-actions"], ["class", "preview-page-count-badge", 4, "ngIf"], ["type", "button", 1, "btn-download-top", 3, "click"], ["class", "preview-warning", 4, "ngIf"], [1, "preview-paper-page"], [1, "document-pages-wrapper"], ["class", "word-page", 4, "ngFor", "ngForOf"], ["type", "button", 1, "preview-tab", 3, "click"], [1, "preview-page-count-badge"], [1, "preview-warning"], [1, "word-page"], [1, "word-page-inner"], ["class", "page-main-header", 4, "ngIf"], ["class", "page-running-header", 4, "ngIf"], [1, "page-content-flow"], [4, "ngFor", "ngForOf"], ["class", "paper-no-questions", 4, "ngIf"], [1, "word-page-footer"], [1, "page-footer-left"], [1, "page-footer-right"], [1, "page-main-header"], [1, "paper-school-name"], ["class", "paper-meta-line", 4, "ngIf"], [1, "paper-test-type"], ["class", "paper-header-row", "style", "margin-bottom: 2px;", 4, "ngIf"], [1, "paper-header-row"], [1, "paper-divider"], [1, "paper-meta-line"], [1, "paper-header-row", 2, "margin-bottom", "2px"], [1, "page-running-header"], [1, "running-header-left"], [1, "running-header-right"], ["class", "paper-section-heading-wrap", 4, "ngIf"], ["class", "paper-section-instructions", 4, "ngIf"], ["class", "paper-question-item", 4, "ngIf"], [1, "paper-section-heading-wrap"], [1, "paper-section-spacer"], [1, "paper-section-heading"], [1, "paper-section-marks-calc"], [1, "paper-section-instructions"], [1, "paper-question-item"], [1, "paper-q-header"], [1, "paper-q-num"], [1, "paper-q-text"], [1, "paper-q-marks"], ["class", "paper-q-media", 4, "ngIf"], ["class", "paper-q-options-grid", 4, "ngIf"], [1, "paper-q-media"], ["alt", "Question Image", 1, "paper-question-image", 3, "src"], [1, "paper-q-options-grid"], ["class", "paper-q-option", 4, "ngFor", "ngForOf"], [1, "paper-q-option"], [1, "paper-no-questions"], [1, "paper-q-answer"], [1, "ans-badge"], ["class", "ans-value", 4, "ngIf"], ["class", "no-answer", 4, "ngIf"], [1, "ans-value"], [1, "no-answer"], [1, "modal-backdrop", 3, "mousedown"], [1, "modal-dialog", "section-dialog", 3, "click"], [1, "modal-header"], ["mat-icon-button", "", "type", "button", 3, "click"], [1, "modal-body"], [1, "form-group"], ["placeholder", "e.g. Section A", 1, "qp-input", 3, "ngModel", "ngModelChange"], ["placeholder", "e.g. Answer all questions.", 1, "qp-input", 3, "ngModel", "ngModelChange"], ["type", "number", "min", "1", "placeholder", "e.g. 10", 1, "qp-input", 3, "ngModel", "ngModelChange"], ["type", "number", "min", "0", "step", "0.5", "placeholder", "e.g. 1", 1, "qp-input", 3, "ngModel", "ngModelChange"], ["class", "form-group", 4, "ngIf"], [1, "modal-footer"], ["type", "button", 1, "btn-modal-cancel", 3, "click"], ["type", "button", 1, "btn-modal-confirm", 3, "click"], [1, "type-cards"], [1, "type-card", 3, "click"], [1, "type-radio"], [1, "type-card-info"], [1, "modal-dialog", "edit-question-dialog", 3, "click"], ["rows", "4", "placeholder", "Enter question statement, table markdown, or formula...", 1, "qp-textarea", 3, "ngModel", "ngModelChange"], [1, "form-row-2"], ["type", "number", "min", "0", "step", "0.5", 1, "qp-input", 3, "ngModel", "ngModelChange"], [1, "qp-select", 3, "ngModel", "ngModelChange"], ["value", "descriptive"], ["value", "choose"], ["type", "file", "accept", "image/*", 2, "display", "none", 3, "change"], ["editImgFileInput", ""], ["class", "edit-q-image-wrap", 4, "ngIf"], ["class", "edit-q-image-empty", 4, "ngIf"], [1, "form-group", 2, "margin-top", "14px"], [2, "font-size", "16px", "width", "16px", "height", "16px", "vertical-align", "middle", "margin-right", "4px", "color", "#16a34a"], ["rows", "3", "placeholder", "Enter the correct answer, selected option text, or model solution...", 1, "qp-textarea", 3, "ngModel", "ngModelChange"], ["class", "upload-hint", 4, "ngIf"], [1, "edit-q-image-wrap"], ["alt", "Question Diagram", 3, "src"], [1, "edit-q-image-actions"], ["type", "button", 1, "btn-change-image", 3, "disabled", "click"], ["type", "button", 1, "btn-remove-image", 3, "disabled", "click"], [1, "edit-q-image-empty"], ["type", "button", 1, "btn-upload-q-image", 3, "disabled", "click"], [1, "upload-hint"], [1, "options-header-row"], ["type", "button", 1, "btn-add-opt", 3, "click"], [1, "edit-options-list"], ["class", "edit-opt-row", 4, "ngFor", "ngForOf", "ngForTrackBy"], [1, "edit-opt-row"], [1, "opt-letter"], ["type", "text", 1, "qp-input", "opt-input", 3, "ngModel", "placeholder", "ngModelChange"], ["type", "button", "title", "Delete option", 1, "btn-opt-del", 3, "click"], [1, "modal-dialog", "questions-dialog", 3, "click"], [1, "modal-context-header"], [1, "context-row"], [1, "context-chips"], [1, "context-chip", "subject"], [1, "context-chip", "section"], [1, "dot"], ["panelClass", "qp-select-dropdown-panel", "disableOptionCentering", "", "placeholder", "Select Question Bank", 1, "qp-select", 3, "ngModel", "ngModelChange", "selectionChange", "openedChange"], ["placeholder", "Search question bank...", 1, "select-search-input", 3, "ngModel", "ngModelOptions", "ngModelChange", "click", "keydown", "keyup", "input"], ["class", "q-filter-row", 4, "ngIf"], ["class", "modal-questions-list", 4, "ngIf"], ["class", "modal-no-bank", 4, "ngIf"], ["class", "selected-count", 4, "ngIf"], [1, "footer-btns"], ["type", "button", 1, "btn-modal-confirm", 3, "disabled", "click"], [1, "q-filter-row"], [1, "q-search-wrap"], ["type", "text", "placeholder", "Search questions...", 3, "ngModel", "ngModelChange"], ["type", "button", "class", "q-clear-btn", 3, "click", 4, "ngIf"], ["class", "q-select-all", 4, "ngIf"], ["type", "button", 1, "q-clear-btn", 3, "click"], [1, "q-select-all"], [3, "checked", "indeterminate", "change"], [1, "modal-questions-list"], ["class", "modal-loading", 4, "ngIf"], ["class", "modal-empty", 4, "ngIf"], ["class", "modal-q-row", 3, "disabled", "selected", 4, "ngFor", "ngForOf"], [1, "modal-loading"], [1, "spin"], [1, "modal-empty"], [1, "modal-q-row"], [1, "modal-q-label"], [1, "modal-q-text"], [1, "modal-q-meta"], [1, "modal-q-marks"], ["class", "modal-q-used", 4, "ngIf"], [1, "modal-q-used"], [1, "modal-no-bank"], [1, "selected-count"], ["role", "dialog", "aria-modal", "true", 1, "confirm-backdrop", 3, "click"], [1, "confirm-dialog-card", 3, "click"], [1, "dialog-icon", "warning-icon"], ["viewBox", "0 0 24 24", "fill", "none", "xmlns", "http://www.w3.org/2000/svg"], ["cx", "12", "cy", "12", "r", "10", "stroke", "currentColor", "stroke-width", "2"], ["d", "M12 8v4M12 16h.01", "stroke", "currentColor", "stroke-width", "2", "stroke-linecap", "round"], [1, "dialog-title"], [1, "dialog-message"], [1, "dialog-actions"], ["type", "button", 1, "cancel-btn", 3, "click"], ["type", "button", 1, "confirm-btn", "leave-btn", 3, "click"], ["role", "dialog", "aria-modal", "true", "aria-labelledby", "post-save-modal-title", 1, "post-save-modal-backdrop", 3, "click"], [1, "post-save-modal-card", 3, "click"], [1, "post-save-header"], [1, "post-save-icon-circle"], ["id", "post-save-modal-title", 1, "post-save-title"], [1, "post-save-subtitle"], [1, "post-save-actions"], ["type", "button", "mat-flat-button", "", "color", "primary", 1, "post-save-btn", "btn-create-test", 3, "click"], ["type", "button", "mat-stroked-button", "", 1, "post-save-btn", "btn-preview", 3, "click"], ["type", "button", "mat-button", "", 1, "post-save-btn", "btn-close", 3, "click"], [1, "modal-dialog", "upload-paper-dialog", 3, "click"], [1, "modal-header-title-wrap"], [1, "header-icon-wrap"], [1, "modal-subtitle"], ["mat-icon-button", "", "type", "button", 3, "disabled", "click"], ["class", "paper-upload-context-bar", 4, "ngIf"], [1, "upload-dropzone", 3, "dragover", "dragleave", "drop"], ["type", "file", "accept", ".pdf,.png,.jpg,.jpeg,.webp", 2, "display", "none", 3, "change"], ["paperFileInput", ""], ["class", "dropzone-content", 3, "click", 4, "ngIf"], ["class", "selected-file-preview", 4, "ngIf"], ["class", "upload-loading-view", 4, "ngIf"], ["class", "upload-error-banner", 4, "ngIf"], ["type", "button", 1, "btn-modal-cancel", 3, "disabled", "click"], ["type", "button", 1, "btn-modal-confirm", "btn-upload-confirm", 3, "disabled", "click"], [1, "paper-upload-context-bar"], [1, "context-item"], [1, "context-label"], [1, "context-val"], [1, "dropzone-content", 3, "click"], [1, "dropzone-icon-circle"], [1, "browse-link"], [1, "selected-file-preview"], [1, "file-icon-box"], [1, "file-details"], [1, "file-name"], [1, "file-size"], ["type", "button", "title", "Remove file", 1, "btn-remove-file", 3, "click"], [1, "upload-loading-view"], [1, "ai-processing-spinner"], [1, "spin-icon"], [1, "loading-step-msg"], [1, "progress-steps-list"], [1, "step-line", "active"], [1, "upload-error-banner"], [1, "modal-dialog", "answer-key-dialog", 3, "click"], [1, "header-icon-wrap", "answer-key-icon-wrap"], ["class", "ak-options-grid", 4, "ngIf"], ["class", "ak-step-container", 4, "ngIf"], ["class", "ak-step-container ak-review-step", 4, "ngIf"], [1, "ak-options-grid"], [1, "ak-option-card", 3, "click"], [1, "ak-option-icon", "upload-icon"], [1, "ak-option-content"], [1, "ak-option-action"], ["type", "button", 1, "btn-ak-select"], [1, "ak-option-icon", "generate-icon"], ["class", "ak-option-card", 3, "click", 4, "ngIf"], [1, "ak-option-icon", 2, "background", "#eef2ff", "color", "#4f46e5"], [1, "ak-step-container"], [1, "ak-step-header"], ["type", "button", 1, "btn-ak-back", 3, "disabled", "click"], [1, "ak-step-title"], ["answerKeyFileInput", ""], [1, "dropzone-icon-circle", "answer-key-drop-circle"], ["class", "generate-info-box", 4, "ngIf"], ["class", "generate-params-card", 4, "ngIf"], ["class", "ai-generate-loading-card", 4, "ngIf"], [1, "generate-info-box"], [1, "info-icon"], [1, "info-text"], [1, "generate-params-card"], [1, "ak-params-header"], [1, "ak-params-title"], [1, "ak-params-hint"], ["appearance", "outline", 1, "ak-field-full"], ["matInput", "", "type", "text", "placeholder", "e.g. Data Structures - Trees & Graphs", 3, "ngModel", "ngModelChange"], [1, "ak-context-grid"], ["appearance", "outline"], ["matInput", "", "type", "text", "placeholder", "e.g. Education, IT", 3, "ngModel", "ngModelChange"], ["matInput", "", "type", "text", "placeholder", "e.g. Students, Employees", 3, "ngModel", "ngModelChange"], ["matInput", "", "type", "text", "placeholder", "e.g. Undergrad, Trainee", 3, "ngModel", "ngModelChange"], [3, "ngModel", "ngModelChange"], ["matInput", "", "rows", "2", "placeholder", "Any specific rubric, marking style, or instructions the AI should follow?", 3, "ngModel", "ngModelChange"], [1, "ak-source-section"], [1, "ak-source-header"], [1, "ak-source-label"], [1, "ak-source-switch"], ["type", "button", 1, "ak-switch-btn", 3, "click"], ["class", "ak-file-count", 4, "ngIf"], ["type", "file", "accept", ".pdf,.docx", "multiple", "", 2, "display", "none", 3, "change"], ["genAnsSourceFileInput", ""], [1, "ak-file-count"], [1, "ak-slim-upload-bar", 3, "click", "dragover", "dragleave", "drop"], ["type", "button", 1, "ak-upload-pill-btn"], [1, "ak-upload-hint"], ["class", "ak-file-list", 4, "ngIf"], [1, "ak-file-list"], ["class", "ak-file-chip", 4, "ngFor", "ngForOf"], [1, "ak-file-chip"], [1, "ak-file-name"], ["type", "button", "title", "Remove file", 1, "ak-file-remove", 3, "click"], ["matInput", "", "rows", "3", "placeholder", "Paste chapter notes, textbook excerpts, or reference solutions...", 3, "ngModel", "ngModelChange"], [1, "ai-generate-loading-card"], [1, "ai-pulse-spinner-wrap"], [1, "pulse-ring", "ring-1"], [1, "pulse-ring", "ring-2"], [1, "spinner-core"], [1, "core-icon"], [1, "loading-title"], [1, "loading-subtitle"], [1, "loading-progress-track"], [1, "loading-progress-bar"], [1, "generation-steps-box"], [1, "gen-step-item", "in-progress"], [1, "step-icon-badge"], [1, "rotating-icon"], [1, "step-text-wrap"], [1, "step-primary"], [1, "step-secondary"], [1, "ak-step-container", "ak-review-step"], ["type", "button", 1, "btn-ak-back", 3, "click"], [1, "ak-review-title-wrap"], ["class", "ak-review-count-badge", 4, "ngIf"], [1, "ak-review-hint-box"], [1, "ak-review-list-container"], ["class", "ak-review-q-card", 4, "ngFor", "ngForOf"], [1, "ak-review-count-badge"], [1, "ak-review-q-card"], [1, "ak-review-q-meta"], [1, "ak-q-number"], [1, "ak-q-type-chip"], [1, "ak-q-marks-chip"], [1, "ak-review-q-statement"], ["class", "ak-review-q-img", 4, "ngIf"], ["class", "ak-review-options-section", 4, "ngIf"], ["class", "ak-review-answer-section", 4, "ngIf"], ["class", "ak-fine-tune-box", 4, "ngIf"], [1, "ak-review-q-img"], [1, "ak-review-options-section"], [1, "ak-field-tag"], [1, "ak-options-select-grid"], ["class", "ak-opt-choice-box", 3, "is-correct", "click", 4, "ngFor", "ngForOf"], [1, "ak-opt-choice-box", 3, "click"], [1, "ak-radio-indicator"], ["class", "ak-radio-dot", 4, "ngIf"], [1, "ak-opt-letter"], [1, "ak-opt-label"], [1, "ak-radio-dot"], [1, "ak-review-answer-section"], ["rows", "3", "placeholder", "Enter or refine the model solution...", 1, "qp-textarea", "ak-ans-textarea", 3, "ngModel", "ngModelChange"], [1, "ak-fine-tune-box"], [1, "fine-tune-header"], [1, "ft-sparkle-icon"], [1, "ft-title"], [1, "fine-tune-input-row"], ["type", "text", 1, "qp-input", "fine-tune-input", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter"], ["type", "button", 1, "btn-fine-tune-action", 3, "disabled", "click"], ["type", "button", 1, "btn-modal-confirm", "btn-generate-confirm", 3, "disabled", "click"], ["type", "button", 1, "btn-modal-confirm", "btn-apply-answers-confirm", 3, "click"]],
       template: function CreateQuestionPaperComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](0, "div", 0)(1, "div", 1)(2, "button", 2);
@@ -34722,7 +34698,7 @@ class CreateQuestionPaperComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](68, CreateQuestionPaperComponent_div_68_Template, 46, 17, "div", 41);
           _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](69, CreateQuestionPaperComponent_div_69_Template, 21, 1, "div", 42);
           _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](70, CreateQuestionPaperComponent_div_70_Template, 26, 4, "div", 43);
-          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](71, CreateQuestionPaperComponent_div_71_Template, 53, 15, "div", 41);
+          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](71, CreateQuestionPaperComponent_div_71_Template, 32, 15, "div", 41);
           _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵtemplate"](72, CreateQuestionPaperComponent_div_72_Template, 27, 12, "div", 41);
           _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
         }

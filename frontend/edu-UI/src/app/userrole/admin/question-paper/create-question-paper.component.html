@@ -1469,7 +1469,7 @@
                     </div>
                     <div>
                         <h3>Upload Existing Question Paper</h3>
-                        <p class="modal-subtitle">AI automatically extracts questions, sub-questions, identifies 1-mark, 2-mark, 5-mark and descriptive questions, and creates a template.</p>
+                        <p class="modal-subtitle">AI automatically analyzes your document, identifies key information, sections, and relevant details, and generates a structured template.</p>
                     </div>
                 </div>
                 <button mat-icon-button type="button" (click)="closeUploadPaperModal()" [disabled]="uploadPaperLoading">
@@ -1483,26 +1483,6 @@
                     <div class="context-item">
                         <span class="context-label">Target Subject:</span>
                         <span class="context-val">{{ subject_name }}</span>
-                    </div>
-                </div>
-
-                <!-- Detection Feature Highlights -->
-                <div class="upload-feature-chips">
-                    <div class="feature-chip">
-                        <mat-icon>check_circle</mat-icon>
-                        <span>1-Mark Questions</span>
-                    </div>
-                    <div class="feature-chip">
-                        <mat-icon>check_circle</mat-icon>
-                        <span>2-Mark Questions</span>
-                    </div>
-                    <div class="feature-chip">
-                        <mat-icon>check_circle</mat-icon>
-                        <span>5-Mark Questions</span>
-                    </div>
-                    <div class="feature-chip">
-                        <mat-icon>check_circle</mat-icon>
-                        <span>Descriptive &amp; Sub-questions</span>
                     </div>
                 </div>
 
