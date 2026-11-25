@@ -1,4 +1,14 @@
 # Changelog
+## [2.6.3] - 2026-11-25
+
+### UI & Label Updates
+- **Question Paper Creation Sidebar**:
+  - Updated the Answer Key action button label in `create-question-paper.component.html` from `Answer Key` to `Upload/Generate answer key`.
+
+### Version Tracking
+- Bumped application patch version to `2.6.3` across `version.ts`, `package.json`, `package-lock.json`, and changelog.
+
+---
 ## [2.6.2] - 2026-11-25
 
 ### Features & Enhancements
