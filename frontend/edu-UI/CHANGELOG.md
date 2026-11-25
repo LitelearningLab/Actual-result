@@ -1,4 +1,17 @@
 # Changelog
+## [2.6.8] - 2026-11-25
+
+### Bug Fixes & Stability
+- **AI Question Generation JSON & Token Handling (`backend/others/questions.py`)**:
+  - Increased `max_tokens` allocation in `create_question_using_llm` to `max(total_tokens_estimate + 4000, 8000)` and removed the smaller `// 4` override to prevent empty responses on reasoning/multi-question generations.
+  - Added guards for non-JSON HTTP responses, empty LLM content (logging `finish_reason` and `usage`), markdown fence stripping, outermost JSON array/object extraction, `strict=False` parsing, and invalid-backslash sanitization.
+- **Backend Server Stability (`backend/app.py`)**:
+  - Updated `app.run` to `debug=False, threaded=True` on port `5001` to prevent Werkzeug auto-reloader drops during long AI requests and SSE streams.
+
+### Version Tracking
+- Bumped application patch version to `2.6.8` across `version.ts`, `package.json`, `package-lock.json`, and changelog.
+
+---
 ## [2.6.7] - 2026-11-25
 
 ### Features & Enhancements
