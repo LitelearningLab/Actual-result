@@ -1,4 +1,20 @@
 # Changelog
+## [2.6.4] - 2026-11-25
+
+### Features & Enhancements
+- **AI Answer Generation Context & Source Material (`Manage Answer Key`)**:
+  - Added optional context fields (`Subject or Chapter title`, `Industry`, `Target Users`, `User Role`, `Complexity`, `Additional Context`) in a 2-column grid and `Source Material` (`Upload Files` for PDF/DOCX or `Paste Text`) to the **Generate Answers with AI** modal in `create-question-paper.component.html/.ts/.scss`.
+  - Updated `startAIGenerateAnswers()` to submit `FormData` to `/generate-paper-answers`.
+  - Updated `generate_paper_answers` and added `_extract_source_material_text` in `backend/others/questions.py` to extract text from uploaded PDF/DOCX/text files and incorporate the optional context parameters into the AI prompt.
+
+### Bug Fixes
+- **Exam Update (`/edu/api/update-exam`)**:
+  - Fixed `NameError: name 'created_by' is not defined` in `update_exam` (`backend/others/exams.py`) by passing `updated_by_user` to `QuestionMedia` and `_sync_question_answer_options`.
+
+### Version Tracking
+- Bumped application patch version to `2.6.4` across `version.ts`, `package.json`, `package-lock.json`, and changelog.
+
+---
 ## [2.6.3] - 2026-11-25
 
 ### UI & Label Updates
