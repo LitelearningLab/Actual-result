@@ -181,9 +181,9 @@ export class InstituteRegisterComponent {
       allow_paper_test: [true],
       campuses: this.fb.array([]),
       qa_character_limits: this.fb.array([
-        this.createQaLimitGroup(2, 350, 450, 550),
-        this.createQaLimitGroup(5, 500, 800, 1100),
-        this.createQaLimitGroup(10, 700, 1300, 1800),
+        this.createQaLimitGroup(2, 450, 550),
+        this.createQaLimitGroup(5, 800, 1100),
+        this.createQaLimitGroup(10, 1300, 1800),
       ]),
     },
     { validators: [subscriptionDateRangeValidator, headOfficeOrCampusRequiredValidator] }
@@ -195,16 +195,13 @@ export class InstituteRegisterComponent {
 
   createQaLimitGroup(
     marks: number | null = null,
-    qLimit: number | null = null,
     aMin: number | null = null,
     aMax: number | null = null
   ): FormGroup {
-    const finalQ = qLimit !== null && qLimit !== undefined ? qLimit : 350;
     const finalMax = aMax !== null && aMax !== undefined ? aMax : 550;
     const finalMin = aMin !== null && aMin !== undefined ? aMin : Math.round(finalMax * 0.75);
     return this.fb.group({
       marks: [marks, [Validators.required, Validators.min(1)]],
-      question_character_limit: [finalQ, [Validators.required, Validators.min(20)]],
       answer_min_character_limit: [finalMin, [Validators.required, Validators.min(10)]],
       answer_max_character_limit: [finalMax, [Validators.required, Validators.min(20)]],
     });
@@ -212,11 +209,10 @@ export class InstituteRegisterComponent {
 
   addQaLimitRow(
     marks: number | null = null,
-    qLimit: number | null = null,
     aMin: number | null = null,
     aMax: number | null = null
   ): void {
-    this.qaCharacterLimits.push(this.createQaLimitGroup(marks, qLimit, aMin, aMax));
+    this.qaCharacterLimits.push(this.createQaLimitGroup(marks, aMin, aMax));
   }
 
   removeQaLimitRow(index: number): void {
@@ -774,10 +770,9 @@ export class InstituteRegisterComponent {
             }
             limits.forEach((item: any) => {
               const m = Number(item.marks) || 2;
-              const qLimit = item.question_character_limit !== undefined && item.question_character_limit !== null ? Number(item.question_character_limit) : (m <= 2 ? 350 : (m <= 5 ? 500 : 700));
               const aMax = item.answer_max_character_limit !== undefined && item.answer_max_character_limit !== null ? Number(item.answer_max_character_limit) : (item.character_limit !== undefined ? Number(item.character_limit) : (m <= 2 ? 550 : (m <= 5 ? 1100 : 1800)));
               const aMin = item.answer_min_character_limit !== undefined && item.answer_min_character_limit !== null ? Number(item.answer_min_character_limit) : Math.round(aMax * 0.75);
-              this.addQaLimitRow(m, qLimit, aMin, aMax);
+              this.addQaLimitRow(m, aMin, aMax);
             });
           }
         } catch (e) {

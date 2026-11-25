@@ -1540,20 +1540,13 @@ def create_question_using_llm(request):
         }, 400
     question_mark = int(gv("marks_per_question", 2) or 2)
 
-    # Dynamic character limit lookup: Separate question limit and answer range (min/max)
-    question_char_limit = None
+    # Dynamic character limit lookup: Answer range (min/max)
     answer_min_char_limit = None
     answer_max_char_limit = None
 
-    req_q_limit = gv("question_character_limit")
     req_a_min = gv("answer_min_character_limit")
     req_a_max = gv("answer_max_character_limit")
 
-    try:
-        if req_q_limit:
-            question_char_limit = int(req_q_limit)
-    except Exception:
-        pass
     try:
         if req_a_min:
             answer_min_char_limit = int(req_a_min)
@@ -1593,7 +1586,7 @@ def create_question_using_llm(request):
             "message": err_msg,
         }, err_code
 
-    if target_inst_id and (not question_char_limit or not answer_min_char_limit or not answer_max_char_limit):
+    if target_inst_id and (not answer_min_char_limit or not answer_max_char_limit):
         try:
             db_inst = SQLiteDB()
             sess_inst = db_inst.connect()
@@ -1605,8 +1598,6 @@ def create_question_using_llm(request):
                     if not match and raw_cfg:
                         match = min(raw_cfg, key=lambda x: abs(int(x.get("marks", 0)) - question_mark))
                     if match:
-                        if not question_char_limit:
-                            question_char_limit = int(match.get("question_character_limit", 0) or 0)
                         if not answer_max_char_limit:
                             answer_max_char_limit = int(match.get("answer_max_character_limit", 0) or match.get("character_limit", 0) or 0)
                         if not answer_min_char_limit:
@@ -1616,9 +1607,6 @@ def create_question_using_llm(request):
             print(f"Error reading institute qa_character_limits: {e}")
 
     # Fallback defaults if still unspecified
-    if not question_char_limit:
-        question_char_limit = 350 if question_mark <= 2 else (500 if question_mark <= 5 else 700)
-
     if not answer_max_char_limit:
         if question_mark <= 2:
             answer_max_char_limit = 550
@@ -1641,10 +1629,9 @@ def create_question_using_llm(request):
     if type == "fill":
         answer_min_char_limit = 1
         answer_max_char_limit = 100
-        question_char_limit = min(question_char_limit, 200)
 
     # Combined variable for backward compatibility in token calculations
-    character_count = question_char_limit + answer_max_char_limit
+    character_count = 500 + answer_max_char_limit
     aimodel = 2 if question_mark < 5 else 1
 
     openai_client_instance = openai_client()
@@ -1655,7 +1642,7 @@ def create_question_using_llm(request):
     max_answer_words = max(int(answer_max_char_limit / 4.5), 100)
 
     # Dynamic token allocation to allow full generation in a single shot
-    total_tokens_estimate = max((number_of_questions * (question_char_limit + answer_max_char_limit) // 3) + 2000, 4500)
+    total_tokens_estimate = max((number_of_questions * character_count // 3) + 2000, 4500)
 
     system_message = f"""You are an expert academic examination setter and evaluator for school and college curricula. Your primary objective is to generate academically authoritative, scientifically rigorous examination questions and comprehensive model answers in a SINGLE, COMPLETE generation.
 
@@ -1668,8 +1655,9 @@ Mandatory Length & Depth Requirements:
   3. Physical & Analytical Interpretation: In-depth comparison, physical significance of the results, and behavioral trends.
   4. Operational Assumptions & Boundary Conditions: Applicable conditions, validity limits, and circuit/system assumptions.
   5. Practical / Real-World Applications: Contextual significance, engineering/industrial relevance, or real-world examples.
+- Question Length:
+  * Size 'question_text' naturally according to the topic, complexity level, source text, and {question_mark} marks context—do not artificially truncate necessary scenario details or context.
 - Upper Limits:
-  * 'question_text' must strictly not exceed {question_char_limit} characters.
   * 'answer_text' must strictly not exceed {answer_max_char_limit} characters.
 - Quality: Ground all facts in standard curricula. Do NOT add irrelevant filler or repetitive sentences.
 
@@ -1692,13 +1680,12 @@ Question Type Specifications:
 - Source Text: {source_text}
 - Additional Instructions: {additional_instructions}
 - Assigned Marks: {question_mark} marks per question
-- Question Character Ceiling: Maximum {question_char_limit} characters for "question_text"
 - MANDATORY Model Answer Range: Minimum {answer_min_char_limit} characters (at least {min_answer_words}+ words) to Maximum {answer_max_char_limit} characters for "answer_text"
 
 CRITICAL INSTRUCTIONS FOR FIRST-SHOT LENGTH COMPLIANCE:
 1. The model answer MUST reach at least {answer_min_char_limit} characters (minimum {min_answer_words} words) directly in this response.
 2. Provide full academic depth across the 5 structured sections (Theory, Step-by-Step Derivations/Calculations, Interpretation, Assumptions, Practical Applications). Do NOT stop once the numerical result is found.
-3. "question_text" must be <= {question_char_limit} characters.
+3. Generate "question_text" naturally according to the provided context, complexity, and source text.
 4. Clean Formatting: Do NOT include mark annotations like "({question_mark} marks)" inside "question_text".
 
 Provide the output as a JSON array of objects (one object per question). Each object format:

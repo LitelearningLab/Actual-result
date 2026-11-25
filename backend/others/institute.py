@@ -136,9 +136,9 @@ def _ensure_institute_registration_schema(session):
 
 def normalize_qa_character_limits(raw_limits):
     default_limits = [
-        {"marks": 2, "question_character_limit": 350, "answer_min_character_limit": 450, "answer_max_character_limit": 550},
-        {"marks": 5, "question_character_limit": 500, "answer_min_character_limit": 800, "answer_max_character_limit": 1100},
-        {"marks": 10, "question_character_limit": 700, "answer_min_character_limit": 1300, "answer_max_character_limit": 1800}
+        {"marks": 2, "answer_min_character_limit": 450, "answer_max_character_limit": 550},
+        {"marks": 5, "answer_min_character_limit": 800, "answer_max_character_limit": 1100},
+        {"marks": 10, "answer_min_character_limit": 1300, "answer_max_character_limit": 1800}
     ]
     if not raw_limits:
         return default_limits
@@ -151,19 +151,15 @@ def normalize_qa_character_limits(raw_limits):
             if not isinstance(item, dict):
                 continue
             marks = int(item.get("marks", 2) or 2)
-            q_limit = item.get("question_character_limit")
             a_min = item.get("answer_min_character_limit")
             a_max = item.get("answer_max_character_limit")
             legacy = item.get("character_limit")
-            if not q_limit:
-                q_limit = 350 if marks <= 2 else (500 if marks <= 5 else 700)
             if not a_max:
                 a_max = legacy if legacy else (550 if marks <= 2 else (1100 if marks <= 5 else 1800))
             if not a_min:
                 a_min = int(a_max * 0.75) if a_max else (450 if marks <= 2 else (800 if marks <= 5 else 1300))
             normalized.append({
                 "marks": marks,
-                "question_character_limit": int(q_limit),
                 "answer_min_character_limit": int(a_min),
                 "answer_max_character_limit": int(a_max)
             })
@@ -259,7 +255,7 @@ def insert_institute(data):
     elif isinstance(qa_character_limits_val, str) and qa_character_limits_val.strip():
         qa_character_limits = qa_character_limits_val.strip()
     else:
-        qa_character_limits = '[{"marks": 2, "question_character_limit": 350, "answer_min_character_limit": 450, "answer_max_character_limit": 550}, {"marks": 5, "question_character_limit": 500, "answer_min_character_limit": 800, "answer_max_character_limit": 1100}, {"marks": 10, "question_character_limit": 700, "answer_min_character_limit": 1300, "answer_max_character_limit": 1800}]'
+        qa_character_limits = '[{"marks": 2, "answer_min_character_limit": 450, "answer_max_character_limit": 550}, {"marks": 5, "answer_min_character_limit": 800, "answer_max_character_limit": 1100}, {"marks": 10, "answer_min_character_limit": 1300, "answer_max_character_limit": 1800}]'
 
     missing_fields = [field for field, value in (("name", name), ("short_name", short_name))
                       if value is None or not str(value).strip()]
