@@ -203,6 +203,21 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   generateAnswersProgressStep = '';
   generateAnswersError = '';
   hasUploadedOrGeneratedAnswerKey = false;
+  generateAnsTopic = '';
+  generateAnsIndustry = '';
+  generateAnsTargetUsers = '';
+  generateAnsUserRole = '';
+  generateAnsComplexity = '';
+  generateAnsAdditionalContext = '';
+  generateAnsSourceMode: 'file' | 'text' = 'file';
+  generateAnsSourceText = '';
+  generateAnsSourceFiles: File[] = [];
+  generateAnsSourceDragging = false;
+  generateAnsComplexityLevels = [
+    { value: 'easy', label: 'Easy' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'hard', label: 'Hard' },
+  ];
 
   get hasAnswerKey(): boolean {
     if (this.hasUploadedOrGeneratedAnswerKey) {
@@ -4337,6 +4352,68 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     });
   }
 
+  setGenerateAnsSourceMode(mode: 'file' | 'text') {
+    this.generateAnsSourceMode = mode;
+  }
+
+  onGenerateAnsFilesSelected(event: any) {
+    const files: FileList | null = event?.target?.files || null;
+    if (files && files.length) {
+      this.addGenerateAnsFiles(files);
+    }
+    if (event?.target) {
+      event.target.value = '';
+    }
+  }
+
+  onGenerateAnsDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.generateAnsSourceDragging = true;
+  }
+
+  onGenerateAnsDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.generateAnsSourceDragging = false;
+  }
+
+  onGenerateAnsDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.generateAnsSourceDragging = false;
+    const files = event.dataTransfer?.files;
+    if (files && files.length) {
+      this.addGenerateAnsFiles(files);
+    }
+  }
+
+  addGenerateAnsFiles(files: FileList | File[]) {
+    const allowedExt = ['.pdf', '.docx'];
+    const maxBytes = 15 * 1024 * 1024;
+    Array.from(files).forEach((file) => {
+      const lower = (file.name || '').toLowerCase();
+      if (!allowedExt.some((ext) => lower.endsWith(ext))) {
+        notify(`Unsupported file "${file.name}". Only PDF and DOCX are supported.`, 'error');
+        return;
+      }
+      if (file.size > maxBytes) {
+        notify(`File "${file.name}" exceeds the 15 MB limit.`, 'error');
+        return;
+      }
+      const exists = this.generateAnsSourceFiles.some(
+        (f) => f.name === file.name && f.size === file.size
+      );
+      if (!exists) {
+        this.generateAnsSourceFiles.push(file);
+      }
+    });
+  }
+
+  removeGenerateAnsFile(idx: number) {
+    this.generateAnsSourceFiles.splice(idx, 1);
+  }
+
   startAIGenerateAnswers() {
     if (!this.institute) {
       notify('Please select an Institute first', 'error');
@@ -4352,15 +4429,29 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.generateAnswersError = '';
     this.generateAnswersProgressStep = 'Generating accurate solutions and answers with AI...';
 
-    const payload = {
-      institute_id: this.institute,
-      user_id: this.getCurrentUserId() || '',
-      subject_name: this.subject_name || '',
-      questions: flattenedQuestions
-    };
+    const formData = new FormData();
+    formData.append('institute_id', String(this.institute));
+    formData.append('user_id', this.getCurrentUserId() || '');
+    formData.append('subject_name', this.subject_name || '');
+    formData.append('questions', JSON.stringify(flattenedQuestions));
+
+    if (this.generateAnsTopic?.trim()) formData.append('topic', this.generateAnsTopic.trim());
+    if (this.generateAnsIndustry?.trim()) formData.append('industry', this.generateAnsIndustry.trim());
+    if (this.generateAnsTargetUsers?.trim()) formData.append('target_users', this.generateAnsTargetUsers.trim());
+    if (this.generateAnsUserRole?.trim()) formData.append('user_role', this.generateAnsUserRole.trim());
+    if (this.generateAnsComplexity) formData.append('complexity', this.generateAnsComplexity);
+    if (this.generateAnsAdditionalContext?.trim()) {
+      formData.append('additional_instructions', this.generateAnsAdditionalContext.trim());
+    }
+    if (this.generateAnsSourceMode === 'text' && this.generateAnsSourceText?.trim()) {
+      formData.append('source_text', this.generateAnsSourceText.trim());
+    }
+    if (this.generateAnsSourceMode === 'file' && this.generateAnsSourceFiles.length) {
+      this.generateAnsSourceFiles.forEach((f) => formData.append('files', f, f.name));
+    }
 
     const url = `${API_BASE}/generate-paper-answers`;
-    this.http.post<any>(url, payload).subscribe({
+    this.http.post<any>(url, formData).subscribe({
       next: (res) => {
         this.generateAnswersLoading = false;
         if (res && res.status && res.data) {

@@ -3077,15 +3077,90 @@ def extract_and_map_answer_key(request):
                 pass
 
 
+def _extract_source_material_text(files, max_chars=24000):
+    """Extract plain text from uploaded PDF, DOCX, or text reference files."""
+    if not files:
+        return ""
+    chunks = []
+    for f in files:
+        if not f or not getattr(f, "filename", ""):
+            continue
+        fname = f.filename.lower()
+        try:
+            f.stream.seek(0)
+        except Exception:
+            pass
+        try:
+            raw = f.read()
+        except Exception:
+            continue
+        if not raw:
+            continue
+
+        extracted = ""
+        if fname.endswith(".pdf"):
+            try:
+                import fitz
+                doc = fitz.open(stream=raw, filetype="pdf")
+                pages_txt = [page.get_text("text") or "" for page in doc]
+                extracted = "\n".join(pages_txt).strip()
+            except Exception as pdf_err:
+                print(f"[_extract_source_material_text] PDF warning ({f.filename}): {pdf_err}")
+        elif fname.endswith(".docx"):
+            try:
+                import docx
+                import io
+                doc = docx.Document(io.BytesIO(raw))
+                extracted = "\n".join([p.text for p in doc.paragraphs if p.text]).strip()
+            except Exception:
+                try:
+                    import zipfile
+                    import io
+                    import xml.etree.ElementTree as ET
+                    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+                        xml_bytes = zf.read("word/document.xml")
+                    root = ET.fromstring(xml_bytes)
+                    texts = [elem.text for elem in root.iter() if elem.tag.endswith("}t") and elem.text]
+                    extracted = " ".join(texts).strip()
+                except Exception as docx_err:
+                    print(f"[_extract_source_material_text] DOCX warning ({f.filename}): {docx_err}")
+        elif fname.endswith((".txt", ".md")):
+            try:
+                extracted = raw.decode("utf-8", errors="ignore").strip()
+            except Exception:
+                pass
+
+        if extracted:
+            chunks.append(f"[Source File: {f.filename}]\n{extracted}")
+
+    combined = "\n\n".join(chunks).strip()
+    if len(combined) > max_chars:
+        combined = combined[:max_chars] + "\n...[source material truncated]"
+    return combined
+
+
 def generate_paper_answers(request):
     """
     Automatically generates answers for all questions in the question paper using AI.
+    Supports optional context parameters (topic, industry, target_users, user_role,
+    complexity, additional_instructions) and reference source material (text or PDF/DOCX files).
     """
     try:
         body = request.get_json(silent=True) or request.form or {}
         institute_id = body.get("institute_id")
         user_id = body.get("user_id") or "System"
         subject_name = body.get("subject_name") or ""
+        topic = (body.get("topic") or "").strip()
+        industry = (body.get("industry") or "").strip()
+        target_users = (body.get("target_users") or "").strip()
+        user_role = (body.get("user_role") or "").strip()
+        complexity = (body.get("complexity") or "").strip()
+        additional_instructions = (body.get("additional_instructions") or "").strip()
+        source_text = (body.get("source_text") or "").strip()
+        uploaded_files = request.files.getlist("files") or request.files.getlist("file") or []
+        extracted_file_text = _extract_source_material_text(uploaded_files)
+        if extracted_file_text:
+            source_text = f"{source_text}\n\n{extracted_file_text}".strip() if source_text else extracted_file_text
         questions_raw = body.get("questions") or []
 
         if isinstance(questions_raw, str):
@@ -3160,12 +3235,29 @@ def generate_paper_answers(request):
             "}"
         )
 
+        context_lines = [f"Subject: {subject_name}"]
+        if topic:
+            context_lines.append(f"Subject / Chapter Title: {topic}")
+        if industry:
+            context_lines.append(f"Industry: {industry}")
+        if target_users:
+            context_lines.append(f"Target Users: {target_users}")
+        if user_role:
+            context_lines.append(f"User Role: {user_role}")
+        if complexity:
+            context_lines.append(f"Complexity Level: {complexity}")
+        if additional_instructions:
+            context_lines.append(f"Additional Context / Instructions: {additional_instructions}")
+        if source_text:
+            context_lines.append(f"Reference Source Material:\n{source_text}")
+        context_block = "\n".join(context_lines)
+
         user_content = (
-            f"Subject: {subject_name}\n\n"
+            f"{context_block}\n\n"
             f"QUESTIONS LIST:\n"
             f"---------------\n"
             f"{all_questions_text}\n\n"
-            f"Generate the complete answers for every question. Return the JSON object with the 'answers' array."
+            f"Generate the complete answers for every question, strictly respecting any provided context, complexity, audience, instructions, and reference source material. Return the JSON object with the 'answers' array."
         )
 
         client = openai_client()

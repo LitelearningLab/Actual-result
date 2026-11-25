@@ -1757,6 +1757,95 @@
                         </div>
                     </div>
 
+                    <!-- Optional AI Answer Parameters -->
+                    <div class="generate-params-card" *ngIf="!generateAnswersLoading">
+                        <div class="ak-params-header">
+                            <span class="ak-params-title">Optional Answer Generation Context</span>
+                            <span class="ak-params-hint">Guide answer depth, audience, or attach reference material</span>
+                        </div>
+
+                        <mat-form-field appearance="outline" class="ak-field-full">
+                            <mat-label>Subject or Chapter title</mat-label>
+                            <input matInput type="text" [(ngModel)]="generateAnsTopic" placeholder="e.g. Data Structures - Trees & Graphs" />
+                        </mat-form-field>
+
+                        <div class="ak-context-grid">
+                            <mat-form-field appearance="outline">
+                                <mat-label>Industry</mat-label>
+                                <input matInput type="text" [(ngModel)]="generateAnsIndustry" placeholder="e.g. Education, IT" />
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline">
+                                <mat-label>Target Users</mat-label>
+                                <input matInput type="text" [(ngModel)]="generateAnsTargetUsers" placeholder="e.g. Students, Employees" />
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline">
+                                <mat-label>User Role</mat-label>
+                                <input matInput type="text" [(ngModel)]="generateAnsUserRole" placeholder="e.g. Undergrad, Trainee" />
+                            </mat-form-field>
+
+                            <mat-form-field appearance="outline">
+                                <mat-label>Complexity</mat-label>
+                                <mat-select [(ngModel)]="generateAnsComplexity">
+                                    <mat-option value="">Select complexity</mat-option>
+                                    <mat-option *ngFor="let c of generateAnsComplexityLevels" [value]="c.value">{{ c.label }}</mat-option>
+                                </mat-select>
+                            </mat-form-field>
+                        </div>
+
+                        <mat-form-field appearance="outline" class="ak-field-full">
+                            <mat-label>Additional Context</mat-label>
+                            <textarea matInput rows="2" [(ngModel)]="generateAnsAdditionalContext" placeholder="Any specific rubric, marking style, or instructions the AI should follow?"></textarea>
+                        </mat-form-field>
+
+                        <!-- Source Material -->
+                        <div class="ak-source-section">
+                            <div class="ak-source-header">
+                                <span class="ak-source-label">Source Material</span>
+                                <div class="ak-source-switch">
+                                    <button type="button" class="ak-switch-btn" [class.active]="generateAnsSourceMode === 'file'" (click)="setGenerateAnsSourceMode('file')">
+                                        <mat-icon>upload_file</mat-icon>
+                                        <span>Upload Files</span>
+                                        <span class="ak-file-count" *ngIf="generateAnsSourceFiles.length">{{ generateAnsSourceFiles.length }}</span>
+                                    </button>
+                                    <button type="button" class="ak-switch-btn" [class.active]="generateAnsSourceMode === 'text'" (click)="setGenerateAnsSourceMode('text')">
+                                        <mat-icon>description</mat-icon>
+                                        <span>Paste Text</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <input #genAnsSourceFileInput type="file" style="display: none" (change)="onGenerateAnsFilesSelected($event)" accept=".pdf,.docx" multiple />
+
+                            <div *ngIf="generateAnsSourceMode === 'file'">
+                                <div class="ak-slim-upload-bar" [class.drag-over]="generateAnsSourceDragging" (click)="genAnsSourceFileInput.click()" (dragover)="onGenerateAnsDragOver($event)" (dragleave)="onGenerateAnsDragLeave($event)" (drop)="onGenerateAnsDrop($event)">
+                                    <button type="button" class="ak-upload-pill-btn">
+                                        <mat-icon>add</mat-icon> Upload Files
+                                    </button>
+                                    <span class="ak-upload-hint">or drag &amp; drop here &nbsp;·&nbsp; Supported formats: <strong>PDF, DOCX</strong></span>
+                                </div>
+
+                                <div class="ak-file-list" *ngIf="generateAnsSourceFiles.length">
+                                    <div class="ak-file-chip" *ngFor="let f of generateAnsSourceFiles; let idx = index">
+                                        <mat-icon>insert_drive_file</mat-icon>
+                                        <span class="ak-file-name">{{ f.name }}</span>
+                                        <button type="button" class="ak-file-remove" (click)="removeGenerateAnsFile(idx)" title="Remove file">
+                                            <mat-icon>close</mat-icon>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div *ngIf="generateAnsSourceMode === 'text'">
+                                <mat-form-field appearance="outline" class="ak-field-full">
+                                    <mat-label>Paste reference text or notes</mat-label>
+                                    <textarea matInput rows="3" [(ngModel)]="generateAnsSourceText" placeholder="Paste chapter notes, textbook excerpts, or reference solutions..."></textarea>
+                                </mat-form-field>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Loading view for generation -->
                     <div class="ai-generate-loading-card" *ngIf="generateAnswersLoading">
                         <div class="ai-pulse-spinner-wrap">

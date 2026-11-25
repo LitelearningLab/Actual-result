@@ -4177,6 +4177,198 @@
             }
         }
 
+        .generate-params-card {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            max-height: 360px;
+            overflow-y: auto;
+
+            .ak-params-header {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 8px;
+                flex-wrap: wrap;
+
+                .ak-params-title {
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: #0f172a;
+                }
+
+                .ak-params-hint {
+                    font-size: 11.5px;
+                    color: #64748b;
+                }
+            }
+
+            .ak-field-full {
+                width: 100%;
+            }
+
+            .ak-context-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .ak-source-section {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+
+                .ak-source-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 10px;
+                    flex-wrap: wrap;
+
+                    .ak-source-label {
+                        font-size: 12.5px;
+                        font-weight: 700;
+                        color: #1e293b;
+                    }
+
+                    .ak-source-switch {
+                        display: inline-flex;
+                        background: #e2e8f0;
+                        padding: 3px;
+                        border-radius: 999px;
+                        gap: 2px;
+
+                        .ak-switch-btn {
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 5px;
+                            border: none;
+                            background: transparent;
+                            color: #475569;
+                            font-size: 12px;
+                            font-weight: 600;
+                            padding: 5px 12px;
+                            border-radius: 999px;
+                            cursor: pointer;
+                            transition: all 0.15s ease;
+
+                            mat-icon {
+                                font-size: 15px;
+                                width: 15px;
+                                height: 15px;
+                            }
+
+                            &.active {
+                                background: #ffffff;
+                                color: #4f46e5;
+                                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+                            }
+
+                            .ak-file-count {
+                                background: #4f46e5;
+                                color: #ffffff;
+                                font-size: 10px;
+                                padding: 1px 6px;
+                                border-radius: 999px;
+                            }
+                        }
+                    }
+                }
+
+                .ak-slim-upload-bar {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                    padding: 12px 14px;
+                    border: 1.5px dashed #cbd5e1;
+                    border-radius: 10px;
+                    background: #ffffff;
+                    cursor: pointer;
+                    transition: border-color 0.15s ease, background 0.15s ease;
+
+                    &:hover,
+                    &.drag-over {
+                        border-color: #6366f1;
+                        background: #eef2ff;
+                    }
+
+                    .ak-upload-pill-btn {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 4px;
+                        background: #4f46e5;
+                        color: #ffffff;
+                        border: none;
+                        border-radius: 8px;
+                        padding: 6px 12px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        cursor: pointer;
+
+                        mat-icon {
+                            font-size: 16px;
+                            width: 16px;
+                            height: 16px;
+                        }
+                    }
+
+                    .ak-upload-hint {
+                        font-size: 12px;
+                        color: #64748b;
+                    }
+                }
+
+                .ak-file-list {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 6px;
+                    margin-top: 8px;
+
+                    .ak-file-chip {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                        background: #eef2ff;
+                        border: 1px solid #c7d2fe;
+                        color: #312e81;
+                        border-radius: 8px;
+                        padding: 4px 8px;
+                        font-size: 12px;
+
+                        mat-icon {
+                            font-size: 15px;
+                            width: 15px;
+                            height: 15px;
+                        }
+
+                        .ak-file-name {
+                            max-width: 200px;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                            white-space: nowrap;
+                        }
+
+                        .ak-file-remove {
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            background: none;
+                            border: none;
+                            padding: 0;
+                            cursor: pointer;
+                            color: #6366f1;
+                        }
+                    }
+                }
+            }
+        }
+
         .ai-generate-loading-card {
             display: flex;
             flex-direction: column;
