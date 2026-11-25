@@ -1,4 +1,21 @@
 # Changelog
+## [2.6.5] - 2026-11-25
+
+### Features & Enhancements
+- **Deterministic Option Ordering & Legacy Prefix Handling**:
+  - Added `order_number` column to `Option` (`backend/db/models.py`) and migration `backend/db/migrations/20261125_add_option_order_number.sql` to backfill `order_number` from embedded `A`–`F` prefixes.
+  - Added `_extract_option_prefix_rank` and `_sort_options_deterministically` in `backend/others/exams.py`, applying consistent option sorting in `_sync_question_answer_options`, `get_exam_details`, `get_student_evaluation_details`, and `process_single_student_answer_sheet`.
+  - Updated `extract_questions_from_paper` in `backend/others/questions.py` to strip embedded option letter prefixes and persist `order_number`.
+  - Updated MCQ `CASE C` evaluation rules in `backend/others/llm.py` to account for legacy/embedded option prefixes.
+- **Paper Schedules & Test Evaluation Filtering**:
+  - Updated `get_paper_schedules` in `backend/others/paper_schedules.py` to fall back to `ExamsDepartments`, `ExamsTeams`, and assigned user department/team IDs when schedule mappings are omitted, and normalized `subject_id` to string.
+  - Updated `test-evaluation.component.ts` to request `/get-paper-schedules?summary_only=true`, match Class/Section/Subject filters by both ID and resolved name, handle `_fullLoaded` state, and strip option prefixes / guard zero-mark answers during option matching.
+  - Removed the `duration` column from the drafts table in `question-paper.component.ts`.
+
+### Version Tracking
+- Bumped application patch version to `2.6.5` across `version.ts`, `package.json`, `package-lock.json`, and changelog.
+
+---
 ## [2.6.4] - 2026-11-25
 
 ### Features & Enhancements
