@@ -312,17 +312,11 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
 
   markNotificationAsRead(notificationId: string, event?: Event): void {
     if (event) event.stopPropagation();
-    this.creditNotifications = this.creditNotifications.filter(n => n.notification_id !== notificationId);
-    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
-    this.hasUnreadNotification = this.unreadNotificationCount > 0;
     this.aiNotificationService.markAsRead(notificationId).subscribe();
   }
 
   markAllNotificationsAsRead(event?: Event): void {
     if (event) event.stopPropagation();
-    this.creditNotifications = [];
-    this.unreadNotificationCount = 0;
-    this.hasUnreadNotification = false;
     this.aiNotificationService.markAllAsRead().subscribe({
       error: (err) => console.warn('[AiNotification] mark-all-read error:', err)
     });
@@ -331,22 +325,17 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
   onNotificationClick(notif: AiCreditNotificationItem): void {
     if (!notif) return;
 
-    // 1. Mark as read on backend
+    // 1. Mark as read on backend (also updates notifications$ and unreadCount$)
     if (!notif.is_read) {
       this.aiNotificationService.markAsRead(notif.notification_id).subscribe({
         error: (err) => console.warn('[AiNotification] mark-read error:', err)
       });
     }
 
-    // 2. Immediately remove from dropdown list so it completely disappears
-    this.creditNotifications = this.creditNotifications.filter(n => n.notification_id !== notif.notification_id);
-    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
-    this.hasUnreadNotification = this.unreadNotificationCount > 0;
-
-    // 3. Close notification dropdown
+    // 2. Close notification dropdown
     this.closeNotifications();
 
-    // 4. For regular school admins, navigate to their credits page.
+    // 3. For regular school admins, navigate to their credits page.
     // For Super Admin: Do NOT switch organization and do NOT hijack context.
     // Super Admin stays on Profluent Lab Pvt. Ltd at all times.
     if (!this.isSuperAdmin) {
@@ -449,10 +438,6 @@ export class NavbarMainComponent implements OnInit, OnDestroy {
         error: (err) => console.warn('[AiNotification] mark-read error:', err)
       });
     }
-
-    this.creditNotifications = this.creditNotifications.filter(n => n.notification_id !== notif.notification_id);
-    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
-    this.hasUnreadNotification = (this.unreadNotificationCount > 0);
   }
 
   getNotificationIcon(notif: AiCreditNotificationItem): string {
