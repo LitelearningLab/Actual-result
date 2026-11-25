@@ -722,12 +722,7 @@
                                 <div class="sec-q-row" *ngFor="let q of sec.questions; let qIdx = index">
                                     <span class="q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}</span>
                                     <div class="q-content-wrap" style="flex: 1; min-width: 0;">
-                                        <span class="q-text"
-                                            [matTooltip]="q.question"
-                                            matTooltipPosition="above"
-                                            matTooltipClass="question-full-tooltip"
-                                            [matTooltipShowDelay]="100"
-                                            style="display: block;">
+                                        <span class="q-text" style="display: block;">
                                             <app-math-render [text]="q.question"></app-math-render>
                                         </span>
                                         <div class="q-media-preview" *ngIf="getQuestionImageUrl(q)" style="margin-top: 6px; margin-bottom: 6px;">
