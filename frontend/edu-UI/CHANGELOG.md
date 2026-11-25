@@ -1,4 +1,16 @@
 # Changelog
+## [2.6.7] - 2026-11-25
+
+### Features & Enhancements
+- **Context-Driven AI Question Generation (Removed Question Character Limit)**:
+  - Removed the `Question Limit` (`question_character_limit`) input field and review table column from `institute-register.component.html`, and updated `institute-register.component.ts` (`qa_character_limits`, `createQaLimitGroup`, `addQaLimitRow`, and edit prefill) while keeping `Answer Min` and `Answer Max` character limits unchanged.
+  - Updated `normalize_qa_character_limits` and default `qa_character_limits` in `backend/others/institute.py` to remove `question_character_limit`.
+  - Updated `create_question_using_ai` in `backend/others/questions.py` to remove `question_char_limit` ceilings and instruct the AI to generate `question_text` naturally based on topic, complexity, source text, and marks, while preserving `answer_min_char_limit` and `answer_max_char_limit` enforcement.
+
+### Version Tracking
+- Bumped application patch version to `2.6.7` across `version.ts`, `package.json`, `package-lock.json`, and changelog.
+
+---
 ## [2.6.6] - 2026-11-25
 
 ### Features & Enhancements
