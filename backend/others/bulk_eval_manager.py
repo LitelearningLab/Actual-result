@@ -60,6 +60,37 @@ class BulkEvaluationManager:
             }
             with open(filepath, "w", encoding="utf-8") as f:
                 json.dump(snapshot, f, indent=2)
+
+            # Non-blocking GCS backup so job state survives server/PC restarts
+            snapshot_bytes = json.dumps(snapshot, indent=2).encode("utf-8")
+            exam_id_val = str(job["exam_id"])
+            job_status_val = job["status"]
+
+            def _sync_gcs():
+                try:
+                    from others.gcs_service import gcs_storage
+                    if not gcs_storage.is_gcs_active():
+                        return
+                    gcs_storage.upload_media(
+                        file_bytes=snapshot_bytes,
+                        filename="job.json",
+                        exact_object_path=f"evaluation_jobs/{job_id}/job.json",
+                        expected_type="any",
+                    )
+                    exam_ptr = f"evaluation_jobs/by_exam/{exam_id_val}/active_job.json"
+                    if job_status_val in ("in_progress", "pending", "paused_insufficient_credits", "interrupted"):
+                        gcs_storage.upload_media(
+                            file_bytes=snapshot_bytes,
+                            filename="active_job.json",
+                            exact_object_path=exam_ptr,
+                            expected_type="any",
+                        )
+                    else:
+                        gcs_storage.delete_media(exam_ptr)
+                except Exception as gcs_err:
+                    logger.warning(f"[BulkEvalManager] GCS job persist warning {job_id}: {gcs_err}")
+
+            threading.Thread(target=_sync_gcs, daemon=True).start()
         except Exception as e:
             logger.warning(f"[BulkEvalManager] Failed persisting job {job_id}: {e}")
 
@@ -105,11 +136,16 @@ class BulkEvaluationManager:
             }
 
         # Resolve institute_id
+        role_str = (user_info.get("user_role", "") if user_info else "").strip().lower().replace(" ", "_")
+        is_super_admin = role_str in ("super_admin", "superadmin")
+
         inst_id = str(explicit_inst_id).strip() if explicit_inst_id else None
-        if current_user:
-            inst_id = getattr(current_user, "institute_id", None)
-            if not inst_id and isinstance(current_user, dict):
-                inst_id = current_user.get("institute_id")
+        if not is_super_admin and current_user:
+            cu_inst = getattr(current_user, "institute_id", None)
+            if not cu_inst and isinstance(current_user, dict):
+                cu_inst = current_user.get("institute_id")
+            if cu_inst:
+                inst_id = str(cu_inst).strip()
 
         # Query actual exam question IDs and order numbers from database mapping
         actual_questions = []
@@ -161,12 +197,28 @@ class BulkEvaluationManager:
         except Exception as q_err:
             logger.warning(f"[BulkEvalManager] Could not read question mapping: {q_err}")
 
-        if not actual_questions:
-            actual_questions = [{"question_id": f"q_{i}", "number": i} for i in range(1, 6)]
+        from others.gcs_service import gcs_storage
 
         students_map = {}
         for t in student_tasks:
             uid = str(t["user_id"])
+            gcs_files = []
+            if gcs_storage.is_gcs_active():
+                for fname, fbytes in (t.get("file_items") or []):
+                    if not fname or not fbytes:
+                        continue
+                    try:
+                        stage_path = f"evaluation_jobs/{job_id}/{uid}/{fname}"
+                        gcs_storage.upload_media(
+                            file_bytes=fbytes,
+                            filename=fname,
+                            exact_object_path=stage_path,
+                            expected_type="any",
+                        )
+                        gcs_files.append({"filename": fname, "gcs_path": stage_path})
+                    except Exception as gcs_stage_err:
+                        logger.warning(f"[BulkEvalManager] Failed staging {fname} to GCS for {uid}: {gcs_stage_err}")
+
             students_map[uid] = {
                 "user_id": uid,
                 "student_name": t.get("student_name") or "Student",
@@ -185,6 +237,7 @@ class BulkEvaluationManager:
                     }
                     for q in actual_questions
                 ],
+                "gcs_files": gcs_files,
                 "marks": None,
                 "total_pages": None,
                 "error": None,
@@ -322,6 +375,10 @@ class BulkEvaluationManager:
                                     break
                             st["completed_questions"] = payload.get("completed_questions", st.get("completed_questions", 0))
                             st["failed_questions"] = payload.get("failed_questions", st.get("failed_questions", 0))
+                            if payload.get("total_questions"):
+                                st["total_questions"] = payload.get("total_questions")
+                            elif st["completed_questions"] > (st.get("total_questions") or 0):
+                                st["total_questions"] = st["completed_questions"]
                             if payload.get("status") == "Failed":
                                 st["status_phase"] = f"Error saving Q{payload.get('question_number')}"
                             else:
@@ -379,6 +436,7 @@ class BulkEvaluationManager:
                 data_payload = res_data.get("data") or {}
                 marks_str = data_payload.get("marks") or "Evaluated"
                 total_pages = data_payload.get("total_pages") or 1
+                display_status = data_payload.get("display_status") or "AI Evaluated"
 
                 with self.lock:
                     job = self.jobs.get(job_id)
@@ -386,6 +444,7 @@ class BulkEvaluationManager:
                         st_record = job["students"].get(user_id)
                         if st_record:
                             st_record["status"] = "completed"
+                            st_record["display_status"] = display_status
                             st_record["marks"] = marks_str
                             st_record["total_pages"] = total_pages
                             st_record["completed_at"] = datetime.utcnow().isoformat()
@@ -403,7 +462,7 @@ class BulkEvaluationManager:
                     "user_id": user_id,
                     "student_name": student_name,
                     "roll_no": st_record.get("roll_no", "") if st_record else "",
-                    "status": "AI Evaluated",
+                    "status": display_status,
                     "status_phase": "Completed",
                     "marks": marks_str,
                     "total_pages": total_pages,
@@ -426,6 +485,8 @@ class BulkEvaluationManager:
                         "total": total_cnt,
                         "message": f"Bulk evaluation complete: {completed_cnt} evaluated, {failed_cnt} failed."
                     })
+                    if failed_cnt == 0:
+                        self._cleanup_gcs_staging_files(job)
 
             else:
                 err_msg = res_data.get("statusMessage") or f"Evaluation failed with status {status_code}"
@@ -658,6 +719,48 @@ class BulkEvaluationManager:
             except Exception:
                 pass
 
+    def _build_resume_task(self, uid: str, st: dict, raw_tasks: dict) -> dict:
+        """Uses in-memory raw_tasks if available, otherwise downloads staged PDFs from GCS."""
+        existing = raw_tasks.get(uid)
+        if existing and existing.get("file_items"):
+            return existing
+
+        file_items = []
+        gcs_files = st.get("gcs_files") or []
+        if gcs_files:
+            from others.gcs_service import gcs_storage
+            for gf in gcs_files:
+                gcs_path = gf.get("gcs_path")
+                fname = gf.get("filename") or "answersheet.pdf"
+                if gcs_path:
+                    try:
+                        file_bytes = gcs_storage.download_media_bytes(gcs_path)
+                        if file_bytes:
+                            file_items.append((fname, file_bytes))
+                    except Exception as dl_err:
+                        logger.warning(f"[BulkEvalManager] Failed downloading {gcs_path} from GCS: {dl_err}")
+
+        return {
+            "user_id": uid,
+            "student_name": st.get("student_name"),
+            "roll_no": st.get("roll_no"),
+            "file_items": file_items,
+        }
+
+    def _cleanup_gcs_staging_files(self, job: dict):
+        """Deletes temporary GCS staging files once all students in the job are completed."""
+        paths = []
+        for st in (job.get("students") or {}).values():
+            for gf in (st.get("gcs_files") or []):
+                if gf.get("gcs_path"):
+                    paths.append(gf["gcs_path"])
+        if paths:
+            try:
+                from others.gcs_service import gcs_storage
+                gcs_storage.delete_media_batch(paths)
+            except Exception as cl_err:
+                logger.warning(f"[BulkEvalManager] GCS staging cleanup warning: {cl_err}")
+
     def auto_resume_institute_jobs(self, institute_id: str):
         """
         Decision 2 Implementation:
@@ -701,12 +804,7 @@ class BulkEvaluationManager:
                         if st.get("status") in ("paused", "queued"):
                             st["status"] = "queued"
                             st["status_phase"] = "Waiting in queue (Auto-resumed)"
-                            task = raw_tasks.get(uid) or {
-                                "user_id": uid,
-                                "student_name": st.get("student_name"),
-                                "roll_no": st.get("roll_no"),
-                                "file_items": []
-                            }
+                            task = self._build_resume_task(uid, st, raw_tasks)
                             self.executor.submit(self._worker_process_sheet, job_id, task, user_info)
                             resumed_students_in_job += 1
                             total_resumed += 1
@@ -731,6 +829,23 @@ class BulkEvaluationManager:
             if not job:
                 return {"status": False, "statusMessage": f"Job {job_id} not found."}
 
+            # Pre-flight credit check before resuming
+            from others.ai_credits import AICreditManager, TOKENS_PER_EVAL_PAGE
+            target_inst_id = job.get("institute_id")
+            has_access, err_msg, err_code, _ = AICreditManager.check_and_reserve(
+                institute_id=target_inst_id,
+                user_id=None,
+                estimated_tokens=TOKENS_PER_EVAL_PAGE,
+                feature_name="Paper Evaluation",
+                enforce_reserve=True
+            )
+            if not has_access:
+                return {
+                    "status": False,
+                    "code": "AI_CREDIT_EXHAUSTED",
+                    "statusMessage": err_msg or "Insufficient AI credits to resume evaluation. Minimum 1,000 token reserve required."
+                }
+
             exam_id = job.get("schedule_id") or job.get("exam_id")
             user_info = job.get("user_info")
             raw_tasks = job.get("raw_tasks") or {}
@@ -738,13 +853,15 @@ class BulkEvaluationManager:
             # Query DB for already completed students to prevent duplicate credit deduction
             completed_uids = set()
             try:
-                from others.exams import SQLiteDB, Exam_Attempt
+                from others.exams import SQLiteDB, Exam_Attempt, ExamSchedule
+                from sqlalchemy import or_
                 sess = SQLiteDB().connect()
                 if sess:
+                    sched_subq = sess.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == str(exam_id))
                     completed_uids = set(
                         str(r[0]) for r in sess.query(Exam_Attempt.user_id).filter(
-                            Exam_Attempt.schedule_id == str(exam_id),
-                            Exam_Attempt.total_score.isnot(None)
+                            or_(Exam_Attempt.schedule_id == str(exam_id), Exam_Attempt.schedule_id.in_(sched_subq)),
+                            Exam_Attempt.status == "evaluated"
                         ).all()
                     )
                     sess.close()
@@ -753,23 +870,23 @@ class BulkEvaluationManager:
 
             job["status"] = "in_progress"
             job["cancelled"] = False
+            job["failed_students"] = 0
 
             resumed_count = 0
+            completed_count = 0
             for uid, st in job.get("students", {}).items():
                 if str(uid) in completed_uids:
                     st["status"] = "completed"
+                    completed_count += 1
                     continue
-                if st.get("status") in ("paused", "queued", "failed"):
+                if st.get("status") in ("paused", "queued", "failed", "completed"):
                     st["status"] = "queued"
                     st["status_phase"] = "Waiting in queue (Resumed)"
-                    task = raw_tasks.get(uid) or {
-                        "user_id": uid,
-                        "student_name": st.get("student_name"),
-                        "roll_no": st.get("roll_no"),
-                        "file_items": []
-                    }
+                    st["completed_questions"] = 0
+                    task = self._build_resume_task(uid, st, raw_tasks)
                     self.executor.submit(self._worker_process_sheet, job_id, task, user_info)
                     resumed_count += 1
+            job["completed_students"] = completed_count
 
             self._persist_job(job_id)
             self._emit_event(job_id, "job_resumed", {
@@ -800,6 +917,49 @@ class BulkEvaluationManager:
                 "percentage": round((job["completed_students"] / job["total_students"]) * 100) if job["total_students"] > 0 else 0,
                 "students": list(job["students"].values())
             }
+
+    def get_active_job_for_exam(self, exam_id: str) -> dict:
+        """Returns active/paused job for exam_id from memory or GCS."""
+        target_exam = str(exam_id)
+        with self.lock:
+            for job in self.jobs.values():
+                if str(job.get("exam_id")) == target_exam and job.get("status") in (
+                    "in_progress", "pending", "paused_insufficient_credits", "interrupted"
+                ):
+                    return self.get_job_summary(job["job_id"])
+
+        try:
+            from others.gcs_service import gcs_storage
+            if gcs_storage.is_gcs_active():
+                raw = gcs_storage.download_media_bytes(f"evaluation_jobs/by_exam/{target_exam}/active_job.json")
+                if raw:
+                    data = json.loads(raw.decode("utf-8"))
+                    if data.get("status") in ("in_progress", "pending", "paused_insufficient_credits", "interrupted"):
+                        # Reconcile against DB: if job claims completed students but DB has 0 attempts, DB was cleared -> discard stale job
+                        if data.get("completed_students", 0) > 0:
+                            try:
+                                from others.exams import SQLiteDB, Exam_Attempt, ExamSchedule
+                                from sqlalchemy import or_
+                                sess = SQLiteDB().connect()
+                                if sess:
+                                    sched_subq = sess.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == target_exam)
+                                    db_att_count = sess.query(Exam_Attempt.attempt_id).filter(
+                                        or_(Exam_Attempt.schedule_id == target_exam, Exam_Attempt.schedule_id.in_(sched_subq))
+                                    ).count()
+                                    sess.close()
+                                    if db_att_count == 0:
+                                        gcs_storage.delete_media(f"evaluation_jobs/by_exam/{target_exam}/active_job.json")
+                                        return None
+                            except Exception:
+                                pass
+                        if data.get("status") in ("in_progress", "pending"):
+                            data["status"] = "interrupted"
+                        with self.lock:
+                            self.jobs[data["job_id"]] = data
+                        return self.get_job_summary(data["job_id"])
+        except Exception:
+            pass
+        return None
 
     def subscribe_events(self, job_id: str):
         """

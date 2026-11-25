@@ -480,6 +480,54 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     const savedJobId = sessionStorage.getItem('activeBulkJobId');
     if (savedJobId) {
       this.activeBulkJobId = savedJobId;
+      this.http.get<any>(`${API_BASE}/test-evaluation/evaluation-status/${savedJobId}`).subscribe({
+        next: (res) => {
+          if (res && res.status && res.data) {
+            const d = res.data;
+            if (d.status === 'completed' || d.status === 'cancelled') {
+              sessionStorage.removeItem('activeBulkJobId');
+              this.activeBulkJobId = null;
+              return;
+            }
+            this.bulkProgress.total = d.total || 0;
+            this.bulkProgress.completed = d.completed || 0;
+            this.bulkProgress.failed = d.failed || 0;
+            this.bulkProgress.percentage = d.percentage || 0;
+            if (Array.isArray(d.students)) {
+              this.studentLiveList = d.students.map((stData: any) => {
+                const totalQ = stData.total_questions || (stData.questions ? stData.questions.length : 1);
+                const compQ = stData.completed_questions || (stData.status === 'completed' ? totalQ : 0);
+                return {
+                  userId: String(stData.user_id),
+                  studentName: stData.student_name || 'Student',
+                  rollNo: stData.roll_no || '',
+                  status: stData.status === 'completed' ? 'Completed' : (stData.status === 'evaluating' ? 'Evaluating' : (stData.status === 'failed' ? 'Failed' : 'Waiting')),
+                  statusPhase: stData.status_phase || 'Paused – Awaiting AI credits',
+                  totalQuestions: totalQ,
+                  completedQuestions: compQ,
+                  failedQuestions: stData.failed_questions || 0,
+                  progressPercent: totalQ > 0 ? Math.round((compQ / totalQ) * 100) : 0,
+                  isExpanded: false,
+                  questions: Array.isArray(stData.questions) ? stData.questions.map((q: any) => ({
+                    questionId: q.question_id ? String(q.question_id) : undefined,
+                    number: q.number,
+                    status: q.status || 'Waiting',
+                    marks: q.marks
+                  })) : []
+                };
+              });
+            }
+            if (d.status === 'paused_insufficient_credits') {
+              this.isBulkEvaluating = false;
+              this.bulkProgress.message = 'Evaluation paused: Insufficient AI credits. Recharge credits to resume.';
+            } else if (d.status === 'in_progress') {
+              this.isBulkEvaluating = true;
+              this.startEvaluationEventStream(savedJobId);
+            }
+            this.cdr.detectChanges();
+          }
+        }
+      });
     }
     this.loadAIConfidenceThreshold();
 
@@ -1325,7 +1373,16 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       } else if (isDbEvaluated) {
         status = 'AI Evaluated';
       } else {
-        status = 'Not Evaluated';
+        const liveMatch = this.isBulkEvaluating
+          ? this.studentLiveList.find((ls) => String(ls.userId) === String(user.user_id))
+          : undefined;
+        if (liveMatch && (liveMatch.status === 'Evaluating' || liveMatch.status === 'Waiting')) {
+          status = 'Evaluating...';
+        } else if (liveMatch && liveMatch.status === 'Failed') {
+          status = 'Failed';
+        } else {
+          status = 'Not Evaluated';
+        }
       }
 
       // Check for any staged or matched bulk file for this student
@@ -1350,6 +1407,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
       const isEvaluated = isDbEvaluated;
       // Derive flags from status resolved above — drives shimmer animation on page load
+      const liveMatchForFlags = this.isBulkEvaluating
+        ? this.studentLiveList.find((ls) => String(ls.userId) === String(user.user_id))
+        : undefined;
+      const isQueuedOnLoad = status === 'Evaluating...' && liveMatchForFlags?.status === 'Waiting';
       const isEvaluatingOnLoad = (status === 'Evaluating...');
       // When evaluating, suppress provisional score/result so template shows animation
       const displayMarks = isEvaluatingOnLoad ? 'Not marked' : marksDisplay;
@@ -1364,15 +1425,15 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         status: status,
         marks: displayMarks,
         result: displayResult,
-        actionText: isEvaluated ? 'Review' : 'Evaluate',
-        actionClass: 'btn-solid-blue',
+        actionText: isEvaluated ? 'Review' : (isQueuedOnLoad ? 'Queued...' : (isEvaluatingOnLoad ? 'Evaluating...' : (status === 'Failed' ? 'Retry' : 'Evaluate'))),
+        actionClass: isEvaluatingOnLoad ? 'btn-evaluating-pulse' : (status === 'Failed' ? 'btn-retry-danger' : 'btn-solid-blue'),
         rawFile: rawFile,
         isUploaded: isUploaded,
         matchedFile: matchedFile,
         matchedBy: matchedBy,
         isMatched: isMatched,
-        isEvaluating: isEvaluatingOnLoad,
-        isQueued: false,
+        isEvaluating: isEvaluatingOnLoad && !isQueuedOnLoad,
+        isQueued: isQueuedOnLoad,
         failureReason: status === 'Failed'
           ? this.formatFailureReason(user.error || user.failure_reason || prevStudent?.failureReason)
           : undefined
@@ -1424,6 +1485,122 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         this.openStudentEvaluation(studentToEval);
       }
     }
+
+    if (this.selectedExamId && this.currentView !== 'evaluate') {
+      this.restoreFromGcsForExam(this.selectedExamId);
+    }
+  }
+
+  restoreFromGcsForExam(examId: string): void {
+    if (!examId) return;
+    this.http.get<any>(`${API_BASE}/test-evaluation/active-job?exam_id=${examId}`).subscribe({
+      next: (res) => {
+        if (res?.status && res.data?.job_id) {
+          const d = res.data;
+          this.activeBulkJobId = d.job_id;
+          sessionStorage.setItem('activeBulkJobId', d.job_id);
+          this.bulkProgress = {
+            total: d.total || 0,
+            completed: d.completed || 0,
+            failed: d.failed || 0,
+            percentage: d.percentage || 0,
+            message: d.status === 'paused_insufficient_credits'
+              ? 'Evaluation paused: Insufficient AI credits. Recharge credits to resume.'
+              : (d.status === 'interrupted' ? 'Evaluation interrupted. Click Resume to continue.' : 'Evaluating answer sheets...')
+          };
+          if (Array.isArray(d.students)) {
+            this.studentLiveList = d.students.map((stData: any) => {
+              const totalQ = stData.total_questions || (stData.questions ? stData.questions.length : 1);
+              const compQ = stData.completed_questions || (stData.status === 'completed' ? totalQ : 0);
+              return {
+                userId: String(stData.user_id),
+                studentName: stData.student_name || 'Student',
+                rollNo: stData.roll_no || '',
+                status: stData.status === 'completed' ? 'Completed' : (stData.status === 'evaluating' ? 'Evaluating' : (stData.status === 'failed' ? 'Failed' : 'Waiting')),
+                statusPhase: stData.status_phase || 'Paused – Awaiting AI credits',
+                totalQuestions: totalQ,
+                completedQuestions: compQ,
+                failedQuestions: stData.failed_questions || 0,
+                progressPercent: totalQ > 0 ? Math.round((compQ / totalQ) * 100) : 0,
+                isExpanded: false,
+                questions: Array.isArray(stData.questions) ? stData.questions.map((q: any) => ({
+                  questionId: q.question_id ? String(q.question_id) : undefined,
+                  number: q.number,
+                  status: q.status || 'Waiting',
+                  marks: q.marks
+                })) : []
+              };
+            });
+          }
+          if (d.status === 'in_progress') {
+            this.isBulkEvaluating = true;
+            this.startEvaluationEventStream(d.job_id);
+          } else {
+            this.isBulkEvaluating = false;
+          }
+          this.cdr.detectChanges();
+          return;
+        }
+
+        if (this.bulkFiles && this.bulkFiles.length > 0) return;
+
+        this.http.get<any>(`${API_BASE}/test-evaluation/pending-split-batch?exam_id=${examId}`).subscribe({
+          next: (sbRes) => {
+            if (sbRes?.status && sbRes.data?.segments?.length) {
+              const batch = sbRes.data;
+              this.splitBatchData = batch;
+              const origName = batch.original_filename || 'multistudent.pdf';
+              batch.segments.forEach((seg: MultiStudentSplitSegment, idx: number) => {
+                let foundStudent: StudentEvaluation | undefined;
+                if (seg.user_id) {
+                  foundStudent = this.students.find((s) => String(s.user_id) === String(seg.user_id));
+                }
+                const isAlreadyEvaluated =
+                  foundStudent?.status === 'AI Evaluated' ||
+                  foundStudent?.status === 'Manual Reviewed' ||
+                  foundStudent?.status === 'Need to Check';
+                if (isAlreadyEvaluated) return;
+
+                const pagesLabel = seg.start_page === seg.end_page ? `Page ${seg.start_page}` : `Pages ${seg.start_page}–${seg.end_page}`;
+                const segmentLabel = `${origName} (${pagesLabel})`;
+                const isMatched = !!foundStudent;
+                const bulkItem: BulkFileItem = {
+                  id: Date.now() + idx + Math.floor(Math.random() * 1000),
+                  fileName: segmentLabel,
+                  studentName: foundStudent ? foundStudent.name : seg.student_name || 'Student not identified',
+                  matchedBy: seg.matched_by || (foundStudent ? 'Restored from cloud' : 'No student matched'),
+                  isMatched: isMatched,
+                  isScanning: false,
+                  pagesInfo: `${seg.total_pages} of ${seg.total_pages} pages`,
+                  isPageWarning: false,
+                  aiStatus: 'Waiting',
+                  evaluation: 'Ready for evaluation',
+                  actionText: isMatched ? 'Evaluate' : 'Select student',
+                  actionClass: isMatched ? 'btn-solid-blue' : 'btn-disabled',
+                  selectedStudent: foundStudent ? foundStudent.name : undefined,
+                  selectedUserId: foundStudent ? foundStudent.user_id : undefined,
+                  thumbnailUrl: seg.thumbnail_url,
+                  subPdfFile: seg.sub_pdf_file,
+                  segmentData: seg,
+                  splitBatchId: batch.batch_id
+                };
+                if (foundStudent) {
+                  foundStudent.matchedFile = segmentLabel;
+                  foundStudent.matchedBy = bulkItem.matchedBy;
+                  foundStudent.isMatched = true;
+                  foundStudent.pagesInfo = bulkItem.pagesInfo;
+                  foundStudent.splitSegment = seg;
+                }
+                this.bulkFiles.push(bulkItem);
+              });
+              this.recalculateKpiTotals();
+              this.filterStudents();
+              this.cdr.detectChanges();
+            }
+          }
+        });
+      }
+    });
   }
 
   private resetTestDetails(): void {
@@ -4025,8 +4202,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         s.isQueued = false;
         s.isEvaluating = false;
         s.status = 'Not Evaluated';
-        s.actionText = 'Pending Credits';
-        s.actionClass = 'btn-paused';
+        s.actionText = 'Evaluate';
+        s.actionClass = 'btn-solid-blue';
       }
     }
 
@@ -4302,7 +4479,6 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       notify('No paused evaluation job found to resume.', 'info');
       return;
     }
-    notify('Resuming evaluation for remaining pending students...', 'info');
     this.http.post<any>(`${API_BASE}/test-evaluation/resume-bulk-job`, {
       job_id: jobId,
       institute_id: this.getTargetInstituteId()
@@ -4396,7 +4572,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
               } else if (stData.status === 'completed') {
                 student.isEvaluating = false;
                 student.isQueued = false;
-                student.status = 'AI Evaluated';
+                student.status = stData.display_status === 'Need to Check' ? 'Need to Check' : 'AI Evaluated';
                 student.matchedFile = undefined;
                 student.marks = stData.marks || student.marks;
                 student.isUploaded = true;
@@ -4568,9 +4744,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         }
         const student = this.students.find((s) => String(s.user_id) === String(data.user_id));
         if (student) {
+          const finalStatus = data.status === 'Need to Check' ? 'Need to Check' : 'AI Evaluated';
           student.isEvaluating = false;
           student.isQueued = false;
-          student.status = 'AI Evaluated';
+          student.status = finalStatus;
           student.matchedFile = undefined;
           student.splitSegment = undefined;
           student.rawFile = undefined;
@@ -4595,9 +4772,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
           if (currentExam && Array.isArray(currentExam.assigned_users)) {
             const u = currentExam.assigned_users.find((au: any) => String(au.user_id) === String(data.user_id));
             if (u) {
+              const finalStatus = data.status === 'Need to Check' ? 'Need to Check' : 'AI Evaluated';
               u.pages_count = data.total_pages || 1;
-              u.evaluation_status = 'AI Evaluated';
-              u.status = 'AI Evaluated';
+              u.evaluation_status = finalStatus;
+              u.status = finalStatus;
               u.marks_awarded = data.marks;
               u.score = data.marks;
             }
@@ -4606,7 +4784,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         // Update corresponding item in bulkFiles table if present
         for (const bf of this.bulkFiles) {
           if (String(bf.selectedUserId) === String(data.user_id)) {
-            bf.aiStatus = 'AI Evaluated';
+            bf.aiStatus = data.status === 'Need to Check' ? 'Need to Check' : 'AI Evaluated';
             bf.evaluation = data.marks || 'Evaluated';
             bf.actionText = 'Review';
             bf.actionClass = 'btn-solid-blue';
@@ -4759,8 +4937,8 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
             s.isEvaluating = false;
             s.isQueued = false;
             s.status = 'Not Evaluated';
-            s.actionText = 'Pending Credits';
-            s.actionClass = 'btn-paused';
+            s.actionText = 'Evaluate';
+            s.actionClass = 'btn-solid-blue';
           }
         });
         this.cdr.detectChanges();
@@ -4888,9 +5066,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     notify(`Evaluation stopped for ${student.name}.`, 'info');
 
     const jobId = this.activeBulkJobId || sessionStorage.getItem('activeBulkJobId');
-    if (jobId && student.user_id) {
+    if ((jobId || this.selectedExamId) && student.user_id) {
       this.http.post<any>(`${API_BASE}/test-evaluation/stop-bulk-evaluation`, {
-        job_id: jobId,
+        job_id: jobId || undefined,
+        exam_id: this.selectedExamId || undefined,
         user_id: student.user_id
       }).subscribe({
         next: (res) => {
@@ -5121,6 +5300,10 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     this.closeAnswerSheetPreview();
     this.bulkFiles = [];
+    this.splitBatchData = null;
+    if (this.selectedExamId) {
+      this.http.delete(`${API_BASE}/test-evaluation/pending-split-batch?exam_id=${this.selectedExamId}`).subscribe();
+    }
     const fileInputs = document.querySelectorAll('input[type="file"]') as NodeListOf<HTMLInputElement>;
     fileInputs.forEach((input) => (input.value = ''));
 

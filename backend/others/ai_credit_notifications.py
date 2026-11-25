@@ -218,10 +218,12 @@ class AICreditNotificationManager:
             self.ensure_table(session)
             last_alert = session.query(AICreditNotification).filter(
                 AICreditNotification.institute_id == clean_inst,
-                AICreditNotification.event_type.in_(["LOW_BALANCE", "CRITICAL_BALANCE", "EXHAUSTED"])
+                AICreditNotification.event_type.in_([
+                    "LOW_BALANCE", "CRITICAL_BALANCE", "EXHAUSTED", "ALLOCATION", "ADJUSTMENT"
+                ])
             ).order_by(desc(AICreditNotification.created_date)).first()
 
-            if last_alert:
+            if last_alert and last_alert.event_type in ("LOW_BALANCE", "CRITICAL_BALANCE", "EXHAUSTED"):
                 # If latest alert is already for this exact event or a higher severity, do NOT spam
                 if last_alert.event_type == target_event:
                     return

@@ -5556,7 +5556,7 @@ def process_single_student_answer_sheet(
                     started_date=datetime.utcnow(),
                 )
                 session.add(attempt)
-                session.flush()
+                session.commit()
 
             attempt_id = str(attempt.attempt_id)
             attempt_schedule_id = str(attempt.schedule_id)
@@ -6373,6 +6373,26 @@ def process_single_student_answer_sheet(
 
             # Final commit for attempt score and status
             session.commit()
+
+            from others.settings import get_ai_confidence_threshold
+            conf_threshold = get_ai_confidence_threshold(session)
+            need_check_count = (
+                session.query(Answer)
+                .filter(
+                    func.cast(Answer.attempt_id, String) == str(attempt_id),
+                    or_(
+                        Answer.manual_review_required == 1,
+                        (
+                            Answer.ai_confidence.isnot(None)
+                            & (Answer.ai_confidence > 0)
+                            & (Answer.ai_confidence <= conf_threshold)
+                        ),
+                    ),
+                )
+                .count()
+            )
+            display_status = "Need to Check" if need_check_count > 0 else "AI Evaluated"
+
             db.close()
             session = None
 
@@ -6393,6 +6413,7 @@ def process_single_student_answer_sheet(
                     "score": total_awarded,
                     "total_marks": total_possible,
                     "percentage": final_percentage,
+                    "display_status": display_status,
                 },
             }, 200
 
@@ -7569,6 +7590,32 @@ def split_and_identify_multi_student_pdf(request, current_user=None):
     with open(os.path.join(temp_dir, "manifest.json"), "w", encoding="utf-8") as mf:
         json.dump(manifest_data, mf, indent=2)
 
+    # Persist split PDFs and manifest to GCS so they survive shutdowns/restarts
+    try:
+        from others.gcs_service import gcs_storage
+        if gcs_storage.is_gcs_active():
+            for seg in segments:
+                seg_idx = seg.get("segment_index")
+                seg_fname = f"segment_{seg_idx}.pdf"
+                seg_fpath = os.path.join(temp_dir, seg_fname)
+                if os.path.exists(seg_fpath):
+                    with open(seg_fpath, "rb") as sf:
+                        gcs_storage.upload_media(
+                            file_bytes=sf.read(),
+                            filename=seg_fname,
+                            exact_object_path=f"split_batches/{exam_id}/{batch_id}/{seg_fname}",
+                            expected_type="pdf",
+                        )
+            manifest_data["original_filename"] = uploaded_file.filename if 'uploaded_file' in locals() and uploaded_file else "multistudent.pdf"
+            gcs_storage.upload_media(
+                file_bytes=json.dumps(manifest_data, indent=2).encode("utf-8"),
+                filename="latest_batch.json",
+                exact_object_path=f"split_batches/{exam_id}/latest_batch.json",
+                expected_type="any",
+            )
+    except Exception as gcs_split_err:
+        print(f"[split_multi_student_pdf] GCS backup warning: {gcs_split_err}")
+
     matched_count = sum(1 for s in segments if s.get("is_matched") and s.get("user_id"))
     unmatched_count = len(segments) - matched_count
 
@@ -7638,8 +7685,7 @@ def confirm_and_enqueue_split_evaluations(request, current_user=None):
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         "static", "uploads", "temp_bulk_splits", str(batch_id)
     )
-    if not os.path.exists(temp_dir):
-        return {"status": False, "statusMessage": "Temporary split batch expired or not found."}, 404
+    from others.gcs_service import gcs_storage
 
     student_tasks = []
     for mapping in confirmed_mappings:
@@ -7653,10 +7699,17 @@ def confirm_and_enqueue_split_evaluations(request, current_user=None):
 
         pdf_filename = f"segment_{seg_idx}.pdf"
         pdf_path = os.path.join(temp_dir, pdf_filename)
+        pdf_bytes = None
         if os.path.exists(pdf_path):
             with open(pdf_path, "rb") as f:
                 pdf_bytes = f.read()
+        elif gcs_storage.is_gcs_active():
+            try:
+                pdf_bytes = gcs_storage.download_media_bytes(f"split_batches/{exam_id}/{batch_id}/{pdf_filename}")
+            except Exception:
+                pdf_bytes = None
 
+        if pdf_bytes:
             target_filename = f"{student_name.replace(' ', '_')}_answersheet.pdf"
             student_tasks.append({
                 "user_id": user_id,
@@ -7684,6 +7737,12 @@ def confirm_and_enqueue_split_evaluations(request, current_user=None):
         current_user=current_user,
         explicit_inst_id=target_inst_id
     )
+
+    try:
+        if gcs_storage.is_gcs_active():
+            gcs_storage.delete_media(f"split_batches/{exam_id}/latest_batch.json")
+    except Exception:
+        pass
 
     return {
         "status": True,

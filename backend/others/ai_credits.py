@@ -175,7 +175,9 @@ EVALUATION_FEATURES = {
     "single paper evaluation",
     "bulk paper evaluation",
     "answer sheet evaluation",
-    "test evaluation"
+    "test evaluation",
+    "question anchor detection",
+    "question evaluation",
 }
 
 
@@ -285,6 +287,9 @@ class AICreditManager:
                 return False, "AI access has not been granted by the Super Admin. Please contact your Super Admin to allocate AI credits.", 403, 0
 
             # Check reserve floor
+            if remaining <= 0:
+                return False, f"AI credit quota exhausted ({int(used_tokens):,} / {int(allocated):,} credits used). Please contact your Super Admin to allocate more credits.", 403, 0
+
             if remaining <= reserve_floor:
                 if is_eval:
                     return False, f"Evaluation paused: Institute balance has reached the mandatory {EVAL_MINIMUM_TOKEN_RESERVE:,} token reserve. Please contact your Super Admin to allocate credits.", 403, int(remaining)
@@ -421,14 +426,10 @@ class AICreditManager:
         if not institute_id:
             return
         def _run_resume():
+            # Paused bulk paper evaluation jobs are resumed manually by the Admin
+            # via the "Resume Pending Evaluations" button.
             try:
-                # 1. Resume paused bulk evaluation jobs
-                from others.bulk_eval_manager import bulk_eval_manager
-                bulk_eval_manager.auto_resume_institute_jobs(str(institute_id))
-            except Exception as e:
-                print(f"[AICreditManager] Error in auto-resume bulk eval for institute {institute_id}: {e}")
-            try:
-                # 2. Resume paused online test evaluations
+                # Resume paused online test evaluations
                 from others.exam_review import auto_resume_pending_online_evaluations
                 auto_resume_pending_online_evaluations(str(institute_id))
             except Exception as e:

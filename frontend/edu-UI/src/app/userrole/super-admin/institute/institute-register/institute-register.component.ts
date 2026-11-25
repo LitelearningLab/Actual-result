@@ -747,6 +747,7 @@ export class InstituteRegisterComponent {
         this.remainingCredits = obj.remaining_credits !== undefined ? obj.remaining_credits : (obj.allocated_credits || 0);
         if (this.editingInstituteId) {
           this.loadTransactions();
+          this.loadLiveCredits();
         }
 
         // If the stored institute has subscription dates, convert them to Date objects for the datepicker
@@ -1335,6 +1336,7 @@ export class InstituteRegisterComponent {
 
     if (this.isEditing) {
       this.loadTransactions();
+      this.loadLiveCredits();
     }
 
     stepper.next();
@@ -1861,6 +1863,36 @@ export class InstituteRegisterComponent {
           }
         },
         error: () => { this.isTxLoading = false; }
+      });
+  }
+
+  loadLiveCredits(): void {
+    if (!this.editingInstituteId) return;
+    const token = sessionStorage.getItem('token');
+    const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+    this.http.get<any>(`${API_BASE}/ai-credits/summary?institute_id=${this.editingInstituteId}`, { headers })
+      .subscribe({
+        next: (res) => {
+          if (res && res.status && res.data) {
+            const d = res.data;
+            this.usedCredits = Number(d.used_credits ?? this.usedCredits ?? 0);
+            this.remainingCredits = Number(d.remaining_credits ?? this.remainingCredits ?? 0);
+            if (d.allocated_credits !== undefined && d.allocated_credits !== null) {
+              this.form.patchValue({ allocated_credits: d.allocated_credits });
+            }
+            try {
+              const raw = sessionStorage.getItem('edit_institute');
+              if (raw) {
+                const instObj = JSON.parse(raw);
+                instObj.allocated_credits = d.allocated_credits ?? instObj.allocated_credits;
+                instObj.used_credits = this.usedCredits;
+                instObj.remaining_credits = this.remainingCredits;
+                sessionStorage.setItem('edit_institute', JSON.stringify(instObj));
+              }
+            } catch (_) {}
+          }
+        }
       });
   }
 

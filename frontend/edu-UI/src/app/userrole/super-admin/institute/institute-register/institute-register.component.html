@@ -785,40 +785,13 @@
                     </div>
                   </div>
 
-                  <!-- 2. QUOTA STATUS & UTILIZATION BAR -->
-                  <div class="quota-progress-container">
-                    <div class="quota-status-row">
-                      <div class="status-left">
-                        <span class="status-title">Credit Utilization: <strong>{{ getUtilizationPercentage() }}%</strong></span>
-                        <span class="status-sub">({{ Math.max(0, 100 - getUtilizationPercentage()) | number:'1.0-2' }}% remaining)</span>
-                      </div>
-                      <div class="status-badge" [ngClass]="getStatusBadgeClass()">
-                        <mat-icon>{{ getStatusBadgeIcon() }}</mat-icon>
-                        <span>{{ getStatusBadgeText() }}</span>
-                      </div>
-                    </div>
-
-                    <div class="progress-bar-track">
-                      <div class="progress-bar-fill" [style.width.%]="Math.min(100, getUtilizationPercentage())"></div>
-                    </div>
-                  </div>
-
-                  <!-- 3. CREDIT ACTIONS & ALERT CONFIGURATION -->
+                  <!-- 3. CREDIT ACTIONS -->
                   <div class="credit-actions-bar">
                     <div class="action-buttons-group">
                       <button type="button" mat-flat-button color="primary" class="btn-action-add" (click)="openAddCreditsDialog()">
                         <mat-icon>add_circle</mat-icon>
                         <span>Add Credits</span>
                       </button>
-                    </div>
-
-                    <div class="alert-threshold-field">
-                      <mat-form-field appearance="outline" class="threshold-input">
-                        <mat-label>Low Balance Alert (%)</mat-label>
-                        <mat-icon matPrefix>notifications_active</mat-icon>
-                        <input matInput type="number" min="1" max="50" formControlName="credit_alert_threshold" placeholder="10" />
-                        <mat-hint>Warning threshold percentage</mat-hint>
-                      </mat-form-field>
                     </div>
                   </div>
 

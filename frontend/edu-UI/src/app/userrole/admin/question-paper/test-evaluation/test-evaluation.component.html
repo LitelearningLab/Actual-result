@@ -782,9 +782,10 @@
             *ngIf="isBulkEvaluating || (bulkProgress.total > 0 && bulkProgress.percentage < 100)">
             <div class="progress-banner-top">
               <div class="banner-title-group">
-                <mat-icon class="banner-spin-icon">sync</mat-icon>
+                <mat-icon class="banner-spin-icon" *ngIf="isBulkEvaluating">sync</mat-icon>
+                <mat-icon *ngIf="!isBulkEvaluating" style="color: #d97706;">pause_circle_outline</mat-icon>
                 <div class="banner-text">
-                  <span class="banner-title">Evaluating Papers...</span>
+                  <span class="banner-title">{{ isBulkEvaluating ? 'Evaluating Papers...' : 'Evaluation Paused' }}</span>
                   <span class="banner-subtitle">{{ bulkProgress.message || 'Processing answer sheets in the
                     background...' }}</span>
                 </div>
@@ -837,7 +838,7 @@
                       <mat-icon class="check-icon" *ngIf="st.status === 'Completed'">check</mat-icon>
                       <span>{{ st.statusPhase }}</span>
                     </span>
-                    <span class="st-progress-count">{{ st.completedQuestions }} / {{ st.totalQuestions }} Qs ({{ st.progressPercent }}%)</span>
+                    <span class="st-progress-count" *ngIf="st.totalQuestions > 0">{{ st.completedQuestions }} / {{ st.totalQuestions }} Qs</span>
                   </div>
                 </div>
 

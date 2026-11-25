@@ -1227,10 +1227,44 @@ def stop_bulk_evaluation_route():
     data = request.get_json(silent=True) or {}
     job_id = data.get('job_id')
     user_id = data.get('user_id')
-    if not job_id:
-        return jsonify({"status": False, "statusMessage": "job_id is required"}), 400
-    res = bulk_eval_manager.stop_job(job_id=job_id, user_id=user_id)
-    return jsonify(res), 200
+    exam_id = data.get('exam_id')
+
+    if job_id:
+        res = bulk_eval_manager.stop_job(job_id=job_id, user_id=user_id)
+        if res.get("status"):
+            return jsonify(res), 200
+        # If job is no longer in memory (e.g. after server restart), fall through to DB cleanup if exam_id & user_id are given
+        if not (exam_id and user_id):
+            return jsonify(res), 200
+
+    if exam_id and user_id:
+        try:
+            from others.exams import SQLiteDB, Exam_Attempt, Answer, AnswerSheetPage, ExamSchedule
+            from sqlalchemy import func, String, or_
+            db = SQLiteDB()
+            sess = db.connect()
+            if sess:
+                sched_subq = sess.query(ExamSchedule.schedule_id).filter(ExamSchedule.exam_id == str(exam_id))
+                att_rows = sess.query(Exam_Attempt.attempt_id).filter(
+                    Exam_Attempt.user_id == str(user_id),
+                    Exam_Attempt.status == "in_progress",
+                    or_(
+                        Exam_Attempt.schedule_id == str(exam_id),
+                        Exam_Attempt.schedule_id.in_(sched_subq)
+                    )
+                ).all()
+                att_ids = [str(r[0]) for r in att_rows if r[0]]
+                if att_ids:
+                    sess.query(Answer).filter(func.cast(Answer.attempt_id, String).in_(att_ids)).delete(synchronize_session=False)
+                    sess.query(AnswerSheetPage).filter(func.cast(AnswerSheetPage.attempt_id, String).in_(att_ids)).delete(synchronize_session=False)
+                    sess.query(Exam_Attempt).filter(func.cast(Exam_Attempt.attempt_id, String).in_(att_ids)).delete(synchronize_session=False)
+                    sess.commit()
+                sess.close()
+            return jsonify({"status": True, "statusMessage": "Stopped in-progress evaluation."}), 200
+        except Exception as e:
+            return jsonify({"status": False, "statusMessage": f"Error stopping evaluation: {e}"}), 500
+
+    return jsonify({"status": False, "statusMessage": "job_id or (exam_id and user_id) is required"}), 400
 
 @edu_blueprint.route('/test-evaluation/evaluation-stream/<job_id>', methods=['GET'])
 @admin_required
@@ -1289,6 +1323,41 @@ def confirm_split_evaluation_route():
     response_data, status_code = confirm_and_enqueue_split_evaluations(request, current_user)
     return jsonify(response_data), status_code
 
+@edu_blueprint.route('/test-evaluation/pending-split-batch', methods=['GET', 'DELETE'])
+@admin_required
+def pending_split_batch_route():
+    exam_id = request.args.get('exam_id')
+    if not exam_id:
+        return jsonify({"status": False, "statusMessage": "exam_id is required"}), 400
+    from others.gcs_service import gcs_storage
+    import json
+    gcs_path = f"split_batches/{exam_id}/latest_batch.json"
+    if request.method == 'DELETE':
+        if gcs_storage.is_gcs_active():
+            try:
+                gcs_storage.delete_media(gcs_path)
+            except Exception:
+                pass
+        return jsonify({"status": True}), 200
+    if gcs_storage.is_gcs_active():
+        try:
+            raw = gcs_storage.download_media_bytes(gcs_path)
+            if raw:
+                return jsonify({"status": True, "data": json.loads(raw.decode("utf-8"))}), 200
+        except Exception:
+            pass
+    return jsonify({"status": False, "data": None}), 200
+
+@edu_blueprint.route('/test-evaluation/active-job', methods=['GET'])
+@admin_required
+def active_job_for_exam_route():
+    exam_id = request.args.get('exam_id')
+    if not exam_id:
+        return jsonify({"status": False, "statusMessage": "exam_id is required"}), 400
+    from others.bulk_eval_manager import bulk_eval_manager
+    summary = bulk_eval_manager.get_active_job_for_exam(exam_id)
+    return jsonify({"status": bool(summary), "data": summary}), 200
+
 @edu_blueprint.route('/test-evaluation/estimate-credits', methods=['POST'])
 @admin_required
 def estimate_evaluation_credits_route():
@@ -1308,7 +1377,10 @@ def resume_bulk_job_route():
     if not job_id:
         return jsonify({"status": False, "statusMessage": "job_id is required"}), 400
     res = bulk_eval_manager.resume_evaluation_job(job_id)
-    return jsonify(res), 200 if res.get("status") else 400
+    if not res.get("status"):
+        status_code = 403 if res.get("code") == "AI_CREDIT_EXHAUSTED" else 400
+        return jsonify(res), status_code
+    return jsonify(res), 200
 
 @edu_blueprint.route('/uploads/answer_sheets/<path:filename>', methods=['GET'])
 def serve_answer_sheet_file(filename):
