@@ -131,7 +131,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   title = '';
   description = '';
   institute = '';
-  durationMinutes: number | null = 10;
+  durationMinutes: number | null = null;
   passMark: number | null = 50;
   startDateTime = '';
   numberOfAttempts: number | null = 1;
@@ -292,7 +292,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   // ── New UI properties ──
   examTypeLabel = 'Unit Test';
   totalMarksOverride: number | null = null;
-  durationLabel = '10 Mins';
+  durationLabel = '';
 
   // ── Filter Paper Overlay State ──
   @ViewChild('filterPaperBtn', { read: ElementRef }) filterPaperBtn?: ElementRef;
@@ -3286,7 +3286,7 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
       : `${examTypePrefix}${(paperTitle || 'QUESTION PAPER').toUpperCase()}`;
 
     const durationText =
-      this.durationLabel || (this.durationMinutes ? `${this.durationMinutes} mins` : '1 Hour');
+      this.durationLabel || (this.durationMinutes ? `${this.durationMinutes} Mins` : '0 Mins');
     const maxMarks = this.totalMarksOverride || this.totalPaperMarks || 0;
 
     const pages = this.buildPaginatedPages(isAnswerKey);
@@ -4165,7 +4165,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
         } else {
           const msg = res?.statusMessage || 'Failed to extract questions from paper';
           this.uploadPaperError = msg;
-          notify(msg, 'error');
         }
       },
       error: (err) => {
@@ -4176,7 +4175,6 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
           err?.error?.message ||
           'Failed to extract questions using AI. Please verify the file and try again.';
         this.uploadPaperError = msg;
-        notify(msg, 'error');
       }
     });
   }

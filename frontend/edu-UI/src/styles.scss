@@ -318,7 +318,8 @@ $search-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 .filters-panel-header h4 { margin: 0; font-size: 1rem; font-weight: 700; color: #0f172a; letter-spacing: -0.02em; display: flex; align-items: center; gap: 0.625rem; }
 .filters-panel-header h4 mat-icon { font-size: 1.25rem; width: 1.25rem; height: 1.25rem; color: var(--button-1); }
 
-.filters-panel .filter-block { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 1rem; padding: 1rem 1.25rem; }
+.filters-panel .filter-block { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.125rem 1rem; padding: 1.125rem 1.25rem; }
+.filters-panel .filter-col { display: flex; flex-direction: column; gap: 1.125rem; min-width: 0; }
 .filters-panel .filter-item { width: 100%; min-width: 0; background: transparent; border-radius: 0.625rem; transition: all 0.2s ease; border: none; }
 .filters-panel .filter-item:hover { background: transparent; }
 .filters-panel .filter-item:focus-within { background: transparent; border: none; box-shadow: none; }

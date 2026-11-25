@@ -161,6 +161,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
     'sections',
     'questions',
     'marks',
+    'duration',
     'actions',
   ];
   activeTab: 'drafts' | 'published' = 'drafts';
@@ -605,7 +606,7 @@ export class QuestionPaperComponent implements AfterViewInit, OnInit, OnDestroy 
   updateDisplayedColumns(): void {
     this.displayedColumns = this.activeTab === 'published'
       ? ['sno', 'title', 'sections', 'questions', 'marks', 'duration', 'evaluation', 'manual_review', 'actions']
-      : ['sno', 'title', 'sections', 'questions', 'marks', 'actions'];
+      : ['sno', 'title', 'sections', 'questions', 'marks', 'duration', 'actions'];
   }
 
   isManualReview(s: any): boolean {
