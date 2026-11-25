@@ -32,6 +32,7 @@ import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { TemplatePortal } from '@angular/cdk/portal';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { PortalModule } from '@angular/cdk/portal';
+import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { LoaderService } from 'src/app/shared/services/loader.service';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import {
@@ -68,6 +69,7 @@ export interface PaperSection {
   questions: PaperQuestion[];
   targetCount?: number | null;
   marksPerQ?: number | null;
+  _collapsed?: boolean;
 }
 
 export interface PaperPageItem {
@@ -121,6 +123,7 @@ import {
     MatStepperModule,
     OverlayModule,
     PortalModule,
+    DragDropModule,
     MathRenderComponent,
     PaperReviewAccessFormComponent,
   ],
@@ -3826,6 +3829,20 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
     this.markDirty();
     this.closeAddSectionModal();
     notify(`Created ${newSec.name}`, 'success');
+  }
+
+  toggleSectionCollapse(sec: PaperSection) {
+    sec._collapsed = !sec._collapsed;
+  }
+
+  onSectionDrop(event: CdkDragDrop<PaperSection[]>) {
+    if (this.readOnly || event.previousIndex === event.currentIndex) return;
+    moveItemInArray(this.sections, event.previousIndex, event.currentIndex);
+    this.sections.forEach((s, i) => (s.order_number = i + 1));
+    this.syncModelCategoriesFromSections();
+    this.paginatedPaperPages = this.buildPaginatedPages(false);
+    this.paginatedGuidePages = this.buildPaginatedPages(true);
+    this.markDirty();
   }
 
   removeSection(index: number) {

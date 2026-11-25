@@ -675,16 +675,20 @@
                     </div>
 
                     <!-- Sections list -->
-                    <div class="sections-list" *ngIf="sections.length > 0">
-                        <div class="section-block-card" *ngFor="let sec of sections; let secIdx = index">
+                    <div class="sections-list" *ngIf="sections.length > 0" cdkDropList (cdkDropListDropped)="onSectionDrop($event)">
+                        <div class="section-block-card" *ngFor="let sec of sections; let secIdx = index"
+                            cdkDrag [cdkDragDisabled]="readOnly" [class.is-collapsed]="sec._collapsed">
 
                             <!-- Section header -->
                             <div class="sec-head">
-                                <div class="sec-drag-handle" *ngIf="!readOnly">
+                                <div class="sec-drag-handle" *ngIf="!readOnly" cdkDragHandle title="Drag to reorder section">
                                     <mat-icon>drag_indicator</mat-icon>
                                 </div>
-                                <div class="sec-head-info">
-                                    <h3 class="sec-name">{{ sec.name }}</h3>
+                                <div class="sec-head-info" (click)="toggleSectionCollapse(sec)" [title]="sec._collapsed ? 'Click to expand section' : 'Click to collapse section'">
+                                    <h3 class="sec-name">
+                                        <span>{{ sec.name }}</span>
+                                        <mat-icon class="sec-collapse-chevron">{{ sec._collapsed ? 'chevron_right' : 'expand_more' }}</mat-icon>
+                                    </h3>
                                     <div class="sec-subheading" *ngIf="getSectionSubHeading(sec)">
                                         {{ getSectionSubHeading(sec) }}
                                     </div>
@@ -692,11 +696,14 @@
                                         <span class="sec-meta-item">{{ getSectionMetaMarksFormula(sec) }}</span>
                                     </div>
                                 </div>
-                                <div class="sec-head-actions" *ngIf="!readOnly">
-                                    <button class="btn-icon-action" type="button" (click)="openEditSectionModal(secIdx)" title="Edit section">
+                                <div class="sec-head-actions">
+                                    <button class="btn-icon-action" type="button" (click)="toggleSectionCollapse(sec); $event.stopPropagation()" [title]="sec._collapsed ? 'Expand section' : 'Collapse section'">
+                                        <mat-icon>{{ sec._collapsed ? 'unfold_more' : 'unfold_less' }}</mat-icon>
+                                    </button>
+                                    <button class="btn-icon-action" type="button" *ngIf="!readOnly" (click)="openEditSectionModal(secIdx); $event.stopPropagation()" title="Edit section">
                                         <mat-icon>edit</mat-icon>
                                     </button>
-                                    <button class="btn-icon-action btn-del" type="button" (click)="removeSection(secIdx)" title="Delete section">
+                                    <button class="btn-icon-action btn-del" type="button" *ngIf="!readOnly" (click)="removeSection(secIdx); $event.stopPropagation()" title="Delete section">
                                         <mat-icon>delete_outline</mat-icon>
                                     </button>
                                 </div>
@@ -711,7 +718,7 @@
                             </div>
 
                             <!-- Questions list -->
-                            <div class="sec-questions" *ngIf="sec.questions && sec.questions.length > 0">
+                            <div class="sec-questions" *ngIf="!sec._collapsed && sec.questions && sec.questions.length > 0">
                                 <div class="sec-q-row" *ngFor="let q of sec.questions; let qIdx = index">
                                     <span class="q-num">{{ getGlobalQuestionIndex(secIdx, qIdx) }}</span>
                                     <div class="q-content-wrap" style="flex: 1; min-width: 0;">
