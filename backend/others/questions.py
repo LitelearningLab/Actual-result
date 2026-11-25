@@ -1701,15 +1701,13 @@ Provide the output as a JSON array of objects (one object per question). Each ob
 ]
 
 Return strictly valid JSON with no surrounding markdown or conversational text."""
-    # Token calculation based on number of questions and character/ word count
-    total_tokens_estimate = number_of_questions * character_count // 4
     try:
         response = openai_client_instance.chat_completion(
             system_message,
             user_message,
             aimodel=aimodel,
-            max_tokens = max(total_tokens_estimate + 2000, 4000),
-            timeout = 120.0,
+            max_tokens=max(total_tokens_estimate + 4000, 8000),
+            timeout=120.0,
             institute_id=target_inst_id,
             user_name=user_id,
             feature_name="AI Question Generation",
@@ -1717,7 +1715,12 @@ Return strictly valid JSON with no surrounding markdown or conversational text."
         )
         # with open("debug_response.json", "w") as debug_file:
         #     debug_file.write(response.text)
-        response_json = response.json()
+        try:
+            response_json = response.json()
+        except Exception as json_err:
+            raw_body = getattr(response, "text", "")[:300]
+            print(f"[create_question_using_llm] Non-JSON HTTP response (status={getattr(response, 'status_code', '?')}): {raw_body}", flush=True)
+            return {"status": False, "error": f"LLM returned non-JSON response (status {getattr(response, 'status_code', '?')}): {json_err}"}, 502
         # with open("debug_response.json", "r") as debug_file:
         #     response_json = json.load(debug_file)
         #     class MockResponse:
@@ -1734,14 +1737,42 @@ Return strictly valid JSON with no surrounding markdown or conversational text."
                 error = error.get("message", str(error))
             return {"status": False, "error": error}, response.status_code
         response_tracker(response_json, target_inst_id, user_id, endpoint="/create-question-using-ai")
-        result_text = response_json["choices"][0]["message"]["content"].strip()
+        choice0 = (response_json.get("choices") or [{}])[0]
+        finish_reason = choice0.get("finish_reason", "unknown")
+        result_text = (choice0.get("message", {}).get("content") or "").strip()
+        if not result_text:
+            print(f"[create_question_using_llm] Empty content from LLM. finish_reason={finish_reason}, usage={response_json.get('usage')}", flush=True)
+            return {
+                "status": False,
+                "error": f"AI returned an empty response (finish_reason: {finish_reason}). Please try again.",
+                "statusMessage": f"AI returned an empty response (finish_reason: {finish_reason}). Please try again."
+            }, 502
+
         # Remove markdown code blocks if present
-        if result_text.startswith("```"):
-            result_text = result_text.split("```")[1]
-            if result_text.startswith("json"):
-                result_text = result_text[4:]
-            result_text = result_text.strip()
-        parsed = json.loads(result_text)
+        result_text = re.sub(r"^```(?:json)?\s*", "", result_text, flags=re.MULTILINE)
+        result_text = re.sub(r"```\s*$", "", result_text, flags=re.MULTILINE).strip()
+
+        # Extract outermost JSON array or object if surrounded by conversational text
+        arr_start, arr_end = result_text.find("["), result_text.rfind("]")
+        obj_start, obj_end = result_text.find("{"), result_text.rfind("}")
+        if arr_start != -1 and arr_end > arr_start and (obj_start == -1 or arr_start < obj_start):
+            result_text = result_text[arr_start:arr_end + 1]
+        elif obj_start != -1 and obj_end > obj_start:
+            result_text = result_text[obj_start:obj_end + 1]
+
+        try:
+            parsed = json.loads(result_text, strict=False)
+        except json.JSONDecodeError:
+            sanitized = re.sub(r'\\(?![\\"/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', result_text)
+            try:
+                parsed = json.loads(sanitized, strict=False)
+            except json.JSONDecodeError as parse_err:
+                print(f"[create_question_using_llm] Invalid JSON from LLM (finish_reason={finish_reason}): {result_text[:300]}", flush=True)
+                return {
+                    "status": False,
+                    "error": f"AI returned invalid JSON: {parse_err}",
+                    "statusMessage": "AI returned an invalid format. Please try again."
+                }, 502
 
                 # ================= PRINT TOKEN USAGE DETAILS =================
         usage = response_json.get("usage", {}) or {}
