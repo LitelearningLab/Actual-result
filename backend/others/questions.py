@@ -2432,12 +2432,12 @@ def extract_questions_from_paper(request):
             "          \"diagram_box\": [],\n"
             "          \"page\": 1,\n"
             "          \"options\": [\n"
-            "            \"(A) Amar Jiban — Tarabai Shinde\",\n"
-            "            \"(B) Gulamgiri — Rashsundri Debi\",\n"
-            "            \"(C) Burhi Aair Sadhu — Lakshminath Bezbaruah\",\n"
-            "            \"(D) Sambad Kaumudi — Pandita Ramabai\"\n"
+            "            \"Amar Jiban — Tarabai Shinde\",\n"
+            "            \"Gulamgiri — Rashsundri Debi\",\n"
+            "            \"Burhi Aair Sadhu — Lakshminath Bezbaruah\",\n"
+            "            \"Sambad Kaumudi — Pandita Ramabai\"\n"
             "          ],\n"
-            "          \"answer\": \"(C) Burhi Aair Sadhu — Lakshminath Bezbaruah\"\n"
+            "          \"answer\": \"Burhi Aair Sadhu — Lakshminath Bezbaruah\"\n"
             "        }\n"
             "      ]\n"
             "    },\n"
@@ -2659,7 +2659,15 @@ def extract_questions_from_paper(request):
                 except Exception:
                     q_marks = 1
 
-                options_list = [str(o).strip() for o in (q.get("options") or []) if str(o).strip()]
+                options_list = []
+                for raw_opt in (q.get("options") or []):
+                    cleaned_opt = re.sub(
+                        r'^\s*(?:\([A-Za-z]\)\s*|[A-Za-z][\)\.\:]\s*|[A-Za-z]-\s+)',
+                        '',
+                        str(raw_opt or '')
+                    ).strip()
+                    if cleaned_opt:
+                        options_list.append(cleaned_opt)
 
                 raw_type = str(q.get("type") or "").lower()
                 if options_list or raw_type in ["choose", "mcq", "single", "single_choice"]:
@@ -2769,13 +2777,19 @@ def extract_questions_from_paper(request):
 
                         # Options
                         if db_q_type in ["choose", "multi"] and options_list:
+                            clean_ans_cmp = re.sub(
+                                r'^\s*(?:\([A-Za-z]\)\s*|[A-Za-z][\)\.\:]\s*|[A-Za-z]-\s+)',
+                                '',
+                                str(answer_text or '')
+                            ).strip().lower()
                             for opt_idx, opt_val in enumerate(options_list):
                                 opt_str = str(opt_val).strip()
-                                is_corr = 1 if (answer_text and (answer_text.lower() in opt_str.lower() or opt_str.lower() in answer_text.lower())) else 0
+                                is_corr = 1 if (clean_ans_cmp and (clean_ans_cmp in opt_str.lower() or opt_str.lower() in clean_ans_cmp)) else 0
                                 session.add(Option(
                                     question_id=q_uuid,
                                     option_text=opt_str,
-                                    is_correct=is_corr
+                                    is_correct=is_corr,
+                                    order_number=opt_idx + 1
                                 ))
                         elif answer_text:
                             session.add(Option(

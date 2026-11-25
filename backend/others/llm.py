@@ -1156,21 +1156,22 @@ EVALUATION RULES:
        * If incorrect: set "suggested_marks": 0.0, "is_correct": 0, "manual_review_required": 0, "feedback": "Incorrect. Answer text does not match correct answer (<correct_letter>) <correct_text>".
 
      CASE C: BOTH OPTION LETTER AND ANSWER TEXT ARE WRITTEN (e.g., 'd) Equal', 'd) It forms a metal oxide'):
-       * MANDATORY CONSISTENCY CHECK — DO NOT AWARD MARKS IF ONLY ONE IS CORRECT. BOTH MUST BE CHECKED AND BOTH MUST BE CORRECT:
-         - Condition 1: The written option letter must match 'correct_option_letter'.
-         - Condition 2: The written answer text must match or semantically represent the correct option text ('correct_option_text').
-         * If BOTH the option letter AND the answer text match the correct option (e.g., 'd) Equal'):
-             Set "suggested_marks": max_marks, "is_correct": 1, "manual_review_required": 0, "missing": [], "incomplete": [], "incorrect": [],
-             "feedback": "Correct. Both option letter (<letter>) and answer text match the correct answer."
-         * If the option letter matches BUT the written text contradicts, is wrong, or belongs to a different subject/question (e.g., student wrote 'd)' but text says 'It forms a metal oxide' while Option D is 'Equal'):
-             DO NOT award marks. Set "suggested_marks": 0.0, "is_correct": 0, "manual_review_required": 1, "ai_confidence": 30,
-             "feedback": "Incorrect / Contradiction. Option letter (<letter>) was written, but accompanying text contradicts Option (<letter>) and does not match the question."
-         * If the written text is correct BUT the option letter is wrong (e.g., wrote 'a) Equal' when D is Equal):
-             DO NOT award marks. Set "suggested_marks": 0.0, "is_correct": 0, "manual_review_required": 1, "ai_confidence": 35,
-             "feedback": "Incorrect / Mismatch. Answer text matches, but option letter (<letter>) is wrong."
-         * If neither matches:
-             Set "suggested_marks": 0.0, "is_correct": 0, "manual_review_required": 0,
-             "feedback": "Incorrect. Neither option letter nor text matches."
+       * NOTE ON LEGACY / EMBEDDED OPTION PREFIXES: If an option's text in 'options' itself begins with an embedded letter prefix (e.g., text is 'D) Optical fiber' even if listed at a different letter), compare the student's written letter against BOTH 'correct_option_letter' and that embedded prefix, and compare the student's written text against the option text without the prefix.
+       * Condition 1: The written option letter matches 'correct_option_letter' (or matches an embedded prefix on 'correct_option_text').
+       * Condition 2: The written answer text matches or semantically represents 'correct_option_text' (ignoring any leading letter prefix).
+       * If BOTH the option letter AND the answer text match the correct option (e.g., 'd) Equal'):
+           Set "suggested_marks": max_marks, "is_correct": 1, "manual_review_required": 0, "missing": [], "incomplete": [], "incorrect": [],
+           "feedback": "Correct. Both option letter (<letter>) and answer text match the correct answer."
+       * If the option letter matches BUT the written text contradicts, is wrong, or belongs to a different option/question (e.g., student wrote 'd)' but text says 'It forms a metal oxide' while Option D is 'Equal'):
+           DO NOT award marks. Set "suggested_marks": 0.0, "is_correct": 0, "manual_review_required": 1, "ai_confidence": 30,
+           "feedback": "Incorrect / Contradiction. Option letter (<letter>) was written, but accompanying text contradicts Option (<letter>) and does not match the question."
+       * If the written text clearly and unambiguously matches 'correct_option_text', AND the written letter does NOT match another option's embedded prefix/letter (for example, legacy reordered options where the student copied the printed paper's letter):
+           Award full marks if the text unambiguously matches 'correct_option_text' and set "selected_option_letter" to 'correct_option_letter', "suggested_marks": max_marks, "is_correct": 1, "manual_review_required": 0.
+           Only if the written letter explicitly points to a DIFFERENT option text while the text matches 'correct_option_text' (e.g., wrote 'a) Equal' when 'a' is 'Mass' and 'd' is 'Equal' with no prefix conflict), set "suggested_marks": 0.0, "is_correct": 0, "manual_review_required": 1, "ai_confidence": 35,
+           "feedback": "Incorrect / Mismatch. Answer text matches, but option letter (<letter>) is wrong."
+       * If neither matches:
+           Set "suggested_marks": 0.0, "is_correct": 0, "manual_review_required": 0,
+           "feedback": "Incorrect. Neither option letter nor text matches."
 
    - If the student crossed out or scribbled an answer and wrote another next to it, extract the final intended answer.
    - If handwriting or chosen option is illegible, scribbled over, or truly ambiguous, do NOT guess:

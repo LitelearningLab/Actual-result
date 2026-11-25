@@ -18,6 +18,8 @@ from db.models import (
     Setting,
     ExamReviewComments,
     Subject,
+    ExamsDepartments,
+    ExamsTeams,
 )
 from db.db import SQLiteDB
 import sys
@@ -470,6 +472,17 @@ def get_paper_schedules(request, current_user=None):
                                 "team_name": t_map.get(str(getattr(u, "team_id", "")), ""),
                             }
 
+                    # 5b. Fallback master Exam departments & teams when schedule mappings omit them
+                    exam_dept_map = {}
+                    exam_team_map = {}
+                    if exam_ids:
+                        for ed in session.query(ExamsDepartments).filter(ExamsDepartments.exam_id.in_(exam_ids)).all():
+                            if ed.department_id:
+                                exam_dept_map.setdefault(str(ed.exam_id), []).append(str(ed.department_id))
+                        for et in session.query(ExamsTeams).filter(ExamsTeams.exam_id.in_(exam_ids)).all():
+                            if et.team_id:
+                                exam_team_map.setdefault(str(et.exam_id), []).append(str(et.team_id))
+
                 # 6. Batch Institute names
                 inst_ids = list(set([str(s.institute_id) for s in schedules if s.institute_id]))
                 inst_map = {}
@@ -504,7 +517,7 @@ def get_paper_schedules(request, current_user=None):
                         "scheduler_name": s.title or (m_obj.title if m_obj else ""),
                         "schedule_name": s.title or (m_obj.title if m_obj else ""),
                         "description": m_obj.description if m_obj else "",
-                        "subject_id": m_obj.subject_id if m_obj else None,
+                        "subject_id": str(m_obj.subject_id) if (m_obj and m_obj.subject_id) else None,
                         "subject_name": m_obj.subject_name if m_obj else None,
                         "institute_id": str(s.institute_id) if s.institute_id else None,
                         "institute": inst_map.get(str(s.institute_id)),
@@ -514,8 +527,14 @@ def get_paper_schedules(request, current_user=None):
                         "total_questions": tot_q,
                         "questions_added": actual_q_added,
                         "sections_count": sec_counts_by_exam.get(eid_str, 0),
-                        "departments": sched_dept_map.get(sid_str, []),
-                        "teams": sched_team_map.get(sid_str, []),
+                        "departments": sched_dept_map.get(sid_str) or list(dict.fromkeys(
+                            (exam_dept_map.get(eid_str) or []) +
+                            [users_by_id[uid]["department_id"] for uid in sched_user_map.get(sid_str, []) if uid in users_by_id and users_by_id[uid].get("department_id")]
+                        )),
+                        "teams": sched_team_map.get(sid_str) or list(dict.fromkeys(
+                            (exam_team_map.get(eid_str) or []) +
+                            [users_by_id[uid]["team_id"] for uid in sched_user_map.get(sid_str, []) if uid in users_by_id and users_by_id[uid].get("team_id")]
+                        )),
                         "assigned_users": [users_by_id[uid] for uid in sched_user_map.get(sid_str, []) if uid in users_by_id],
                         "assigned_user_ids": sched_user_map.get(sid_str, []),
                         "start_time": s.start_time.isoformat() if s.start_time else None,
@@ -640,6 +659,24 @@ def get_paper_schedules(request, current_user=None):
                 assigned_teams = [str(m.team_id) for m in mappings if m.team_id]
             except Exception:
                 pass
+            if not assigned_departments and master:
+                try:
+                    assigned_departments = [
+                        str(ed.department_id)
+                        for ed in session.query(ExamsDepartments).filter(ExamsDepartments.exam_id == master.exam_id).all()
+                        if ed.department_id
+                    ]
+                except Exception:
+                    pass
+            if not assigned_teams and master:
+                try:
+                    assigned_teams = [
+                        str(et.team_id)
+                        for et in session.query(ExamsTeams).filter(ExamsTeams.exam_id == master.exam_id).all()
+                        if et.team_id
+                    ]
+                except Exception:
+                    pass
 
             assigned_users = []
             if assigned_uids:
@@ -942,8 +979,8 @@ def get_paper_schedules(request, current_user=None):
                 "test_mode": "paper",
                 "sections": sections_list,
                 "sections_count": len(sections_list),
-                "departments": assigned_departments,
-                "teams": assigned_teams,
+                "departments": assigned_departments or list(dict.fromkeys([u["department_id"] for u in assigned_users if u.get("department_id")])),
+                "teams": assigned_teams or list(dict.fromkeys([u["team_id"] for u in assigned_users if u.get("team_id")])),
                 "assigned_users": assigned_users,
                 "assigned_users_count": len(assigned_users),
                 "evaluated_count": eval_count,

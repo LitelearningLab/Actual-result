@@ -437,6 +437,7 @@ class Option(Base):
      image_url = Column(String(1000), nullable=True)
      gcs_path = Column(String(500), nullable=True)
      is_correct = Column(Integer, default=0)
+     order_number = Column(Integer, nullable=True)
      active_status = Column(Integer, default=1)
 
      question = relationship("Question", back_populates="options")

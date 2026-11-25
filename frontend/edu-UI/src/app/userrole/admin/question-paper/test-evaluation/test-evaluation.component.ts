@@ -1114,7 +1114,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
   loadPublishedExams(instituteId: string): void {
     this.isLoadingExams = true;
-    const schedUrl = API_BASE + '/get-paper-schedules?institute_id=' + encodeURIComponent(instituteId);
+    const schedUrl = API_BASE + '/get-paper-schedules?summary_only=true&institute_id=' + encodeURIComponent(instituteId);
     this.http.get<any>(schedUrl).subscribe({
       next: (res) => {
         const raw = res?.data || res || [];
@@ -1153,6 +1153,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
         });
       },
       error: (err) => {
+        console.error('[loadPublishedExams] /get-paper-schedules failed:', err);
         const legacyUrl = API_BASE + '/get-exams-details?test_mode=paper&published=1&summary_only=true&institute_id=' + encodeURIComponent(instituteId);
         this.http.get<any>(legacyUrl).subscribe({
           next: (legacyRes) => {
@@ -1229,26 +1230,43 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     // Filter by Class / Department
     if (this.isFilterSelected(this.selectedClass)) {
+      const selClassId = String(this.selectedClass).trim().toLowerCase();
+      const selClassName = (
+        this.classList.find((c) => String(c.id).trim().toLowerCase() === selClassId)?.name || ''
+      ).trim().toLowerCase();
       filtered = filtered.filter((e) => {
-        const depts = (e.departments || []).map((d: any) => String(d));
-        return depts.includes(String(this.selectedClass));
+        const depts = (e.departments || []).map((d: any) => String(d).trim().toLowerCase());
+        return depts.includes(selClassId) || (!!selClassName && depts.includes(selClassName));
       });
     }
 
     // Filter by Section / Team
     if (this.isFilterSelected(this.selectedSection)) {
+      const selSecId = String(this.selectedSection).trim().toLowerCase();
+      const selSecName = (
+        this.sectionList.find((s) => String(s.id).trim().toLowerCase() === selSecId)?.name || ''
+      ).trim().toLowerCase();
       filtered = filtered.filter((e) => {
-        const teams = (e.teams || []).map((t: any) => String(t));
-        return teams.includes(String(this.selectedSection));
+        const teams = (e.teams || []).map((t: any) => String(t).trim().toLowerCase());
+        return teams.includes(selSecId) || (!!selSecName && teams.includes(selSecName));
       });
     }
 
     // Filter by Subject
     if (this.isFilterSelected(this.selectedSubject)) {
+      const selSubjId = String(this.selectedSubject).trim().toLowerCase();
+      const selSubjName = (
+        this.subjectList.find((s) => String(s.id).trim().toLowerCase() === selSubjId)?.name || ''
+      ).trim().toLowerCase();
       filtered = filtered.filter((e) => {
+        const eSubjId = String(e.subject_id || '').trim().toLowerCase();
+        const eSubjName = String(e.subject_name || '').trim().toLowerCase();
+        if (!eSubjId && !eSubjName) {
+          return true;
+        }
         return (
-          String(e.subject_id) === String(this.selectedSubject) ||
-          String(e.subject_name).toLowerCase() === String(this.selectedSubject).toLowerCase()
+          (!!eSubjId && eSubjId === selSubjId) ||
+          (!!eSubjName && (eSubjName === selSubjId || (!!selSubjName && eSubjName === selSubjName)))
         );
       });
     }
@@ -1301,6 +1319,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
 
     const exam = this.allPublishedExams.find((e) => e.exam_id === examId);
     if (!exam) return;
+
+    if (exam.schedule_id && !exam._fullLoaded) {
+      exam._fullLoaded = true;
+      this.refreshTableOnly();
+      return;
+    }
 
     // Resolve Department & Team names
     let deptName = '—';
@@ -1710,6 +1734,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       exam_id: freshExam.schedule_id || freshExam.exam_id || freshExam.test_id,
       title: freshExam.title || freshExam.scheduler_name || '',
       published: 1,
+      _fullLoaded: true,
     };
 
     const idx = this.allPublishedExams.findIndex(
@@ -2496,10 +2521,12 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       // If student written answer has accompanying text that contradicts this option's text, do not select it
       const sAns = (q.student_answer || '').trim();
       if (sAns && opt.text) {
-        const optTxt = opt.text.trim().toLowerCase();
+        const stripPrefix = (s: string) =>
+          s.replace(/^\s*(?:\([a-z]\)\s*|[a-z][\)\.\:]\s*|[a-z]-\s+)/i, '').trim();
+        const optTxt = stripPrefix(opt.text).toLowerCase();
         const letterPats = [letterLower, `${letterLower})`, `(${letterLower})`, `${letterLower}.`];
         const hasLetter = letterPats.some(p => sAns.toLowerCase().startsWith(p));
-        const cleanAfter = sAns.replace(/^([a-z]\)|[a-z]\.|\([a-z]\)|[a-z])\s*/i, '').trim().toLowerCase();
+        const cleanAfter = stripPrefix(sAns).toLowerCase();
         if (hasLetter && cleanAfter.length > 2 && !cleanAfter.includes(optTxt) && !optTxt.includes(cleanAfter)) {
           return false;
         }
@@ -2532,8 +2559,13 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
     }
 
     // 3. Fallback: Match from student_answer text when selected_option_id is not set
+    if (this.isOptionCorrect(opt) && (Number(q.marks_awarded ?? 1) === 0 || Number(q.ai_marks ?? 1) === 0)) {
+      return false;
+    }
     const studentAns = (q.student_answer || '').trim();
     if (studentAns) {
+      const stripOptPrefix = (s: string) =>
+        String(s || '').replace(/^\s*(?:\([a-z]\)\s*|[a-z][\)\.\:]\s*|[a-z]-\s+)/i, '').trim();
       const cleanAns = studentAns
         .replace(/\[(unclear|illegible|scratch|scribble)\]/gi, '')
         .replace(/[*#_]/g, '')
@@ -2560,7 +2592,7 @@ export class TestEvaluationComponent implements OnInit, OnDestroy {
       // Check if student wrote letter pattern followed by text e.g. "B) Under" or "(B) Under"
       for (const pat of letterPatterns) {
         if (cleanAnsUpper.startsWith(`${pat} `) || cleanAnsUpper.startsWith(`${pat}\t`)) {
-          const optText = (opt.text || '').trim().toLowerCase();
+          const optText = stripOptPrefix(opt.text || '').toLowerCase();
           const writtenAfterLetter = cleanAns.substring(pat.length).trim().toLowerCase();
           if (optText && (writtenAfterLetter.includes(optText) || optText.includes(writtenAfterLetter))) {
             return true;

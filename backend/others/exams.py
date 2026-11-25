@@ -1069,6 +1069,35 @@ def ensure_exam_columns(session):
         session.rollback()
 
 
+def _extract_option_prefix_rank(text):
+    """Return 1-based rank (A->1, B->2, ...) if option_text starts with an embedded letter prefix."""
+    m = re.match(r"^\s*(?:\(([A-Za-z])\)|([A-Za-z])[\)\.\:]|([A-Za-z])-\s+)", str(text or ""))
+    if not m:
+        return None
+    letter = (m.group(1) or m.group(2) or m.group(3) or "").upper()
+    if "A" <= letter <= "Z":
+        return ord(letter) - ord("A") + 1
+    return None
+
+
+def _sort_options_deterministically(options):
+    """Sort Option rows by explicit order_number, falling back to embedded A/B/C/D prefix."""
+    if not options:
+        return []
+
+    def _sort_key(item):
+        idx, opt = item
+        ord_num = getattr(opt, "order_number", None)
+        if ord_num is not None:
+            return (0, int(ord_num), idx)
+        prefix_rank = _extract_option_prefix_rank(getattr(opt, "option_text", ""))
+        if prefix_rank is not None:
+            return (1, prefix_rank, idx)
+        return (2, idx, idx)
+
+    return [opt for _, opt in sorted(enumerate(options), key=_sort_key)]
+
+
 def _sync_question_answer_options(session, qid, q_item, created_by=None):
     if not qid:
         return
@@ -1077,7 +1106,9 @@ def _sync_question_answer_options(session, qid, q_item, created_by=None):
         answer_str = str(q_item.get("answer") or "").strip()
         raw_options = q_item.get("options") or []
 
-        existing_opts = session.query(Option).filter_by(question_id=str(qid), active_status=1).all()
+        existing_opts = _sort_options_deterministically(
+            session.query(Option).filter_by(question_id=str(qid), active_status=1).all()
+        )
 
         is_objective = q_type in ["choose", "multi"] or (raw_options and len(raw_options) > 0)
         if is_objective:
@@ -1121,6 +1152,7 @@ def _sync_question_answer_options(session, qid, q_item, created_by=None):
                             question_id=str(qid),
                             option_text=opt_text,
                             is_correct=is_corr,
+                            order_number=idx + 1,
                         )
                     )
         elif answer_str:
@@ -2920,7 +2952,7 @@ def get_exam_details(request):
                             }
                             for m in q_media
                         ]
-                        q_opts = (
+                        q_opts = _sort_options_deterministically(
                             session.query(Option)
                             .filter_by(question_id=q_obj.question_id, active_status=1)
                             .all()
@@ -4717,6 +4749,8 @@ def get_student_evaluation_details(request, current_user=None):
         options_by_qid = {}
         for opt in all_options:
             options_by_qid.setdefault(str(opt.question_id), []).append(opt)
+        for qid_key, opt_list in options_by_qid.items():
+            options_by_qid[qid_key] = _sort_options_deterministically(opt_list)
 
         # 2. Bulk Answers & Collect user IDs
         answers_by_qid = {}
@@ -5681,7 +5715,7 @@ def process_single_student_answer_sheet(
                     for eqm, q in sec_eqms:
                         if str(q.question_id) not in seen_qids_rubric:
                             seen_qids_rubric.add(str(q.question_id))
-                            options = (
+                            options = _sort_options_deterministically(
                                 session.query(Option)
                                 .filter(Option.question_id == q.question_id)
                                 .all()
@@ -5753,7 +5787,7 @@ def process_single_student_answer_sheet(
             for eqm, q in rem_eqms:
                 if str(q.question_id) not in seen_qids_rubric:
                     seen_qids_rubric.add(str(q.question_id))
-                    options = (
+                    options = _sort_options_deterministically(
                         session.query(Option)
                         .filter(Option.question_id == q.question_id)
                         .all()
