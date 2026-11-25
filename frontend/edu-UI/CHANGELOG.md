@@ -1,4 +1,24 @@
 # Changelog
+## [2.6.6] - 2026-11-25
+
+### Features & Enhancements
+- **Question Paper Creation & Scheduling UI**:
+  - Added drag-and-drop section reordering (`DragDropModule`, `onSectionDrop`) and collapsible section cards (`toggleSectionCollapse`) in `create-question-paper.component.ts/.html/.scss`.
+  - Moved the `Duration (mins)` field into the Test Name / Total Marks / Pass Percentage row and updated default duration and total marks fallbacks (`durationMinutes`, `durationLabel`, `totalMarksOverride`) in `create-question-paper.component.ts/.html`.
+  - Restored the `duration` column to the drafts table in `question-paper.component.ts`.
+  - Simplified the **Upload Existing Question Paper** modal layout/subtitle and removed redundant error toast notifications when inline error messages are shown.
+  - Added `filter-col-full` to the two-column Departments & Teams filter row in `scheduled-paper-test.component.html`.
+- **Navbar Notification Panel**:
+  - Updated `navbar-main.component.ts/.html/.scss` to keep read notifications visible in the dropdown with unread dot indicators, outlined Material icons, and improved accessibility attributes (`aria-expanded`, `role="region"`).
+- **Test Evaluation & Filter Panel Styling**:
+  - Added `hideRequiredMarker` on mandatory filter fields in `test-evaluation.component.html`.
+  - Added `@container (max-width: 650px)` responsive layout for `.review-columns` and `.spin-icon` animation in `test-evaluation.component.scss`.
+  - Updated `.filters-panel .filter-block` spacing and added `.filters-panel .filter-col` styles in `src/styles.scss`.
+
+### Version Tracking
+- Bumped application patch version to `2.6.6` across `version.ts`, `package.json`, `package-lock.json`, and changelog.
+
+---
 ## [2.6.5] - 2026-11-25
 
 ### Features & Enhancements
