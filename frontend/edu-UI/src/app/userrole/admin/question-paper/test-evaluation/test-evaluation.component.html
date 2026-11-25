@@ -99,7 +99,7 @@
 
               <!-- Row 2: Department / Class -->
               <div class="filter-col-full">
-                <mat-form-field appearance="outline" class="filter-item mandatory-field">
+                <mat-form-field appearance="outline" class="filter-item mandatory-field" hideRequiredMarker>
                   <mat-label>{{ terminology.deptLabel }} <span class="required-mark">*</span></mat-label>
                   <mat-select [(ngModel)]="selectedClass" name="filterClass" required
                     [placeholder]="'Select ' + terminology.deptLabel"
@@ -123,7 +123,7 @@
 
               <!-- Row 3: Team / Section -->
               <div class="filter-col-full">
-                <mat-form-field appearance="outline" class="filter-item mandatory-field">
+                <mat-form-field appearance="outline" class="filter-item mandatory-field" hideRequiredMarker>
                   <mat-label>{{ terminology.teamLabel }} <span class="required-mark">*</span></mat-label>
                   <mat-select [(ngModel)]="selectedSection" name="filterSection" required
                     [placeholder]="'Select ' + terminology.teamLabel"
@@ -147,7 +147,7 @@
 
               <!-- Row 4: Subject -->
               <div class="filter-col-full">
-                <mat-form-field appearance="outline" class="filter-item mandatory-field">
+                <mat-form-field appearance="outline" class="filter-item mandatory-field" hideRequiredMarker>
                   <mat-label>Subject <span class="required-mark">*</span></mat-label>
                   <mat-select [(ngModel)]="selectedSubject" name="filterSubject" required
                     placeholder="Select Subject"
@@ -170,7 +170,7 @@
 
               <!-- Row 5: Test Name -->
               <div class="filter-col-full">
-                <mat-form-field appearance="outline" class="filter-item mandatory-field">
+                <mat-form-field appearance="outline" class="filter-item mandatory-field" hideRequiredMarker>
                   <mat-label>Test <span class="required-mark">*</span></mat-label>
                   <mat-select [(ngModel)]="selectedExamId" name="filterTest" required
                     (selectionChange)="onTestChange($event.value)"
