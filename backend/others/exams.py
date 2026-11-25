@@ -1698,13 +1698,13 @@ def update_exam(request):
                                 media_type="image",
                                 file_url=q_img,
                                 order_number=1,
-                                created_by=created_by
+                                created_by=updated_by_user
                             ))
                         elif existing_qm.file_url != q_img:
                             existing_qm.file_url = q_img
 
                     # Sync question answer and option correctness in DB
-                    _sync_question_answer_options(session, qid, q_item, created_by=created_by)
+                    _sync_question_answer_options(session, qid, q_item, created_by=updated_by_user)
 
                     if cat_id:
                         category_counts[cat_id] = category_counts.get(cat_id, 0) + 1
