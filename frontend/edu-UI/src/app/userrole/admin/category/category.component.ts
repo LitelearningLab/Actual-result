@@ -881,7 +881,10 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private formatFilterDate(value: Date): string {
     try {
-      return value.toISOString().slice(0, 10);
+      const y = value.getFullYear();
+      const m = String(value.getMonth() + 1).padStart(2, '0');
+      const d = String(value.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     } catch (e) {
       return String(value || '');
     }
@@ -1522,11 +1525,11 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (this.filterCreationDateAfter) {
-      params = params.set('created_after', this.filterCreationDateAfter.toISOString().slice(0, 10));
+      params = params.set('created_after', this.formatFilterDate(this.filterCreationDateAfter));
     }
 
     if (this.filterCreationDate) {
-      params = params.set('created_before', this.filterCreationDate.toISOString().slice(0, 10));
+      params = params.set('created_before', this.formatFilterDate(this.filterCreationDate));
     }
 
     this.categoriesLoading = true;
@@ -1711,7 +1714,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       try {
         params = params.set(
           'created_after',
-          (this.filterCreationDateAfter as Date).toISOString().slice(0, 10)
+          this.formatFilterDate(this.filterCreationDateAfter as Date)
         );
       } catch (e) {}
     }
@@ -1719,7 +1722,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
       try {
         params = params.set(
           'created_before',
-          (this.filterCreationDate as Date).toISOString().slice(0, 10)
+          this.formatFilterDate(this.filterCreationDate as Date)
         );
       } catch (e) {}
     }

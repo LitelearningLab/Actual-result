@@ -46,7 +46,6 @@
             [class.applied-filter-chip--locked]="!chip.removable" [matTooltip]="chip.tooltip || ''"
             [matTooltipDisabled]="!chip.tooltip" (click)="chip.removable && removeAppliedFilter(chip.key)">
             <span>{{ chip.label }}</span>
-            <!-- <mat-icon *ngIf="chip.removable">close</mat-icon> -->
         </button>
         <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">Clear all</button>
     </div>
@@ -402,8 +401,8 @@
 
                     <!-- No. of Questions Column -->
                     <ng-container matColumnDef="question_count">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header>No. of Questions</th>
-                        <td mat-cell *matCellDef="let element"> {{ element.question_count ?? 0 }} </td>
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header style="text-align: center;">No. of Questions</th>
+                        <td mat-cell *matCellDef="let element" style="text-align: center;"> {{ element.question_count ?? 0 }} </td>
                     </ng-container>
 
                     <!-- Evaluation Column -->

@@ -103,7 +103,13 @@ def get_categories_list(request):
     if args.get("created_after"):
         filter.append(Categories.created_date >= args.get("created_after"))
     if args.get("created_before"):
-        filter.append(Categories.created_date <= args.get("created_before"))
+        raw_before = str(args.get("created_before")).strip()
+        try:
+            from datetime import timedelta
+            parsed_before = datetime.strptime(raw_before[:10], "%Y-%m-%d") + timedelta(days=1)
+            filter.append(Categories.created_date < parsed_before)
+        except Exception:
+            filter.append(Categories.created_date <= raw_before)
     if args.get("departments"):
         departments = [d.strip() for d in args.get("departments").split(",") if d.strip()]
         if departments:
@@ -206,7 +212,13 @@ def get_category_details(request):
     if args.get("created_after"):
         filter.append(Categories.created_date >= args.get("created_after"))
     if args.get("created_before"):
-        filter.append(Categories.created_date <= args.get("created_before"))
+        raw_before = str(args.get("created_before")).strip()
+        try:
+            from datetime import timedelta
+            parsed_before = datetime.strptime(raw_before[:10], "%Y-%m-%d") + timedelta(days=1)
+            filter.append(Categories.created_date < parsed_before)
+        except Exception:
+            filter.append(Categories.created_date <= raw_before)
 
     if args.get("type"):
         t_val = str(args.get("type")).strip().lower()
