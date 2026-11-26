@@ -1,4 +1,19 @@
 # Changelog
+## [2.6.9] - 2026-11-26
+
+### Bug Fixes & Enhancements
+- **Descriptive & Text-Based Question Handling (`backend/others/exams.py`, `backend/others/questions.py`, `create-question-paper.component.ts`)**:
+  - Updated `get_exam_details` and `get_questions_details` to return `options: []` (while keeping `answer` intact) for text-based question types (`descriptive`, `paragraph`, `subjective`, `long_answer`, `short_answer`, `essay`, `description`, `fill`) so stored model answers are not exposed as MCQ choices.
+  - Updated `isDescriptiveQuestion` and section extraction in `create-question-paper.component.ts` to evaluate explicit descriptive/text-based types before checking `options`, clear `options` for descriptive questions, and preserve `'descriptive'` section types.
+- **Question Listing Performance & Institute Filtering (`backend/others/questions.py`, `view-questions.component.ts`)**:
+  - Added a thread-safe one-time guard (`_schema_lock`, `_question_media_schema_ensured`) in `ensure_question_media_schema` so runtime schema checks execute once per worker.
+  - Refactored `get_questions_details` to filter categories and question IDs via SQL subqueries (`_qids_for_cat_query`).
+  - Normalized institute ID comparisons (`.trim().toLowerCase()`) in `isAllowedForInstitute` and removed the `refreshQuestionBankMarkLookup` wrapper during question loading in `view-questions.component.ts`.
+
+### Version Tracking
+- Bumped application patch version to `2.6.9` across `version.ts`, `package.json`, `package-lock.json`, and changelog.
+
+---
 ## [2.6.8] - 2026-11-25
 
 ### Bug Fixes & Stability
