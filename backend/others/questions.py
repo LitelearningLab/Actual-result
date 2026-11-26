@@ -971,15 +971,19 @@ def get_questions_details(request):
                 user_by_id.get(_norm_id(q.updated_by)) if q.updated_by is not None else None
             )
 
-            ans = ""
-            if q.question_type in [
+            q_type_lower = str(q.question_type or "").strip().lower()
+            is_text_based_q = q_type_lower in [
                 "fill",
                 "descriptive",
                 "description",
                 "subjective",
                 "essay",
                 "long_answer",
-            ]:
+                "short_answer",
+                "paragraph",
+            ]
+            ans = ""
+            if is_text_based_q:
                 ans_opt = next(
                     (opt.option_text for opt in options if opt.is_correct == 1), None
                 )
@@ -995,7 +999,7 @@ def get_questions_details(request):
                     "marks": q.marks,
                     "mark_each_question": category.mark_each_question if category else None,
                     "media": media_list,
-                    "options": option_list,
+                    "options": [] if is_text_based_q else option_list,
                     "answer": ans,
                     "answerText": ans,
                     "category_id": mapping.category_id if mapping else None,

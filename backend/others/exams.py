@@ -2972,6 +2972,20 @@ def get_exam_details(request):
                         correct_opt = next((opt for opt in q_opts if opt.is_correct in (1, True, "1")), None)
                         ans_text = (correct_opt.option_text or "").strip() if correct_opt else ""
 
+                        # Descriptive/text-based questions store their model answer in Option;
+                        # do not expose it as an MCQ choice in `options` (keep `answer` intact).
+                        q_type_lower = str(q_obj.question_type or "").strip().lower()
+                        is_text_based_q = q_type_lower in (
+                            "descriptive",
+                            "paragraph",
+                            "subjective",
+                            "long_answer",
+                            "short_answer",
+                            "essay",
+                            "description",
+                            "fill",
+                        )
+
                         sec_questions.append(
                             {
                                 "question_id": str(q_obj.question_id),
@@ -2983,7 +2997,7 @@ def get_exam_details(request):
                                 "answer": ans_text,
                                 "media": media_list,
                                 "image_url": media_list[0]["file_url"] if (media_list and media_list[0].get("file_url")) else "",
-                                "options": opt_list,
+                                "options": [] if is_text_based_q else opt_list,
                                 "category_id": eqm.category_id,
                                 "category_name": cat_name,
                                 "order_number": eqm.order_number,

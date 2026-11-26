@@ -2897,19 +2897,24 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
   }
 
   isDescriptiveQuestion(q: any, secIdx?: number): boolean {
-    // If question has options, it is an objective / multiple-choice question and options must be displayed
-    if (q?.options && Array.isArray(q.options) && q.options.length > 0) {
-      return false;
-    }
     const sec = secIdx !== undefined && this.sections ? this.sections[secIdx] : null;
     const questionType = String(
       q?.type || q?.question_type || sec?.question_type || ''
     ).toLowerCase();
-    return (
+    // Check explicit descriptive/text-based types first so stored model answers
+    // in `q.options` never cause a descriptive question to render as an MCQ.
+    if (
       String(sec?.question_type || '').toLowerCase() === 'descriptive' ||
       questionType.includes('descriptive') ||
-      questionType.includes('subjective')
-    );
+      questionType.includes('subjective') ||
+      ['long_answer', 'short_answer', 'essay', 'paragraph', 'description', 'fill'].includes(questionType)
+    ) {
+      return true;
+    }
+    if (q?.options && Array.isArray(q.options) && q.options.length > 0) {
+      return false;
+    }
+    return false;
   }
 
   estimateQuestionHeight(q: PaperQuestion, sec: PaperSection, isAnswerKey: boolean): number {
@@ -4129,20 +4134,31 @@ export class CreateQuestionPaperComponent implements OnInit, AfterViewInit, OnDe
 
           // Automatically generate template with extracted sections & questions
           this.sections = extractedSections.map((sec: any, idx: number) => {
-            const secQuestions = (sec.questions || []).map((q: any) => ({
-              id: q.id,
-              question: q.question,
-              type: (q.options && q.options.length > 0) ? 'choose' : (q.type || sec.question_type || 'descriptive'),
-              marks: Number(q.marks) || 1,
-              category_id: q.category_id,
-              category_name: q.category_name,
-              options: q.options || [],
-              answer: q.answer || '',
-              image_url: q.image_url || (q.media && q.media[0] ? (q.media[0].file_url || q.media[0].url) : ''),
-              media: q.media || (q.image_url ? [{ media_type: 'image', file_url: q.image_url, url: q.image_url }] : [])
-            }));
-            const hasOptions = secQuestions.some((q: any) => q.options && q.options.length > 0);
-            const resolvedSecType = hasOptions ? 'objective' : (sec.question_type || 'descriptive');
+            const rawSecType = String(sec.question_type || '').toLowerCase();
+            const secQuestions = (sec.questions || []).map((q: any) => {
+              const rawQType = String(q.type || q.question_type || rawSecType || 'descriptive').toLowerCase();
+              const isExplicitDescriptive =
+                rawQType.includes('descriptive') ||
+                rawQType.includes('subjective') ||
+                ['long_answer', 'short_answer', 'essay', 'paragraph', 'description', 'fill'].includes(rawQType);
+              const hasOpts = Array.isArray(q.options) && q.options.length > 0;
+              return {
+                id: q.id,
+                question: q.question,
+                type: isExplicitDescriptive ? rawQType : (hasOpts ? 'choose' : (q.type || sec.question_type || 'descriptive')),
+                marks: Number(q.marks) || 1,
+                category_id: q.category_id,
+                category_name: q.category_name,
+                options: isExplicitDescriptive ? [] : (q.options || []),
+                answer: q.answer || '',
+                image_url: q.image_url || (q.media && q.media[0] ? (q.media[0].file_url || q.media[0].url) : ''),
+                media: q.media || (q.image_url ? [{ media_type: 'image', file_url: q.image_url, url: q.image_url }] : [])
+              };
+            });
+            const hasObjectiveOptions = secQuestions.some((q: any) => q.options && q.options.length > 0);
+            const resolvedSecType = rawSecType === 'descriptive'
+              ? 'descriptive'
+              : (hasObjectiveOptions ? 'objective' : (sec.question_type || 'descriptive'));
 
             return {
               name: sec.name || `Section ${String.fromCharCode(65 + idx)}`,
