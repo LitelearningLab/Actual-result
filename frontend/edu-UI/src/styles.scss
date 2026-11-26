@@ -644,8 +644,23 @@ th.mat-column-description .mat-sort-header-container {
 .custom-paginator .mat-mdc-paginator-page-size-label,
 .custom-paginator .mat-mdc-paginator-range-label { font-size: 0.8125rem; color: var(--theme-3-text-2); font-weight: 500; }
 .custom-paginator .mat-mdc-paginator-range-actions { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
-.custom-paginator .mat-mdc-icon-button { width: 2rem; height: 2rem; border-radius: 0.5rem; }
-.custom-paginator .mat-mdc-icon-button:hover { background: rgba(99, 102, 241, 0.08); }
+.custom-paginator .mat-mdc-icon-button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  --mdc-icon-button-state-layer-size: 2rem;
+}
+.custom-paginator .mat-mdc-icon-button .mat-mdc-button-touch-target,
+.custom-paginator .mat-mdc-icon-button .mat-mdc-button-persistent-ripple {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+}
+.custom-paginator .mat-mdc-icon-button:hover:not(:disabled) { background: rgba(99, 102, 241, 0.08); }
 .custom-paginator .mat-mdc-icon-button:disabled { opacity: 0.4; }
 
 // ════════════════════════════════════════════════════════════════════════════════
