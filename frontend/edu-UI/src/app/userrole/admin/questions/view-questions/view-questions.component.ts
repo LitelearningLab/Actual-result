@@ -1134,7 +1134,10 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
   }
   private formatFilterDate(value: Date): string {
     try {
-      return value.toISOString().slice(0, 10);
+      const y = value.getFullYear();
+      const m = String(value.getMonth() + 1).padStart(2, '0');
+      const d = String(value.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     } catch (e) {
       return String(value || '');
     }
@@ -1920,11 +1923,11 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       params.push(`teams=${encodeURIComponent(this.selectedTeams.join(','))}`);
     if (this.filterCreationDateAfter)
       params.push(
-        `created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`
+        `created_after=${encodeURIComponent(this.formatFilterDate(this.filterCreationDateAfter as Date))}`
       );
     if (this.filterCreationDate)
       params.push(
-        `created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`
+        `created_before=${encodeURIComponent(this.formatFilterDate(this.filterCreationDate as Date))}`
       );
 
     if (this.filterCreatedByMe) {
@@ -2155,14 +2158,14 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
       try {
         url +=
           (url.includes('?') ? '&' : '?') +
-          `created_after=${encodeURIComponent((this.filterCreationDateAfter as Date).toISOString().slice(0, 10))}`;
+          `created_after=${encodeURIComponent(this.formatFilterDate(this.filterCreationDateAfter as Date))}`;
       } catch (e) {}
     }
     if (this.filterCreationDate) {
       try {
         url +=
           (url.includes('?') ? '&' : '?') +
-          `created_before=${encodeURIComponent((this.filterCreationDate as Date).toISOString().slice(0, 10))}`;
+          `created_before=${encodeURIComponent(this.formatFilterDate(this.filterCreationDate as Date))}`;
       } catch (e) {}
     }
 

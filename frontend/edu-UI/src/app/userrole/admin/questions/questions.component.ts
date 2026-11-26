@@ -141,6 +141,7 @@ export class AdminQuestionsComponent {
   aiTargetUsers: string = '';
   topic: string = '';
   targetUsersSubmitted: boolean = false;
+  complexitySubmitted: boolean = false;
 
   get targetUsers(): string {
     return this.aiTargetUsers;
@@ -1034,6 +1035,7 @@ export class AdminQuestionsComponent {
     this.aiPrompt = '';
     this.topic = '';
     this.targetUsersSubmitted = false;
+    this.complexitySubmitted = false;
     this.activeMode = 'ai';
     this.plaintextEditor = false;
     this.selectedSourceFile = null;
@@ -1093,6 +1095,7 @@ export class AdminQuestionsComponent {
     }
 
     if (!this.aiQuestionComplexity || !this.aiQuestionComplexity.trim()) {
+      this.complexitySubmitted = true;
       try {
           notify('Please select a Complexity level', 'error');
       } catch (e) {}

@@ -743,10 +743,18 @@ def get_questions_details(request):
             )
             filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
         if args.get("created_before"):
-            cat_subq = session.query(Categories.category_id).filter(
-                Categories.created_date <= args.get("created_before"),
-                active_cat_filter,
-            )
+            raw_before = str(args.get("created_before")).strip()
+            try:
+                parsed_before = datetime.datetime.strptime(raw_before[:10], "%Y-%m-%d") + datetime.timedelta(days=1)
+                cat_subq = session.query(Categories.category_id).filter(
+                    Categories.created_date < parsed_before,
+                    active_cat_filter,
+                )
+            except Exception:
+                cat_subq = session.query(Categories.category_id).filter(
+                    Categories.created_date <= raw_before,
+                    active_cat_filter,
+                )
             filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
         if args.get("public_access") is not None:
             cat_subq = session.query(Categories.category_id).filter(

@@ -620,7 +620,6 @@
             (click)="chip.removable && removeAppliedFilter(chip.key)"
           >
             <span>{{ chip.label }}</span>
-            <mat-icon *ngIf="chip.removable">close</mat-icon>
           </button>
           <button type="button" class="applied-filter-clear" (click)="clearAppliedFilters()">
             Clear all
@@ -893,15 +892,35 @@
               />
             </mat-form-field>
 
-            <mat-form-field appearance="outline" class="ai-context-field">
-              <mat-label>Complexity</mat-label>
-              <mat-select [(ngModel)]="aiQuestionComplexity">
-                <mat-option value="">Select complexity</mat-option>
-                <mat-option *ngFor="let c of complexityLevels" [value]="c.value">{{
-                  c.label
-                }}</mat-option>
-              </mat-select>
-            </mat-form-field>
+            <div class="field-with-error">
+              <mat-form-field
+                appearance="outline"
+                class="ai-context-field"
+                [class.mat-form-field-invalid]="complexitySubmitted && (!aiQuestionComplexity || !aiQuestionComplexity.trim())"
+              >
+                <mat-label>Complexity <span class="required-star">*</span></mat-label>
+                <mat-select
+                  required
+                  [(ngModel)]="aiQuestionComplexity"
+                  #complexityModel="ngModel"
+                  (selectionChange)="aiQuestionComplexity?.trim() && (complexitySubmitted = false)"
+                >
+                  <mat-option value="">Select complexity</mat-option>
+                  <mat-option *ngFor="let c of complexityLevels" [value]="c.value">{{
+                    c.label
+                  }}</mat-option>
+                </mat-select>
+                <mat-error *ngIf="(complexityModel.invalid || !aiQuestionComplexity?.trim()) && (complexityModel.touched || complexityModel.dirty || complexitySubmitted)">
+                  Complexity is required.
+                </mat-error>
+              </mat-form-field>
+              <div
+                class="field-error-text"
+                *ngIf="complexitySubmitted && (!aiQuestionComplexity || !aiQuestionComplexity.trim())"
+              >
+                Complexity is required.
+              </div>
+            </div>
           </div>
         </div>
 
