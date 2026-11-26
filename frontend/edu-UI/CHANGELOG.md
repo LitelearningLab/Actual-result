@@ -1,4 +1,14 @@
 # Changelog
+## [2.6.11] - 2026-11-26
+
+### Features & Enhancements
+- **Paper-Only Student Redirect Routing (`login.component.ts`, `unauth.guard.ts`)**:
+  - Updated `LoginComponent` and `UnauthGuard.resolveRoute` to inspect `allow_online_test` and `allow_paper_test` from the stored user profile and route paper-only students (`!allowOnline && allowPaper`) to `/user/paper-test-results` instead of `/user/exam`.
+
+### Version Tracking
+- Bumped application patch version to `2.6.11` across `version.ts`, `package.json`, `package-lock.json`, and changelog.
+
+---
 ## [2.6.10] - 2026-11-26
 
 ### Bug Fixes & Enhancements
