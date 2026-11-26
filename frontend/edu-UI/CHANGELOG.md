@@ -1,4 +1,15 @@
 # Changelog
+## [2.6.10] - 2026-11-26
+
+### Bug Fixes & Enhancements
+- **Paper-Mode Exam Analytics (`backend/others/exam_reports.py`)**:
+  - Updated `get_exam_analytics` to detect `test_mode == 'paper'` (`is_paper_mode`) and skip expanding `QuestionMapping` question IDs across entire categories when in paper mode.
+  - Extracted `_build_category_row` and split paper-mode category analytics into separate `objective` and `descriptive` rows based on `question_type`.
+
+### Version Tracking
+- Bumped application patch version to `2.6.10` across `version.ts`, `package.json`, `package-lock.json`, and changelog.
+
+---
 ## [2.6.9] - 2026-11-26
 
 ### Bug Fixes & Enhancements
