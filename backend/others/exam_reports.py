@@ -1127,6 +1127,7 @@ def get_exam_analytics(request):
     attempt_ids = ctx['attempt_ids']
     mode = ctx['mode']
     exam_id = ctx.get('exam_id')
+    is_paper_mode = str(ctx.get('test_mode') or args.get('test_mode') or '').strip().lower() == 'paper'
 
     try:
         t1 = time.perf_counter()
@@ -1156,7 +1157,7 @@ def get_exam_analytics(request):
 
         cat_ids = [m.category_id for m in mappings if m.category_id]
         cat_qids = []
-        if cat_ids:
+        if cat_ids and not is_paper_mode:
             cat_qids = [qm.question_id for qm in session.query(QuestionMapping.question_id).filter(QuestionMapping.category_id.in_(cat_ids)).all()]
 
         if mode == 'daterange':
@@ -1397,23 +1398,24 @@ def get_exam_analytics(request):
         cat_db_objs = session.query(Categories).filter(Categories.category_id.in_(mapped_cat_ids)).all() if mapped_cat_ids else []
         cat_info_map = {str(c.category_id): c for c in cat_db_objs}
 
-        for cat_id in mapped_cat_ids:
-            cat_qs = [q for q in question_summary if q.get('category_id') is not None and str(q.get('category_id')) == str(cat_id)]
-            cat_qids_list = [str(q['question_id']) for q in cat_qs]
+        desc_types = {'descriptive', 'subjective', 'essay', 'paragraph', 'long_answer', 'description'}
 
-            if cat_qs:
-                total_questions = len(cat_qs)
+        def _build_category_row(cat_id, group_qs, forced_type=None):
+            group_qids_list = [str(q['question_id']) for q in group_qs]
+
+            if group_qs:
+                total_questions = len(group_qs)
             else:
                 m = next((mp for mp in mappings if str(mp.category_id) == str(cat_id)), None)
                 total_questions = (m.number_of_questions or 0) if m else 0
 
-            if cat_qids_list:
+            if group_qids_list:
                 cat_participants = set()
                 cat_user_q_attempts = set()
                 total_wrong_answers = 0
                 first_attempt_count = 0
                 second_attempt_count = 0
-                for cqid in cat_qids_list:
+                for cqid in group_qids_list:
                     cat_participants.update(user_attempts_map.get(cqid, set()))
                     for uid, att in user_q_attempts_map.get(cqid, set()):
                         cat_user_q_attempts.add((uid, cqid, att))
@@ -1443,8 +1445,8 @@ def get_exam_analytics(request):
 
             category_name = None
             category_type = None
-            if cat_qs and cat_qs[0].get('category_name'):
-                category_name = cat_qs[0]['category_name']
+            if group_qs and group_qs[0].get('category_name'):
+                category_name = group_qs[0]['category_name']
 
             cat_obj = cat_info_map.get(str(cat_id))
             if cat_obj:
@@ -1452,7 +1454,10 @@ def get_exam_analytics(request):
                     category_name = cat_obj.name
                 category_type = cat_obj.type
 
-            category_rows.append({
+            if forced_type:
+                category_type = forced_type
+
+            return {
                 'category_id': cat_id,
                 'category_name': category_name or str(cat_id),
                 'category_type': category_type or '',
@@ -1466,7 +1471,19 @@ def get_exam_analytics(request):
                 'wrong_answers': int(total_wrong_answers),
                 'error_percentage': round(error_percentage, 2),
                 'impact_percentage': round(impact_percentage, 2)
-            })
+            }
+
+        for cat_id in mapped_cat_ids:
+            cat_qs = [q for q in question_summary if q.get('category_id') is not None and str(q.get('category_id')) == str(cat_id)]
+            if is_paper_mode and cat_qs:
+                obj_qs = [q for q in cat_qs if str(q.get('question_type') or '').strip().lower() not in desc_types]
+                desc_qs = [q for q in cat_qs if str(q.get('question_type') or '').strip().lower() in desc_types]
+                if obj_qs:
+                    category_rows.append(_build_category_row(cat_id, obj_qs, forced_type='objective'))
+                if desc_qs:
+                    category_rows.append(_build_category_row(cat_id, desc_qs, forced_type='descriptive'))
+            else:
+                category_rows.append(_build_category_row(cat_id, cat_qs))
 
         # Build wrong_answer_distribution in memory
         wrong_answer_distribution = []
