@@ -204,7 +204,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
     teams?: any[];
   }> = [];
   dataSource = new MatTableDataSource<any>([]);
-  columns = ['sno', 'name', 'description', 'active', 'actions'];
+  columns = ['sno', 'name', 'description', 'question_count', 'active', 'actions'];
   hasAppliedFilters = false;
   selectedQuestionTypes: string[] = [];
   selectedCities: string[] = [];
@@ -1765,6 +1765,7 @@ export class CategoryComponent implements OnInit, AfterViewInit, OnDestroy {
               typeof it.mark_each_question !== 'undefined'
                 ? it.mark_each_question
                 : (it.mark_for_each_question ?? null),
+            question_count: Number(it.question_count ?? it.questions_count ?? 0),
             active_status:
               typeof it.active_status !== 'undefined' ? it.active_status : (it.active ?? false),
             active:

@@ -240,6 +240,26 @@ def get_category_details(request):
 
     query = session.query(Categories)
     category_details = query.filter(*filter).order_by(Categories.created_date.desc()).distinct().all()
+
+    cat_ids = [c.category_id for c in category_details if c.category_id]
+    question_count_map = {}
+    if cat_ids:
+        for idx in range(0, len(cat_ids), 900):
+            chunk = cat_ids[idx:idx + 900]
+            count_rows = (
+                session.query(
+                    QuestionMapping.category_id,
+                    func.count(func.distinct(QuestionMapping.question_id)),
+                )
+                .join(Question, Question.question_id == QuestionMapping.question_id)
+                .filter(QuestionMapping.category_id.in_(chunk))
+                .group_by(QuestionMapping.category_id)
+                .all()
+            )
+            for cid, cnt in count_rows:
+                if cid is not None:
+                    question_count_map[str(cid).lower()] = int(cnt or 0)
+
     result = []
     for category in category_details:
         # Fetch institute_name based on institute_id
@@ -296,6 +316,7 @@ def get_category_details(request):
             "answer_by": category.answer_by,
             "evaluation": category.evaluation,
             "mark_each_question": category.mark_each_question,
+            "question_count": question_count_map.get(str(category.category_id).lower(), 0),
             "departments": department_details,
             "teams": team_details,
             "active_status": True if category.active_status else False,
