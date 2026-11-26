@@ -1,4 +1,24 @@
 # Changelog
+## [2.6.12] - 2026-11-26
+
+### Features & Enhancements
+- **AI Credits Test Mode Filtering (`backend/others/ai_credits.py`, `ai-credits.component.ts/.html`)**:
+  - Exposed `allow_online_test` and `allow_paper_test` in `get_ai_credits_summary_api` and synchronized them in `AiCreditsComponent` (`syncSelectedInstituteTestModes`, `applyInstituteTestModes`) to dynamically show/hide Paper Tests vs. Online Tests filter buttons and subtitles per institute.
+- **Category Question Counts (`backend/others/category.py`, `category.component.ts/.html`)**:
+  - Added batch `question_count` aggregation in `get_category_details` and a new **No. of Questions** (`question_count`) column in the admin categories table.
+- **AI Question Complexity Validation (`questions.component.ts/.html`)**:
+  - Marked Complexity as required in the AI question generation form with inline validation (`complexitySubmitted`).
+
+### Bug Fixes & UI Polish
+- **Local Date Filter & Inclusive End-Date Handling (`backend/others/category.py`, `backend/others/questions.py`, `category.component.ts`, `view-questions.component.ts`)**:
+  - Updated `formatFilterDate` in `CategoryComponent` and `ViewQuestionsComponent` to format local calendar dates (`YYYY-MM-DD`) instead of UTC `toISOString()`, and updated `created_before` filters in `get_categories_list`, `get_category_details`, and `get_questions_details` to use `< parsed_before + 1 day` so the selected end date is inclusive.
+- **Filter Chips & Paginator Styling (`styles.scss`, `category.component.html`, `questions.component.html`)**:
+  - Updated `.custom-paginator .mat-mdc-icon-button` sizing, alignment, and hover state in `styles.scss`, and removed redundant close icons from applied filter chips in `category.component.html` and `questions.component.html`.
+
+### Version Tracking
+- Bumped application patch version to `2.6.12` across `version.ts`, `package.json`, `package-lock.json`, and changelog.
+
+---
 ## [2.6.11] - 2026-11-26
 
 ### Features & Enhancements
