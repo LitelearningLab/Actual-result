@@ -1085,11 +1085,12 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
     if (!scopedInstitute) return true;
     const itemInstId = this.getItemInstituteId(item);
     if (!itemInstId) return false;
+    const normItemInstId = String(itemInstId).trim().toLowerCase();
     if (scopedInstitute.includes(',')) {
-      const allowed = scopedInstitute.split(',').map((s) => s.trim());
-      return allowed.includes(String(itemInstId));
+      const allowed = scopedInstitute.split(',').map((s) => s.trim().toLowerCase());
+      return allowed.includes(normItemInstId);
     }
-    return String(itemInstId) === String(scopedInstitute);
+    return normItemInstId === String(scopedInstitute).trim().toLowerCase();
   }
   private getInstituteLabel(id: any): string {
     if (!id) return '';
@@ -1955,11 +1956,9 @@ export class ViewQuestionsComponent implements OnDestroy, OnInit {
           const itemInstituteId = this.getItemInstituteId(q);
           return !itemInstituteId || this.isAllowedForInstitute(q, scopedInstitute);
         });
-        this.refreshQuestionBankMarkLookup(() => {
-          this.questions = filteredArr.map((q: any, i: number) => this.mapQuestionRow(q, i));
-          this.dataSource.data = this.questions;
-          this.loading.hide();
-        });
+        this.questions = filteredArr.map((q: any, i: number) => this.mapQuestionRow(q, i));
+        this.dataSource.data = this.questions;
+        this.loading.hide();
       },
       error: (err) => {
         console.warn('Failed to load questions', err);

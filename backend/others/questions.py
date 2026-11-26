@@ -9,6 +9,7 @@ from db.models import (
     User,
     openai_requests,
     InstituteDepartment,
+    InstituteTeam,
     Institute,
 )
 from db.db import SQLiteDB
@@ -17,6 +18,7 @@ import sys
 import pandas as pd
 import json
 import re
+import threading
 import datetime
 import uuid
 import base64
@@ -25,66 +27,78 @@ from others.llm import descriptive_evaluation, openai_client
 from others.gcs_service import gcs_storage
 
 
+_schema_lock = threading.Lock()
+_question_media_schema_ensured = False
+
+
 def ensure_question_media_schema(session):
-    """Ensures QuestionMedia table and Options media columns exist at runtime."""
-    try:
-        create_qm_sql = """
-        IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='QuestionMedia' AND xtype='U')
-        BEGIN
-            CREATE TABLE QuestionMedia (
-                media_id NVARCHAR(50) PRIMARY KEY,
-                question_id NVARCHAR(50) NOT NULL,
-                media_type NVARCHAR(50) NOT NULL,
-                file_url NVARCHAR(1000) NOT NULL,
-                gcs_path NVARCHAR(500) NULL,
-                original_filename NVARCHAR(255) NULL,
-                mime_type NVARCHAR(100) NULL,
-                file_size INT NULL,
-                caption NVARCHAR(500) NULL,
-                order_number INT DEFAULT 1,
-                active_status INT DEFAULT 1,
-                created_by NVARCHAR(50) NULL,
-                created_date DATETIME DEFAULT GETUTCDATE(),
-                updated_by NVARCHAR(50) NULL,
-                updated_date DATETIME NULL
-            );
-            CREATE INDEX IX_QuestionMedia_Question ON QuestionMedia(question_id);
-        END
-        """
-        session.execute(text(create_qm_sql))
-
-        add_opt_img_sql = """
-        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Options') AND name = 'image_url')
-        BEGIN
-            ALTER TABLE Options ADD image_url NVARCHAR(1000) NULL;
-        END
-        """
-        session.execute(text(add_opt_img_sql))
-
-        add_opt_gcs_sql = """
-        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Options') AND name = 'gcs_path')
-        BEGIN
-            ALTER TABLE Options ADD gcs_path NVARCHAR(500) NULL;
-        END
-        """
-        session.execute(text(add_opt_gcs_sql))
-
-        add_qm_play_limit_sql = """
-        IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('QuestionMedia') AND name = 'play_limit')
-        BEGIN
-            ALTER TABLE QuestionMedia ADD play_limit INT DEFAULT 0;
-        END
-        """
-        session.execute(text(add_qm_play_limit_sql))
-        session.commit()
-    except Exception as e:
-        session.rollback()
+    """Ensures QuestionMedia table and Options media columns exist at runtime (once per worker)."""
+    global _question_media_schema_ensured
+    if _question_media_schema_ensured:
+        return
+    with _schema_lock:
+        if _question_media_schema_ensured:
+            return
         try:
-            from db.models import Base
+            create_qm_sql = """
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='QuestionMedia' AND xtype='U')
+            BEGIN
+                CREATE TABLE QuestionMedia (
+                    media_id NVARCHAR(50) PRIMARY KEY,
+                    question_id NVARCHAR(50) NOT NULL,
+                    media_type NVARCHAR(50) NOT NULL,
+                    file_url NVARCHAR(1000) NOT NULL,
+                    gcs_path NVARCHAR(500) NULL,
+                    original_filename NVARCHAR(255) NULL,
+                    mime_type NVARCHAR(100) NULL,
+                    file_size INT NULL,
+                    caption NVARCHAR(500) NULL,
+                    order_number INT DEFAULT 1,
+                    active_status INT DEFAULT 1,
+                    created_by NVARCHAR(50) NULL,
+                    created_date DATETIME DEFAULT GETUTCDATE(),
+                    updated_by NVARCHAR(50) NULL,
+                    updated_date DATETIME NULL
+                );
+                CREATE INDEX IX_QuestionMedia_Question ON QuestionMedia(question_id);
+            END
+            """
+            session.execute(text(create_qm_sql))
 
-            Base.metadata.create_all(session.bind)
-        except Exception:
-            pass
+            add_opt_img_sql = """
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Options') AND name = 'image_url')
+            BEGIN
+                ALTER TABLE Options ADD image_url NVARCHAR(1000) NULL;
+            END
+            """
+            session.execute(text(add_opt_img_sql))
+
+            add_opt_gcs_sql = """
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Options') AND name = 'gcs_path')
+            BEGIN
+                ALTER TABLE Options ADD gcs_path NVARCHAR(500) NULL;
+            END
+            """
+            session.execute(text(add_opt_gcs_sql))
+
+            add_qm_play_limit_sql = """
+            IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('QuestionMedia') AND name = 'play_limit')
+            BEGIN
+                ALTER TABLE QuestionMedia ADD play_limit INT DEFAULT 0;
+            END
+            """
+            session.execute(text(add_qm_play_limit_sql))
+            session.commit()
+            _question_media_schema_ensured = True
+        except Exception as e:
+            session.rollback()
+            try:
+                from db.models import Base
+
+                Base.metadata.create_all(session.bind)
+                _question_media_schema_ensured = True
+            except Exception:
+                pass
 
 
 def upload_question_media(request):
@@ -610,6 +624,11 @@ def get_questions_details(request):
             Categories.is_deleted == 0,
             Categories.is_deleted.is_(None),
         )
+        def _qids_for_cat_query(cat_subq):
+            return session.query(QuestionMapping.question_id).filter(
+                QuestionMapping.category_id.in_(cat_subq)
+            )
+
         institute_scope = _resolve_institute_scope(request)
 
         if institute_scope:
@@ -617,78 +636,37 @@ def get_questions_details(request):
                 inst_ids = [
                     i.strip() for i in str(institute_scope).split(",") if i.strip()
                 ]
-                Category_data = (
-                    session.query(Categories)
-                    .filter(Categories.institute_id.in_(inst_ids), active_cat_filter)
-                    .all()
+                cat_subq = session.query(Categories.category_id).filter(
+                    Categories.institute_id.in_(inst_ids), active_cat_filter
                 )
             else:
-                Category_data = (
-                    session.query(Categories)
-                    .filter(
-                        Categories.institute_id == institute_scope, active_cat_filter
-                    )
-                    .all()
+                cat_subq = session.query(Categories.category_id).filter(
+                    Categories.institute_id == institute_scope, active_cat_filter
                 )
-            Category_list = [c.category_id for c in Category_data]
-            mappingdata = (
-                session.query(QuestionMapping)
-                .filter(QuestionMapping.category_id.in_(Category_list))
-                .all()
-            )
-            question_list = [q.question_id for q in mappingdata]
-            filter.append(
-                Question.question_id.in_(
-                    question_list if question_list else ["__none__"]
-                )
-            )
+            filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
         if args.get("category_name"):
-            category_query = session.query(Categories).filter(
+            cat_subq = session.query(Categories.category_id).filter(
                 Categories.name == f"{args.get('category_name')}", active_cat_filter
             )
             if public_access_arg is not None:
-                category_query = category_query.filter(
-                    Categories.public_access == public_access
-                )
-            category_data = category_query.all()
-            category_list = [c.category_id for c in category_data]
-            mappingdata = (
-                session.query(QuestionMapping)
-                .filter(QuestionMapping.category_id.in_(category_list))
-                .all()
-            )
-            question_list = [q.question_id for q in mappingdata]
-            filter.append(
-                Question.question_id.in_(
-                    question_list if question_list else ["__none__"]
-                )
-            )
+                cat_subq = cat_subq.filter(Categories.public_access == public_access)
+            filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
         if args.get("category_id"):
-            raw_cat_list = args.get("category_id").split(",")
-            active_cats = (
-                session.query(Categories.category_id)
-                .filter(Categories.category_id.in_(raw_cat_list), active_cat_filter)
-                .all()
-            )
-            category_list = [c.category_id for c in active_cats]
-            mappingdata = (
-                session.query(QuestionMapping)
-                .filter(QuestionMapping.category_id.in_(category_list))
-                .all()
-            )
-            question_list = [q.question_id for q in mappingdata]
-            filter.append(
-                Question.question_id.in_(
-                    question_list if question_list else ["__none__"]
+            raw_cat_list = [
+                c.strip() for c in str(args.get("category_id")).split(",") if c.strip()
+            ]
+            if raw_cat_list:
+                cat_subq = session.query(Categories.category_id).filter(
+                    Categories.category_id.in_(raw_cat_list), active_cat_filter
                 )
-            )
+                filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
         if args.get("departments"):
             raw_depts = [
                 d.strip() for d in args.get("departments").split(",") if d.strip()
             ]
             if raw_depts:
                 dept_records = (
-                    session.query(InstituteDepartment)
+                    session.query(InstituteDepartment.department_id, InstituteDepartment.name)
                     .filter(
                         or_(
                             InstituteDepartment.department_id.in_(raw_depts),
@@ -705,149 +683,76 @@ def get_questions_details(request):
                     )
                 )
 
-                dept_cat_ids = [
-                    d.category_id
-                    for d in session.query(CategoriesDepartments)
-                    .filter(CategoriesDepartments.department_id.in_(resolved_dept_ids))
-                    .all()
-                ]
-                all_dept_cat_ids = [
-                    c[0]
-                    for c in session.query(CategoriesDepartments.category_id)
-                    .distinct()
-                    .all()
-                ]
-                cat_query = session.query(Categories.category_id).filter(
+                dept_cat_subq = session.query(CategoriesDepartments.category_id).filter(
+                    CategoriesDepartments.department_id.in_(resolved_dept_ids)
+                )
+                all_dept_cat_subq = session.query(
+                    CategoriesDepartments.category_id
+                ).filter(CategoriesDepartments.category_id.isnot(None))
+                cat_subq = session.query(Categories.category_id).filter(
                     or_(
-                        Categories.category_id.in_(dept_cat_ids),
-                        ~Categories.category_id.in_(all_dept_cat_ids),
+                        Categories.category_id.in_(dept_cat_subq),
+                        ~Categories.category_id.in_(all_dept_cat_subq),
                     ),
                     active_cat_filter,
                 )
-                category_list = [c[0] for c in cat_query.all()]
-                mappingdata = (
-                    session.query(QuestionMapping)
-                    .filter(QuestionMapping.category_id.in_(category_list))
-                    .all()
-                )
-                question_list = [q.question_id for q in mappingdata]
-                filter.append(
-                    Question.question_id.in_(
-                        question_list if question_list else ["__none__"]
-                    )
-                )
+                filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
         if args.get("teams"):
-            team_ids = [t.strip() for t in args.get("teams").split(",") if t.strip()]
-            if team_ids:
-                team_cat_ids = [
-                    t.category_id
-                    for t in session.query(CategoriesTeams)
-                    .filter(CategoriesTeams.team_id.in_(team_ids))
+            raw_teams = [t.strip() for t in args.get("teams").split(",") if t.strip()]
+            if raw_teams:
+                team_records = (
+                    session.query(InstituteTeam.team_id, InstituteTeam.name)
+                    .filter(
+                        or_(
+                            InstituteTeam.team_id.in_(raw_teams),
+                            InstituteTeam.name.in_(raw_teams),
+                        )
+                    )
                     .all()
-                ]
-                all_team_cat_ids = [
-                    t[0]
-                    for t in session.query(CategoriesTeams.category_id).distinct().all()
-                ]
-                cat_query = session.query(Categories.category_id).filter(
+                )
+                resolved_team_ids = list(
+                    set(
+                        [t.team_id for t in team_records]
+                        + [t.name for t in team_records]
+                        + raw_teams
+                    )
+                )
+                team_cat_subq = session.query(CategoriesTeams.category_id).filter(
+                    CategoriesTeams.team_id.in_(resolved_team_ids)
+                )
+                all_team_cat_subq = session.query(CategoriesTeams.category_id).filter(
+                    CategoriesTeams.category_id.isnot(None)
+                )
+                cat_subq = session.query(Categories.category_id).filter(
                     or_(
-                        Categories.category_id.in_(team_cat_ids),
-                        ~Categories.category_id.in_(all_team_cat_ids),
+                        Categories.category_id.in_(team_cat_subq),
+                        ~Categories.category_id.in_(all_team_cat_subq),
                     ),
                     active_cat_filter,
                 )
-                category_list = [c[0] for c in cat_query.all()]
-                mappingdata = (
-                    session.query(QuestionMapping)
-                    .filter(QuestionMapping.category_id.in_(category_list))
-                    .all()
-                )
-                question_list = [q.question_id for q in mappingdata]
-                filter.append(
-                    Question.question_id.in_(
-                        question_list if question_list else ["__none__"]
-                    )
-                )
+                filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
         if args.get("created_by"):
-            category_data = (
-                session.query(Categories)
-                .filter(
-                    Categories.created_by == args.get("created_by"), active_cat_filter
-                )
-                .all()
+            cat_subq = session.query(Categories.category_id).filter(
+                Categories.created_by == args.get("created_by"), active_cat_filter
             )
-            category_list = [c.category_id for c in category_data]
-            mappingdata = (
-                session.query(QuestionMapping)
-                .filter(QuestionMapping.category_id.in_(category_list))
-                .all()
-            )
-            question_list = [q.question_id for q in mappingdata]
-            filter.append(
-                Question.question_id.in_(
-                    question_list if question_list else ["__none__"]
-                )
-            )
+            filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
         if args.get("created_after"):
-            category_data = (
-                session.query(Categories)
-                .filter(
-                    Categories.created_date >= args.get("created_after"),
-                    active_cat_filter,
-                )
-                .all()
+            cat_subq = session.query(Categories.category_id).filter(
+                Categories.created_date >= args.get("created_after"),
+                active_cat_filter,
             )
-            category_list = [c.category_id for c in category_data]
-            mappingdata = (
-                session.query(QuestionMapping)
-                .filter(QuestionMapping.category_id.in_(category_list))
-                .all()
-            )
-            question_list = [q.question_id for q in mappingdata]
-            filter.append(
-                Question.question_id.in_(
-                    question_list if question_list else ["__none__"]
-                )
-            )
+            filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
         if args.get("created_before"):
-            category_data = (
-                session.query(Categories)
-                .filter(
-                    Categories.created_date <= args.get("created_before"),
-                    active_cat_filter,
-                )
-                .all()
+            cat_subq = session.query(Categories.category_id).filter(
+                Categories.created_date <= args.get("created_before"),
+                active_cat_filter,
             )
-            category_list = [c.category_id for c in category_data]
-            mappingdata = (
-                session.query(QuestionMapping)
-                .filter(QuestionMapping.category_id.in_(category_list))
-                .all()
-            )
-            question_list = [q.question_id for q in mappingdata]
-            filter.append(
-                Question.question_id.in_(
-                    question_list if question_list else ["__none__"]
-                )
-            )
+            filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
         if args.get("public_access") is not None:
-            category_data = (
-                session.query(Categories)
-                .filter(Categories.public_access == public_access, active_cat_filter)
-                .all()
+            cat_subq = session.query(Categories.category_id).filter(
+                Categories.public_access == public_access, active_cat_filter
             )
-            category_list = [c.category_id for c in category_data]
-            mappingdata = (
-                session.query(QuestionMapping)
-                .filter(QuestionMapping.category_id.in_(category_list))
-                .all()
-            )
-            question_list = [q.question_id for q in mappingdata]
-            filter.append(
-                Question.question_id.in_(
-                    question_list if question_list else ["__none__"]
-                )
-            )
+            filter.append(Question.question_id.in_(_qids_for_cat_query(cat_subq)))
 
         if args.get("type"):
             raw_types = [
@@ -885,76 +790,146 @@ def get_questions_details(request):
                     type_conditions.extend(
                         [
                             "descriptive",
+                            "description",
                             "paragraph",
                             "subjective",
                             "essay",
                             "long_answer",
+                            "short_answer",
                         ]
                     )
                     cat_type_conditions.extend(
                         [
                             "descriptive",
+                            "description",
                             "paragraph",
                             "subjective",
                             "essay",
                             "long_answer",
+                            "short_answer",
                         ]
                     )
                 else:
                     type_conditions.append(t_val)
                     cat_type_conditions.append(t_val)
             if type_conditions:
-                cat_ids_with_type = [
-                    c[0]
-                    for c in session.query(Categories.category_id)
-                    .filter(Categories.type.in_(cat_type_conditions), active_cat_filter)
-                    .all()
-                ]
-                mapping_with_type = (
-                    [
-                        m.question_id
-                        for m in session.query(QuestionMapping.question_id)
-                        .filter(QuestionMapping.category_id.in_(cat_ids_with_type))
-                        .all()
-                    ]
-                    if cat_ids_with_type
-                    else []
+                cat_ids_with_type_subq = session.query(Categories.category_id).filter(
+                    Categories.type.in_(cat_type_conditions), active_cat_filter
                 )
+                mapping_with_type_subq = session.query(
+                    QuestionMapping.question_id
+                ).filter(QuestionMapping.category_id.in_(cat_ids_with_type_subq))
                 filter.append(
                     or_(
                         Question.question_type.in_(type_conditions),
-                        Question.question_id.in_(mapping_with_type),
+                        Question.question_id.in_(mapping_with_type_subq),
                     )
                 )
 
         ensure_question_media_schema(session)
         questions = session.query(Question).filter(*filter).all()
-        question_list = []
-        for q in questions:
-            # Get category information for this question & ensure category is active
-            mapping = (
+        if not questions:
+            return {"status": True, "data": [], "total": 0}, 200
+
+        def _chunked(seq, size=900):
+            for idx in range(0, len(seq), size):
+                yield seq[idx : idx + size]
+
+        def _norm_id(val):
+            return str(val).lower() if val is not None else ""
+
+        raw_qids = list(dict.fromkeys(q.question_id for q in questions if q.question_id is not None))
+
+        # 1. Bulk-fetch QuestionMapping (keep first mapping per question_id, matching .first())
+        mapping_by_qid = {}
+        for chunk in _chunked(raw_qids):
+            for m in (
                 session.query(QuestionMapping)
-                .filter_by(question_id=q.question_id)
-                .first()
+                .filter(QuestionMapping.question_id.in_(chunk))
+                .all()
+            ):
+                key = _norm_id(m.question_id)
+                if key not in mapping_by_qid:
+                    mapping_by_qid[key] = m
+
+        # 2. Bulk-fetch active Categories
+        raw_cat_ids = list(
+            dict.fromkeys(
+                m.category_id for m in mapping_by_qid.values() if m.category_id is not None
             )
+        )
+        category_by_id = {}
+        for chunk in _chunked(raw_cat_ids):
+            for c in (
+                session.query(Categories)
+                .filter(Categories.category_id.in_(chunk), active_cat_filter)
+                .all()
+            ):
+                category_by_id[_norm_id(c.category_id)] = c
+
+        # Only fetch media/options/users for questions that have an active mapping & category
+        valid_questions = []
+        for q in questions:
+            mapping = mapping_by_qid.get(_norm_id(q.question_id))
             if not mapping:
                 continue
-            category = (
-                session.query(Categories)
-                .filter(
-                    Categories.category_id == mapping.category_id, active_cat_filter
-                )
-                .first()
-            )
+            category = category_by_id.get(_norm_id(mapping.category_id))
             if not category:
                 continue
+            valid_questions.append((q, mapping, category))
 
-            q_media = (
+        if not valid_questions:
+            return {"status": True, "data": [], "total": 0}, 200
+
+        valid_qids = list(dict.fromkeys(q.question_id for q, _, _ in valid_questions))
+
+        # 3. Bulk-fetch QuestionMedia
+        media_by_qid = {}
+        for chunk in _chunked(valid_qids):
+            for m in (
                 session.query(QuestionMedia)
-                .filter_by(question_id=q.question_id, active_status=1)
+                .filter(QuestionMedia.question_id.in_(chunk), QuestionMedia.active_status == 1)
                 .order_by(QuestionMedia.order_number.asc())
                 .all()
-            )
+            ):
+                media_by_qid.setdefault(_norm_id(m.question_id), []).append(m)
+
+        # 4. Bulk-fetch Options
+        options_by_qid = {}
+        for chunk in _chunked(valid_qids):
+            for opt in (
+                session.query(Option)
+                .filter(Option.question_id.in_(chunk), Option.active_status == 1)
+                .all()
+            ):
+                options_by_qid.setdefault(_norm_id(opt.question_id), []).append(opt)
+
+        # 5. Bulk-fetch Users (created_by and updated_by together)
+        raw_user_ids = []
+        seen_user_keys = set()
+        for q, _, _ in valid_questions:
+            for uid in (q.created_by, q.updated_by):
+                if uid is None:
+                    continue
+                ukey = _norm_id(uid)
+                if not ukey or ukey in seen_user_keys:
+                    continue
+                try:
+                    uuid.UUID(str(uid))
+                    seen_user_keys.add(ukey)
+                    raw_user_ids.append(uid)
+                except (ValueError, TypeError):
+                    pass
+
+        user_by_id = {}
+        for chunk in _chunked(raw_user_ids):
+            for u in session.query(User).filter(User.user_id.in_(chunk)).all():
+                user_by_id[_norm_id(u.user_id)] = u
+
+        question_list = []
+        for q, mapping, category in valid_questions:
+            q_key = _norm_id(q.question_id)
+            q_media = media_by_qid.get(q_key, [])
             media_list = [
                 {
                     "media_id": str(m.media_id),
@@ -976,11 +951,7 @@ def get_questions_details(request):
                 for m in q_media
             ]
 
-            options = (
-                session.query(Option)
-                .filter_by(question_id=q.question_id, active_status=1)
-                .all()
-            )
+            options = options_by_qid.get(q_key, [])
             option_list = [
                 {
                     "id": opt.options_id,
@@ -993,17 +964,12 @@ def get_questions_details(request):
                 for opt in options
             ]
 
-            # get user info for created_by and updated_by
-            created_by_user = None
-            if q.created_by is not None:
-                created_by_user = (
-                    session.query(User).filter_by(user_id=q.created_by).first()
-                )
-            updated_by_user = None
-            if q.updated_by is not None:
-                updated_by_user = (
-                    session.query(User).filter_by(user_id=q.updated_by).first()
-                )
+            created_by_user = (
+                user_by_id.get(_norm_id(q.created_by)) if q.created_by is not None else None
+            )
+            updated_by_user = (
+                user_by_id.get(_norm_id(q.updated_by)) if q.updated_by is not None else None
+            )
 
             ans = ""
             if q.question_type in [
@@ -1027,6 +993,7 @@ def get_questions_details(request):
                     "text": q.question_text,
                     "type": q.question_type,
                     "marks": q.marks,
+                    "mark_each_question": category.mark_each_question if category else None,
                     "media": media_list,
                     "options": option_list,
                     "answer": ans,
