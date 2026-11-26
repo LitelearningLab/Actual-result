@@ -86,7 +86,23 @@ export class LoginComponent implements OnDestroy {
       if (result.ok) {
         this.stopLockoutCountdown();
         let role = '';
-        try{ const raw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile'); const u = raw ? JSON.parse(raw) : null; role = u?.role || sessionStorage.getItem('userRole') || ''; }catch(e){}
+        let studentDefaultRoute = '/user/exam';
+        try {
+          const raw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
+          const u = raw ? JSON.parse(raw) : null;
+          role = u?.role || sessionStorage.getItem('userRole') || '';
+          const allowOnline =
+            u?.allow_online_test !== undefined && u?.allow_online_test !== null
+              ? !!u.allow_online_test
+              : true;
+          const allowPaper =
+            u?.allow_paper_test !== undefined && u?.allow_paper_test !== null
+              ? !!u.allow_paper_test
+              : true;
+          if (!allowOnline && allowPaper) {
+            studentDefaultRoute = '/user/paper-test-results';
+          }
+        } catch (e) {}
         role = (role || '').toLowerCase();
         if (role === 'super-admin' || role === 'superadmin' || role === 'super_admin') {
           this.router.navigate(['/super-admin-dashboard']);
@@ -94,7 +110,7 @@ export class LoginComponent implements OnDestroy {
           this.router.navigate(['/admin-dashboard']);
         } else {
           // this.router.navigate(['/user-dashboard']);
-          this.router.navigate(['/user/exam']);
+          this.router.navigate([studentDefaultRoute]);
         }
       } else {
         this.loader.hide();

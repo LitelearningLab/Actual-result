@@ -19,10 +19,22 @@ export class UnauthGuard implements CanActivate {
   private resolveRoute(): boolean | UrlTree {
     if (this.auth.isLoggedIn) {
       let role = '';
+      let studentDefaultRoute = '/user/exam';
       try {
         const raw = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
         const u = raw ? JSON.parse(raw) : null;
         role = u?.role || sessionStorage.getItem('userRole') || '';
+        const allowOnline =
+          u?.allow_online_test !== undefined && u?.allow_online_test !== null
+            ? !!u.allow_online_test
+            : true;
+        const allowPaper =
+          u?.allow_paper_test !== undefined && u?.allow_paper_test !== null
+            ? !!u.allow_paper_test
+            : true;
+        if (!allowOnline && allowPaper) {
+          studentDefaultRoute = '/user/paper-test-results';
+        }
       } catch (e) {}
       role = (role || '').toLowerCase();
 
@@ -32,7 +44,7 @@ export class UnauthGuard implements CanActivate {
         return this.router.parseUrl('/admin-dashboard');
       }
       // return this.router.parseUrl('/user-dashboard');
-      return this.router.parseUrl('/user/exam');
+      return this.router.parseUrl(studentDefaultRoute);
     }
     return true;
   }
