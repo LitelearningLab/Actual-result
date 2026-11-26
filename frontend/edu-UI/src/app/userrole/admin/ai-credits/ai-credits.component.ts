@@ -52,6 +52,8 @@ interface CreditSummary {
   total_operations: number;
   is_low_credit: boolean;
   alert_threshold: number;
+  allow_online_test?: boolean;
+  allow_paper_test?: boolean;
 }
 
 export interface FeatureColumnItem {
@@ -169,6 +171,8 @@ export interface InstituteOption {
   short_name?: string;
   industry_type?: string;
   industry_sector?: string;
+  allow_online_test?: boolean;
+  allow_paper_test?: boolean;
 }
 
 export interface TestFeatureItem {
@@ -282,6 +286,8 @@ interface InstituteMasterRecord {
   industry_type: string;
   industry_sector: string;
   active_status: boolean;
+  allow_online_test: boolean;
+  allow_paper_test: boolean;
   country_codes: string[];
   country_names: string[];
   cities: string[];
@@ -440,6 +446,8 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   }
 
   testTypeFilter: 'paper' | 'online' = 'paper';
+  allowOnlineTest = true;
+  allowPaperTest = true;
   testSearchTerm = '';
 
   testPageIndex = 0;
@@ -1072,7 +1080,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.pageMeta.setMeta('AI Credits', 'Quota allocation, consumption, and status');
 
-    const userStr = sessionStorage.getItem('user');
+    const userStr = sessionStorage.getItem('user') || sessionStorage.getItem('user_profile');
     if (userStr) {
       try {
         const user = JSON.parse(userStr);
@@ -1080,6 +1088,9 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         this.isSuperAdmin = role.includes('super');
         this.loggedInstituteId = String(user.institute_id || '').trim();
         this.loggedIndustryType = String(user.industry_type || user.industry || '').trim();
+        if (!this.isSuperAdmin) {
+          this.applyInstituteTestModes(user.allow_online_test, user.allow_paper_test);
+        }
         [user.user_id, user.id, user.userId, user.user_name, user.username, user.email, user.full_name, user.name]
           .filter((v) => v !== null && v !== undefined && String(v).trim() !== '')
           .forEach((v) => this.currentUserIdentifiers.add(String(v).trim().toLowerCase()));
@@ -1107,6 +1118,50 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.loadTestUsageData();
   }
 
+  private applyInstituteTestModes(allowOnline?: boolean | null, allowPaper?: boolean | null): void {
+    if (allowOnline !== undefined && allowOnline !== null) {
+      this.allowOnlineTest = !!allowOnline;
+    }
+    if (allowPaper !== undefined && allowPaper !== null) {
+      this.allowPaperTest = !!allowPaper;
+    }
+
+    if (this.allowPaperTest && !this.allowOnlineTest && this.testTypeFilter !== 'paper') {
+      this.testTypeFilter = 'paper';
+      this.hasAppliedFilters = false;
+      this.appliedFilters = this.createEmptyFilters();
+      this.draftFilters = this.createEmptyFilters();
+      this.filterValidationAttempted = false;
+      this.filterValidationError = '';
+      this.testSearchTerm = '';
+      this.refreshAppliedFilterChips();
+    } else if (this.allowOnlineTest && !this.allowPaperTest && this.testTypeFilter !== 'online') {
+      this.testTypeFilter = 'online';
+      this.hasAppliedFilters = false;
+      this.appliedFilters = this.createEmptyFilters();
+      this.draftFilters = this.createEmptyFilters();
+      this.filterValidationAttempted = false;
+      this.filterValidationError = '';
+      this.testSearchTerm = '';
+      this.refreshAppliedFilterChips();
+    }
+  }
+
+  private syncSelectedInstituteTestModes(): void {
+    if (!this.isSuperAdmin) return;
+    if (!this.selectedInstituteId || this.selectedInstituteId === 'all') {
+      this.applyInstituteTestModes(true, true);
+      return;
+    }
+    const inst = this.institutesList.find((i) => i.institute_id === this.selectedInstituteId);
+    if (inst) {
+      this.applyInstituteTestModes(
+        inst.allow_online_test !== undefined && inst.allow_online_test !== null ? inst.allow_online_test : true,
+        inst.allow_paper_test !== undefined && inst.allow_paper_test !== null ? inst.allow_paper_test : true
+      );
+    }
+  }
+
   onInstituteChange(instId: string): void {
     this.closeInstFiltersOverlay();
     this.selectedInstituteId = instId;
@@ -1116,6 +1171,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.filterValidationAttempted = false;
     this.filterValidationError = '';
     this.lastLoadedMasterInstKey = null;
+    this.syncSelectedInstituteTestModes();
     this.refreshTerminology();
     this.refreshDraftOptions();
     this.loadAllData();
@@ -1130,6 +1186,7 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
     this.filterValidationAttempted = false;
     this.filterValidationError = '';
     this.lastLoadedMasterInstKey = null;
+    this.syncSelectedInstituteTestModes();
     this.refreshTerminology();
     this.refreshDraftOptions();
     this.loadAllData();
@@ -1882,6 +1939,8 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
             industry_type: String(r.industry_type || r.industry || '').trim(),
             industry_sector: String(r.industry_sector || r.sector || '').trim(),
             active_status: r.active_status !== undefined ? !!r.active_status : true,
+            allow_online_test: r.allow_online_test !== undefined && r.allow_online_test !== null ? !!r.allow_online_test : true,
+            allow_paper_test: r.allow_paper_test !== undefined && r.allow_paper_test !== null ? !!r.allow_paper_test : true,
             country_codes: Array.from(cCodes),
             country_names: Array.from(cNames),
             cities: Array.from(citiesSet),
@@ -1901,9 +1960,12 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
           short_name: rec.short_name,
           industry_type: rec.industry_type,
           industry_sector: rec.industry_sector,
+          allow_online_test: rec.allow_online_test,
+          allow_paper_test: rec.allow_paper_test,
         }));
         this.loadingInstFilterOptions = false;
         this.loadingInstCountries = false;
+        this.syncSelectedInstituteTestModes();
         this.refreshTerminology();
         this.refreshInstDraftOptions();
         this.refreshInstAppliedFilterChips();
@@ -2476,6 +2538,12 @@ export class AiCreditsComponent implements OnInit, OnDestroy {
         next: (res) => {
           if (res && res.status && res.data) {
             this.summary = res.data;
+            const prevType = this.testTypeFilter;
+            this.applyInstituteTestModes(res.data.allow_online_test, res.data.allow_paper_test);
+            if (prevType !== this.testTypeFilter) {
+              this.refreshDraftOptions();
+              this.loadTestUsageData();
+            }
             if (!this.isSuperAdmin && res.data.institute_id && res.data.institute_id !== 'all') {
               const prevInst = this.loggedInstituteId;
               this.loggedInstituteId = res.data.institute_id;

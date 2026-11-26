@@ -731,7 +731,9 @@ def get_ai_credits_summary_api():
                     "is_exhausted": is_exhausted,
                     "credit_tier": credit_tier,
                     "status": status,
-                    "alert_threshold": alert_threshold
+                    "alert_threshold": alert_threshold,
+                    "allow_online_test": True,
+                    "allow_paper_test": True
                 }
             }), 200
 
@@ -775,6 +777,9 @@ def get_ai_credits_summary_api():
         is_critical_credit = credit_tier in ("critical", "exhausted")
         is_exhausted = credit_tier == "exhausted"
 
+        allow_online_test = bool(inst.allow_online_test) if inst and getattr(inst, "allow_online_test", None) is not None else True
+        allow_paper_test = bool(inst.allow_paper_test) if inst and getattr(inst, "allow_paper_test", None) is not None else True
+
         session.close()
         return jsonify({
             "status": True,
@@ -796,7 +801,9 @@ def get_ai_credits_summary_api():
                 "is_exhausted": is_exhausted,
                 "credit_tier": credit_tier,
                 "status": status,
-                "alert_threshold": alert_threshold
+                "alert_threshold": alert_threshold,
+                "allow_online_test": allow_online_test,
+                "allow_paper_test": allow_paper_test
             }
         }), 200
     except Exception as e:

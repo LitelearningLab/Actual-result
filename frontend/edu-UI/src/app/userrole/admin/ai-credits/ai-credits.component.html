@@ -650,7 +650,15 @@
         <mat-icon class="section-icon">quiz</mat-icon>
         <div>
           <h3>Test & Paper Evaluation AI Usage</h3>
-          <p class="chart-subtitle">Track AI credits consumed for each physical paper evaluation and online test</p>
+          <p class="chart-subtitle">
+            {{
+              allowPaperTest && !allowOnlineTest
+                ? 'Track AI credits consumed for each physical paper evaluation'
+                : !allowPaperTest && allowOnlineTest
+                ? 'Track AI credits consumed for each online test'
+                : 'Track AI credits consumed for each physical paper evaluation and online test'
+            }}
+          </p>
         </div>
       </div>
     </div>
@@ -681,8 +689,9 @@
     <!-- Filters & Controls Bar -->
     <div class="test-controls-bar">
       <!-- Row 1: Paper Tests / Online Tests Tabs -->
-      <div class="type-filter-group">
+      <div class="type-filter-group" *ngIf="allowPaperTest || allowOnlineTest">
         <button
+          *ngIf="allowPaperTest"
           type="button"
           class="test-filter-btn"
           [class.active]="testTypeFilter === 'paper'"
@@ -691,6 +700,7 @@
           📄 Paper Tests
         </button>
         <button
+          *ngIf="allowOnlineTest"
           type="button"
           class="test-filter-btn"
           [class.active]="testTypeFilter === 'online'"
